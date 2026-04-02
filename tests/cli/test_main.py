@@ -10,8 +10,8 @@ runner = CliRunner()
 def test_version_exits_zero_and_prints_version():
     result = runner.invoke(app, ["--version"])
     assert result.exit_code == 0
-    expected_version = importlib.metadata.version("b76")
-    assert f"b76 version {expected_version}" in result.output
+    expected_version = importlib.metadata.version("nouse")
+    assert f"nouse version {expected_version}" in result.output
 
 
 def test_help_exits_zero():
@@ -28,8 +28,8 @@ def test_help_exits_zero():
 def test_no_args_shows_help():
     result = runner.invoke(app, [])
     assert result.exit_code == 0
-    assert "B76 Front Door" in result.output
-    assert "b76 start me" in result.output
+    assert "Nouse Front Door" in result.output
+    assert "nouse start me" in result.output
 
 
 def test_hitl_status_runs():

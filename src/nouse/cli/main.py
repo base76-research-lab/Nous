@@ -95,7 +95,7 @@ def _edge_assumptions(step: dict) -> list[str]:
 def _print_front_door() -> None:
     console.print(
         Panel(
-            "[bold cyan]B76 Front Door[/bold cyan]\n"
+            "[bold cyan]Nouse Front Door[/bold cyan]\n"
             "En väg in. Tre lägen utifrån hur du vill arbeta just nu.",
             border_style="cyan",
         )
@@ -106,22 +106,22 @@ def _print_front_door() -> None:
     table.add_column("När du använder det")
     table.add_row(
         "Me",
-        "b76 start me",
+        "nouse start me",
         "Direkt samtal med hjärnan i din session (operatorfokus).",
     )
     table.add_row(
         "Research",
-        "b76 start research",
+        "nouse start research",
         "Dashboard och research-observabilitet (scorecard, traces, metrics).",
     )
     table.add_row(
         "Autonomy",
-        "b76 start autonomy",
+        "nouse start autonomy",
         "Ingress/autonomi-läge (Clawbot, system-events, wake-signaler).",
     )
     console.print(table)
     console.print(
-        "\n[dim]Snabbvägar: `b76 brain state` · `b76 clawbot status --channel ops` · `b76 --help`[/dim]"
+        "\n[dim]Snabbvägar: `nouse brain state` · `nouse clawbot status --channel ops` · `nouse --help`[/dim]"
     )
 
 
@@ -209,7 +209,7 @@ def daemon(
         if daemon_running():
             _print_already_running()
             return
-        console.print("[green]Startar b76 brain loop...[/green]")
+        console.print("[green]Startar nouse brain loop...[/green]")
         _run_or_explain()
     elif action == "web":
         if daemon_running():
@@ -318,8 +318,8 @@ def start_mode(
         )
     )
     console.print(
-        "[dim]Nästa: `b76 clawbot allowlist --channel ops` eller "
-        "`b76 clawbot ingest --channel ops --actor-id <id> --text \"...\"`[/dim]"
+        "[dim]Nästa: `nouse clawbot allowlist --channel ops` eller "
+        "`nouse clawbot ingest --channel ops --actor-id <id> --text \"...\"`[/dim]"
     )
 
 
@@ -515,7 +515,7 @@ def _chat_via_api(*, session_id: str = "main", show_background: bool = False) ->
 
     s = get_status()
     console.print(Panel(
-        f"[bold cyan]b76 brain[/bold cyan]  {s['concepts']} koncept · "
+        f"[bold cyan]nouse brain[/bold cyan]  {s['concepts']} koncept · "
         f"{s['relations']} relationer · {len(s['domains'])} domäner\n"
         f"[dim]λ={s['lambda']}  arousal={s['arousal']}  cykel={s['cycle']}[/dim]\n"
         "[dim]'exit' för att avsluta[/dim]",
@@ -4317,7 +4317,7 @@ def main(
         is_eager=True,
     ),
 ) -> None:
-    """b76 — local multi-agent society on the FNC framework."""
+    """nouse — local multi-agent society on the FNC framework."""
     if ctx.invoked_subcommand is None:
         _print_front_door()
         raise typer.Exit()

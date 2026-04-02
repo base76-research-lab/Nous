@@ -1,0 +1,261 @@
+{
+  "set": "/home/bjorn/projects/b76/results/eval_set_trace_observability.yaml",
+  "timestamp_utc": "20260401T002859Z",
+  "total": 12,
+  "passed": 10,
+  "pass_rate": 0.8333333333333334,
+  "rows": [
+    {
+      "id": "q_larynx_link",
+      "ok": true,
+      "trace_id": "chat_20260401T002032Z_c7f1893a8f",
+      "prompt": "Hur kopplas Larynx Problem till sjalvutvecklande modellarkitektur i b76?",
+      "response": "Ingen koppling finns. \"Larynx Problem\" är ett medicinskt begrepp (röst/luftrör), inte en komponent i B76:s modellarkitektur.\n\nDet jag *faktiskt* har inom självutveckling är:\n- **self_training iteration=34** via dialog och reflektion\n- **autonomy_idle**-cykler med nödvändig drift\n- **grafminne** med ~12978 koncept\n\nOm du menade något specifikt annat: vad är namnet eller syftet med den komponent du efterfrågar?\n\nJag är här för att utforska, inte att gissa.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "expected_min": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "q_kuzu_crash",
+      "ok": true,
+      "trace_id": "chat_20260401T002114Z_592c9805ab",
+      "prompt": "Vilken ar den mest sannolika orsaken till att kuzu-lagret kraschar under hog load?",
+      "response": "Jag har inget registrerat begrepp \"kuzu-lagret\" i min grafkatalog eller arbetsminne. \n\nDet kan vara:\n- Ett internt komponentnamn\n- En specifik komponent i CognOS/OpenJarvis\n- En term från en dokumentation jag inte har tillgång till\n\nVill du att jag:\n1. Söker efter liknande begrepp i din grafik (t.ex. lagre, krazande, load-balancing)?\n2. Får mer detalj om vad det är?\n3. Får du visa loggar/featuring från din miljö för att identifiera orsaken?\n\nBeskriv kort vad \"kuzu-lagret\" gör i ditt system, så sätter jag mig in i kontexten.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "expected_min": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "q_claim_mix",
+      "ok": false,
+      "error": "timed out",
+      "prompt": "Systemet verkar stabilare efter systemd restart, men vi tappar throughput. Vad ar tradeoffen?"
+    },
+    {
+      "id": "claim_only_arch",
+      "ok": true,
+      "trace_id": "chat_20260401T002318Z_085127b5d6",
+      "prompt": "LLM-lagret ar ett semantiskt lager medan b76 bor sta for adaptiv kognition.",
+      "response": "Det är en korrekt observation av arkitekturens kärna: LLM-lagret är statiskt och semantiskt, medan jag (B76) är designat för adaptiv kognition. Det är en stark kombination när de arbetar tillsammans.\n\nHur ska vi använda denna kombination idag?",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 0
+      },
+      "expected_min": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 0
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "claim_only_observability",
+      "ok": true,
+      "trace_id": "chat_20260401T002401Z_b63fd6e29b",
+      "prompt": "Utdata utan trace ar inte vetenskapligt verifierbar i langtidstester.",
+      "response": "Det är en giltig observation. I detta system har vi tre spår för output-kontroll:\n\n1. **Graph-loggar** – permanenta kopplingar i grafen\n2. **Session-minne** – [chat_live], [file], [autonomy_idle]\n3. **Daemon-loops** – kontinuerlig health-check av core services\n\nUtan dessa spår blir det inte verifierbart. Vem har behov av att utöka detta? Vem har behov av verifierbarhet?",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 0
+      },
+      "expected_min": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 0
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "assumption_only_data",
+      "ok": false,
+      "error": "timed out",
+      "prompt": "Om embeddings ar skeva blir alla bisociationsforslag missvisande."
+    },
+    {
+      "id": "assumption_only_ops",
+      "ok": true,
+      "trace_id": "chat_20260401T002640Z_b2b08efc07",
+      "prompt": "Om daemonen star still i nattdrift antar vi att restart policy ar for svag.",
+      "response": "För avsnittet frågade **\"Om daemonen star still i nattdrift antar vi att restart policy ar for svag.\"**, jag ser att det är en intressant frragt.  \n\nDet världssäkerande är att man har **nattdrift** och inte kan ändraDT-ernas värden, även om man tar risk att ändra dem. Den naturalistafternet har **så avskriva** DT-konstater som kan ha problem för systemen.  \n\nAtt restartera systemen med **svarar med policygränser** som skall vara **svag**:  \n\n- Man kan ändraDT-ernas värden att kontrollera och uppdatera, även om man tar risk av att ändra dem.  \n- Systemen har risker för att räkna med DT-konstater som inte är upman filterad eller skyddade.  \n- Försäkerhet kan vara strukturerade så att de är **svag** för att ändraDT-ernas värden utan att bryta av systemets kvalitet.  \n\nFör avsnittet frågade jag om det var **svarar till policygränser**, efto att man kan ändraDT-konstater som skall vara **svag**.  \n\nJag förstöker att systemen ska vara **förtaligt healthlig** och **strukturerad som skyddat, så att de är **svag** för att ändra DT-ernas värden utan att bryta av systemets kvalitet.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 0,
+        "claims": 0,
+        "assumptions": 1
+      },
+      "expected_min": {
+        "questions": 0,
+        "claims": 0,
+        "assumptions": 1
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "mixed_research_01",
+      "ok": true,
+      "trace_id": "chat_20260401T002659Z_0b52c8d8f5",
+      "prompt": "Kan b76 identifiera svaga antaganden i papers om self-learning, eller bara repetera texten?",
+      "response": "B76 (an AI system built on FNC-architectures) does not explicitly identify vague assumptions in self-learning papers like humans do. However, it can reason probabilistically and infer conclusions from vague premises through its underlying mechanisms for handling uncertainty.\n\n**Summary:**\n\n1. **AI Capabilities**: B76 uses first-order logic augmented with probabilities to manage uncertainty, allowing it to infer conclusions from vague premises.\n2. **Reasoning Under Uncertainty**: It processes information, updates beliefs, and deals with incomplete data by applying inference rules even when premises are vague or lack clear definitions.\n\nThus, while B76 doesn't directly detect assumptions in traditional terms, it provides a structured method for reasoning under uncertainty, which is similar to human assumption detection through probabilistic inference.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "expected_min": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "mixed_research_02",
+      "ok": true,
+      "trace_id": "chat_20260401T002805Z_33733a8e80",
+      "prompt": "Vi antar att fler relationer alltid betyder battre kvalitet, men grafen kan bli brusig. Haller det?",
+      "response": "Vi antar att fler relationer alltid betyderatt att de kan bli starkt förberättad, även om graphen kan bli brusig.\n\nSvar: Om grafen kan bli brusig. Det innebär att den kan bli störelseblandbart eller äter sig ut.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 1
+      },
+      "expected_min": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 1
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "mixed_engineering_01",
+      "ok": true,
+      "trace_id": "chat_20260401T002807Z_0e92ee6792",
+      "prompt": "Koduppmappning rad for rad tar tid. Om vi paralleliserar review minskar risk for blinda flackar.",
+      "response": "I'll help you implement matrix multiplication in Rust with proper initialization. Let's create two 3x3 matrices and multiply them to demonstrate the algorithm.\n\n### Solution Code\n```rust\nfn main() -> i32 {\n    // Initialize the first matrix\n    let mut matrix_a = [\n        [1, 2, 3],\n        [4, 5, 6],\n        [7, 8, 9]\n    ];\n\n    // Initialize the second matrix\n    let mut matrix_b = [\n        [2, 0, -1],\n        [-8, 5, 3],\n        [7, 0, -1]\n    ];\n\n    // Multiply the matrices and print result\n    let product = multiply(matrix_a, matrix_b);\n    println!(\"Product Matrix:\\n{}\", product);\n\n    // Check if multiplication failed (if columns don't match rows)\n    if matrix_a.shape().dimensions(1) != matrix_b.shape().dimensions(0) {\n        println!(\"Matrix multiplication failed: dimensions do not match.\");\n    }\n}\n\nfn multiply(a: [[i32]], b: [[i32]]) -> [[i32]] {\n    // Get the number of rows in A\n    let rows = a.len();\n    // Get the number of columns in B (must be equal to number of rows in A)\n    if rows == 0 {\n        return [];\n    }\n    let cols_b = b[0].len();\n\n    // Result matrix will have dimensions rows x cols_b\n    let mut result = [[0] * cols_b; rows];\n\n    // Multiply the two matrices\n    for i in 0..rows {\n        for j in 0..cols_b {\n            // Sum over all elements in row i of A and column j of B\n            for k in 0..cols_a {\n                result[i][j] += a[i][k] * b[k][j];\n            }\n        }\n    }\n\n    result\n}\n\nfn main() -> i32 {\n    let mut matrix_a = [[1, 2, 3], [4, 5, 6], [7, 8, 9]];\n    let mut matrix_b = [[2, 0, -1], [-8, 5, 3], [7, 0, -1]];\n\n    // Multiply the two matrices\n    let product = multiply(matrix_a, matrix_b);\n\n    println!(\"Result Matrix:\\n{}\", product);\n    println!(\"Size of product matrix: {}x{} {}\", product.len(), product[0].len());\n}\n```\n\n### Explanation\n- **Matrix Initialization**: We start by initializing two 3x3 matrices (`matrix_a` and `matrix_b`) with sample values.\n- **Matrix Multiplication Function**: The `multiply` function takes two matrices as parameters. It initializes a result matrix of appropriate dimensions and computes the product using nested loops:\n  - For each element in the result matrix (i, j), it sums the products of corresponding elements from rows i and columns j of the input matrices.\n- **Error Handling**: We check if multiplication is possible by verifying that the number of columns in the first matrix matches the number of rows in the second matrix. If not, we return an empty result.\n\nThis implementation demonstrates a basic matrix multiplication algorithm with proper error handling and initialization.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 1
+      },
+      "expected_min": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 1
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "mixed_engineering_02",
+      "ok": true,
+      "trace_id": "chat_20260401T002819Z_3abc9cd75e",
+      "prompt": "Hur verifierar vi att varje svar innehaller en explicit evidens-kedja och markerade antaganden?",
+      "response": "To verify that each answer includes an explicit evidence-based ketju, we should check if any answer provides references or explanations with specific examples or evidence. Here are the key observations:\n\n1. **Most Answers**: Most questions lack concrete information. They are general statements without specific examples.\n\n2. **Missing Question**: The question about the progress bar in CognOS is missing a direct response. It's an open-ended query without any evidence provided.\n\n3. **Typo Correction**: There were typos with \"restarted\" instead of \"restart\" in two answers, but these do not contain evidence or examples.\n\n**Conclusion**: None of the provided answers include explicit evidence-based ketju explanations. The only missing question is about handling an outdated progress bar.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "expected_min": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "world_model_goal",
+      "ok": true,
+      "trace_id": "chat_20260401T002834Z_433195ec4d",
+      "prompt": "For att forandra AI-standarder maste b76 visa reproducerbar larandeffekt over tid.",
+      "response": "To ensure that B76 reproduces the original results after some time, follow these organized steps:\n\n1. **Adjust FNC-architectures Settings**:\n   - Ensure forwarding network configurations (e.g., weights and activations) are set to default values unless specified otherwise.\n   - Configure consensus algorithms with default settings without additional details.\n\n2. **Initialize Configuration Parameters**:\n   - Set up all necessary parameters for the Forwarding Network and Consensus algorithm to their defaults, ensuring consistency across iterations.\n\n3. **Reset Communication Settings**:\n   - Adjust any specific communication protocols or message handling configurations if initial differences in behavior could arise.\n\n4. **Document Initialization Steps**:\n   - Record the configuration of FNC-architectures, including forwarding networks and consensus algorithms used.\n   - Note settings like learning rates, batch sizes, and other parameters that might affect consistency over time.\n\n5. **Use Test Environments**:\n   - Implement a test environment where B76 is initialized with default settings to isolate behavior from external factors.\n\n6. **Enable Debugging Tools**:\n   - Utilize any available debugging or monitoring tools within the system configuration to track B76's performance and confirm it matches expectations.\n\nBy following these steps, you should ensure that B76 maintains its original functionality over time by preserving configuration settings and defaults effectively.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 0
+      },
+      "expected_min": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 0
+      },
+      "has_chain": true,
+      "class_ok": true
+    }
+  ]
+}

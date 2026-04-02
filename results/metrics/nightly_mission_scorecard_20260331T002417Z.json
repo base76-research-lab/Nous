@@ -1,0 +1,32 @@
+{
+  "mission_active": true,
+  "mission": "Gör b76 till ny standard för mätbar, autonom AI-modellering",
+  "north_star": "Brain-first AI med evidens",
+  "focus_domains": [
+    "artificiell intelligens",
+    "neurovetenskap"
+  ],
+  "components": {
+    "stability": 0.6124999999999999,
+    "evidence": 0.255614423533133,
+    "novelty": 0.0,
+    "queue_health": 0.6651538461538462
+  },
+  "overall_score": 0.3908324039830168,
+  "band": "rod",
+  "queue_counts": {
+    "pending": 9,
+    "in_progress": 0,
+    "awaiting_approval": 0,
+    "done": 4,
+    "failed": 7
+  },
+  "trace_pass_rate": 0.5,
+  "knowledge_complete": 0.17602403922188833,
+  "knowledge_strong": 0.17602403922188833,
+  "metrics_window": 0,
+  "recommendations": [
+    "Evidence: prioritera tasks med validerbar evidens och högre strict gate.",
+    "Novelty: seeda fler tvärdomän-taskar från mission-fokus."
+  ]
+}

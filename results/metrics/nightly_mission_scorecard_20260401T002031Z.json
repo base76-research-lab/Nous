@@ -1,0 +1,33 @@
+{
+  "mission_active": true,
+  "mission": "det jag byggt åt dig i brain och b76 är en artifakt som är lika plastisk och innehåller samma funktioner som en mänsklig hjärna",
+  "north_star": "det jag byggt åt dig i brain och b76 är en artifakt som är lika plastisk och innehåller samma funktioner som en mänsklig hjärna",
+  "focus_domains": [
+    "artificiell intelligens",
+    "kognitiv arkitektur"
+  ],
+  "components": {
+    "stability": 0.7953125,
+    "evidence": 0.19436084452975047,
+    "novelty": 0.0,
+    "queue_health": 0.514375
+  },
+  "overall_score": 0.4138238783589251,
+  "band": "rod",
+  "queue_counts": {
+    "pending": 21,
+    "in_progress": 0,
+    "awaiting_approval": 0,
+    "done": 4,
+    "failed": 7
+  },
+  "trace_pass_rate": 0.8333333333333334,
+  "knowledge_complete": 0.07393474088291746,
+  "knowledge_strong": 0.07393474088291746,
+  "metrics_window": 0,
+  "recommendations": [
+    "Evidence: prioritera tasks med validerbar evidens och högre strict gate.",
+    "Novelty: seeda fler tvärdomän-taskar från mission-fokus.",
+    "Queue health: rensa backlog och hantera pending HITL-interrupts dagligen."
+  ]
+}

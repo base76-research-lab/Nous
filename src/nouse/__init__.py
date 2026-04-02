@@ -30,9 +30,15 @@ from nouse.kernel import (
     SCHEMA_VERSION,
 )
 
+from nouse.inject import attach, NouseBrain
+
 __version__ = "0.2.0"
 
 __all__ = [
+    # Inject API — one-line entry point
+    "attach",
+    "NouseBrain",
+    # Residual Stream kernel
     "Kernel",
     "FieldEvent",
     "NeuromodulatorState",

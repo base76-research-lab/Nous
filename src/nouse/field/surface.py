@@ -17,7 +17,7 @@ import re
 
 import kuzu
 
-_DEFAULT_DB = Path.home() / ".local" / "share" / "b76" / "field.kuzu"
+_DEFAULT_DB = Path.home() / ".local" / "share" / "nouse" / "field.kuzu"
 _STRONG_FACT_MIN_SCORE = float(os.getenv("NOUSE_STRONG_FACT_MIN_SCORE", "0.65"))
 
 

@@ -1,0 +1,18 @@
+run_id: ""
+date_utc: ""
+hypothesis: ""
+change_summary: ""
+seed_set: []
+scenario_set: []
+model_version: ""
+environment:
+  python: ""
+  platform: ""
+  gpu: ""
+metrics:
+  primary: {}
+  reliability: {}
+  learning: {}
+notes:
+  interpretation: ""
+  decision: "keep|revert|park"

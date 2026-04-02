@@ -50,50 +50,6 @@ class NouseBrain:
         self._output_hooks.append(fn)
         return fn
 
-    def recall_relations(self, concept: str) -> list[dict]:
-        """Return graph relations for a concept."""
-        try:
-            return self._field.out_relations(concept)
-        except Exception:
-            return []
-
-    def add(
-        self,
-        src: str,
-        rel_type: str,
-        tgt: str,
-        *,
-        why: str = "",
-        evidence_score: float = 0.6,
-    ) -> None:
-        """Directly add a relation to the knowledge graph."""
-        self._field.add_relation(
-            src, rel_type, tgt,
-            why=why,
-            evidence_score=evidence_score,
-        )
-
-    def process_input(self, prompt: str) -> str:
-        """Apply all registered on_input hooks in order."""
-        for hook in self._input_hooks:
-            try:
-                prompt = hook(prompt)
-            except Exception:
-                pass
-        return prompt
-
-    def process_output(self, prompt: str, response: str) -> None:
-        """Apply all registered on_output hooks."""
-        for hook in self._output_hooks:
-            try:
-                hook(prompt, response)
-            except Exception:
-                pass
-
-    def stats(self) -> dict:
-        """Return basic graph statistics."""
-        return self._field.stats()
-
     @property
     def field(self):
         """Direct access to the KuzuDB FieldSurface."""

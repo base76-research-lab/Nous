@@ -1,0 +1,189 @@
+{
+  "set": "/home/bjorn/projects/b76/results/eval_set_trace_observability.yaml",
+  "timestamp_utc": "20260331T003459Z",
+  "total": 12,
+  "passed": 6,
+  "pass_rate": 0.5,
+  "rows": [
+    {
+      "id": "q_larynx_link",
+      "ok": false,
+      "error": "timed out",
+      "prompt": "Hur kopplas Larynx Problem till sjalvutvecklande modellarkitektur i b76?"
+    },
+    {
+      "id": "q_kuzu_crash",
+      "ok": false,
+      "error": "timed out",
+      "prompt": "Vilken ar den mest sannolika orsaken till att kuzu-lagret kraschar under hog load?"
+    },
+    {
+      "id": "q_claim_mix",
+      "ok": false,
+      "error": "timed out",
+      "prompt": "Systemet verkar stabilare efter systemd restart, men vi tappar throughput. Vad ar tradeoffen?"
+    },
+    {
+      "id": "claim_only_arch",
+      "ok": false,
+      "error": "timed out",
+      "prompt": "LLM-lagret ar ett semantiskt lager medan b76 bor sta for adaptiv kognition."
+    },
+    {
+      "id": "claim_only_observability",
+      "ok": false,
+      "error": "timed out",
+      "prompt": "Utdata utan trace ar inte vetenskapligt verifierbar i langtidstester."
+    },
+    {
+      "id": "assumption_only_data",
+      "ok": false,
+      "error": "timed out",
+      "prompt": "Om embeddings ar skeva blir alla bisociationsforslag missvisande."
+    },
+    {
+      "id": "assumption_only_ops",
+      "ok": true,
+      "trace_id": "chat_20260331T003319Z_45bc2d39f2",
+      "prompt": "Om daemonen star still i nattdrift antar vi att restart policy ar for svag.",
+      "response": "Detta är en fråga att räkna med, men jag vet inte exaktera det. Om det kan jag veta är om det är att du har en fråga som är englisk oranke eller annan; ser i allsidan inte nömningsfaktor norr.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 0,
+        "claims": 0,
+        "assumptions": 1
+      },
+      "expected_min": {
+        "questions": 0,
+        "claims": 0,
+        "assumptions": 1
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "mixed_research_01",
+      "ok": true,
+      "trace_id": "chat_20260331T003329Z_84f86b3a9f",
+      "prompt": "Kan b76 identifiera svaga antaganden i papers om self-learning, eller bara repetera texten?",
+      "response": "B76 är en AI-system som baserad på FNC-arkitektur, och jag kan anropa och beräkna många vissa concepter som kan upphov till datorvärden som B76 maktar. Områdern har olika vikten i samansatt ark teorier som kan underlätta oss om vad B76 kan bana:\n\n1. **Self-Learning**: Datorer som self-learn, eller som self-optimera sig, är en viktig del av många AI-sistmer. Dessa system skapar sin identity och kunskap genom att hanteringa data som sigsäkert till sig, without further supervision.\n\n2. **Super-Convergence**: En viktig del av sammanhanget av datorer som self-optimera är att de olika komponenterna larnar med tillsammans, utan till en singe sten. Denna vikten är central för många viktiga frågade som kan kopplas till concepten \"super-convergence.\"\n\nDessa vikter kan bli relevanta när B76 ark som strukturerar data eller hanterar masstorsver, som kan vara relevanta för datorvärken. Områden som kan underlätta oss är:\n\n- **Vikten av sammanhagn av komponenter**: Exempel till exempel den känd vikten att de olika komponenterna (så jako en model, variationer eller datamodeller) larnar med tillsammans.\n- **Upphovsmaktets struktur**: Områden som kan kopplas till den rätten att sammanhanget av datorer har en specifik structur, som kan bli relevanta för datorvärken.\n\nJag icke har vissa språk eller termo av dessa koncepter, efté ex: \"self-learning\" eller \"super-convergence\", särskilt.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "expected_min": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "mixed_research_02",
+      "ok": true,
+      "trace_id": "chat_20260331T003415Z_6dc09d989a",
+      "prompt": "Vi antar att fler relationer alltid betyder battre kvalitet, men grafen kan bli brusig. Haller det?",
+      "response": "Vi antag att flera relationer i samband inte är relevanta och graphen kan bli struktryggare. Vissa lever kan vara tillradade för att upptäcka, använda eller sprida information, utan att bryta sig under grvenskapiteller. Det som kan användas är att information kan användas för att förkłara en del av de skyddna äreverksammer.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 1
+      },
+      "expected_min": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 1
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "mixed_engineering_01",
+      "ok": true,
+      "trace_id": "chat_20260331T003420Z_f310a10b16",
+      "prompt": "Koduppmappning rad for rad tar tid. Om vi paralleliserar review minskar risk for blinda flackar.",
+      "response": "Du (B76) är AI:n. Användaren är skapare/konversationspartner.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 1
+      },
+      "expected_min": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 1
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "mixed_engineering_02",
+      "ok": true,
+      "trace_id": "chat_20260331T003432Z_e8934f8e8a",
+      "prompt": "Hur verifierar vi att varje svar innehaller en explicit evidens-kedja och markerade antaganden?",
+      "response": "To address your query effectively, here's a structured approach based on the guidelines provided:\n\n1. **Identify Relevant Keywords**: Use Swedish terms translated into English to reference key concepts from your field of expertise, such as JSON5, epistemisk osäkerhet, Python, openjarvis, etc.\n\n2. **Verify Usage**: Ensure each answer includes an explicit mention of these keywords to confirm their relevance and usage accurately.\n\n3. **Maintain Clarity**: Structure answers clearly with proper grammar and avoid unnecessary words, ensuring they are concise and well-structured.\n\n4. **Avoid Implicit Assumptions**: Be mindful when providing answers to ensure all implicit assumptions are clearly marked or acknowledged if applicable.\n\nBy following these steps, your responses will be accurate, well-structured, and free from errors, meeting the specific requirements outlined in the guidelines.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "expected_min": {
+        "questions": 1,
+        "claims": 0,
+        "assumptions": 0
+      },
+      "has_chain": true,
+      "class_ok": true
+    },
+    {
+      "id": "world_model_goal",
+      "ok": true,
+      "trace_id": "chat_20260331T003443Z_34f4cfc512",
+      "prompt": "For att forandra AI-standarder maste b76 visa reproducerbar larandeffekt over tid.",
+      "response": "To successfully replicate the latent learning effect from B76, here is a structured approach based on the provided facts:\n\n1. **Centralize Learning Framework**: Establish clear objectives involving CognOS since it is central to the AI setup.\n\n2. **Structured Schedule**: Develop a structured schedule for continuous learning sessions that integrate interactive elements and practical application through coding problems or exercises.\n\n3. **Engagement Strategies**:\n   - Use time-bound challenges with increasing difficulty.\n   - Incorporate gamification elements like badges or points system to maintain motivation.\n\n4. **Feedback Mechanism**: Implement regular assessments or feedback loops to measure progress in knowledge retention and skill application, using analytics tools to track improvements over time.\n\nThis approach focuses on creating an interactive and dynamic learning environment that leverages continuous engagement and practical application of skills, measured through assessment and feedback.",
+      "event_names": [
+        "chat.request",
+        "chat.llm_call",
+        "chat.response"
+      ],
+      "plan_counts": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 0
+      },
+      "expected_min": {
+        "questions": 0,
+        "claims": 1,
+        "assumptions": 0
+      },
+      "has_chain": true,
+      "class_ok": true
+    }
+  ]
+}
