@@ -182,3 +182,14 @@ Requires Python 3.11+. Graph stored in `~/.local/share/nouse/field.kuzu`.
 ## License
 
 MIT — Björn Wikström / Base76 Research Lab
+
+---
+
+## Contact
+
+| | |
+|--|--|
+| 𝕏 / Twitter | [@Q_for_qualia](https://x.com/Q_for_qualia) |
+| LinkedIn | [bjornshomelab](https://www.linkedin.com/in/bjornshomelab/) |
+| Email | bjorn@base76research.com |
+| Issues | [github.com/base76-research-lab/NoUse/issues](https://github.com/base76-research-lab/NoUse/issues) |
