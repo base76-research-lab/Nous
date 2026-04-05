@@ -72,19 +72,7 @@ class EnrichStats:
 def _compute_degrees(field: "FieldSurface") -> dict[str, int]:
     """Beräkna antal kanter per nod direkt från grafen."""
     try:
-        result = field._conn.execute(
-            "MATCH (a:Concept)-[r:Relation]->(b:Concept) "
-            "RETURN a.name AS src, b.name AS tgt"
-        ).get_as_df()
-        degrees: dict[str, int] = {}
-        for _, row in result.iterrows():
-            src = str(row.get("src", "") or "")
-            tgt = str(row.get("tgt", "") or "")
-            if src:
-                degrees[src] = degrees.get(src, 0) + 1
-            if tgt:
-                degrees[tgt] = degrees.get(tgt, 0) + 1
-        return degrees
+        return field.get_all_node_degrees()
     except Exception as e:
         _log.warning("Kunde inte beräkna grader: %s", e)
         return {}
@@ -120,13 +108,8 @@ def _hub_proximity(
         next_frontier: set[str] = set()
         for node in frontier:
             try:
-                nbrs = field._conn.execute(
-                    "MATCH (a:Concept {name: $n})-[r:Relation]-(b:Concept) "
-                    "RETURN b.name AS name LIMIT 15",
-                    parameters={"n": node},
-                ).get_as_df()
-                for _, row in nbrs.iterrows():
-                    nb = str(row.get("name", "") or "")
+                nbrs = field.neighbors(node, limit=15, bidirectional=True)
+                for nb in nbrs:
                     if nb and nb not in visited:
                         if nb in hubs:
                             return hop
@@ -169,17 +152,15 @@ def _find_sparse_nodes(
     kopplas in.
     """
     try:
-        rows = field._conn.execute(
-            "MATCH (c:Concept) RETURN c.name AS name, c.domain AS domain LIMIT 20000"
-        ).get_as_df()
+        rows = field.get_concepts_with_metadata(20000)
     except Exception as e:
         _log.warning("Kunde inte hämta noder: %s", e)
         return []
 
     candidates: list[tuple[str, str, int]] = []
-    for _, row in rows.iterrows():
-        name = str(row.get("name", "") or "")
-        domain = str(row.get("domain", "") or "general")
+    for row in rows:
+        name = str(row.get("id", "") or "")
+        domain = str(row.get("dom", "") or "general")
         if not name or name in exclude:
             continue
         deg = degrees.get(name, 0)

@@ -284,13 +284,9 @@ async def deep_review_axiom(
     # Hämta nuvarande evidence_score från grafen
     current_score  = 0.5
     try:
-        df = field._conn.execute(
-            "MATCH (a:Concept {name:$s})-[r:Relation {type:$t}]->(b:Concept {name:$tgt}) "
-            "RETURN r.evidence_score AS ev LIMIT 1",
-            {"s": src, "t": rel_type, "tgt": tgt},
-        ).get_as_df()
-        if not df.empty and df.iloc[0].get("ev") is not None:
-            current_score = float(df.iloc[0]["ev"])
+        ev = field.relation_evidence_score(src, rel_type, tgt)
+        if ev is not None:
+            current_score = ev
     except Exception:
         pass
 
@@ -434,11 +430,7 @@ async def _apply_verdict(
     if verdict.outcome == REVIEW_PROMOTE:
         # Uppdatera befintlig relation: ta bort assumption_flag, höj score
         try:
-            field._conn.execute(
-                "MATCH (a:Concept {name:$s})-[r:Relation {type:$t}]->(b:Concept {name:$tgt}) "
-                "SET r.evidence_score = $ev, r.assumption_flag = false",
-                {"s": src, "t": rel_type, "tgt": tgt, "ev": verdict.new_score},
-            )
+            field.promote_relation(src, rel_type, tgt, verdict.new_score)
             _log.info(
                 "Verdict PROMOTE: %s -[%s]-> %s, ev=%.2f, assumption_flag=False",
                 src, rel_type, tgt, verdict.new_score,
@@ -449,11 +441,7 @@ async def _apply_verdict(
     elif verdict.outcome == REVIEW_DISCARD:
         # Sätt evidence_score=0 och assumption_flag=True (markerar för pruning)
         try:
-            field._conn.execute(
-                "MATCH (a:Concept {name:$s})-[r:Relation {type:$t}]->(b:Concept {name:$tgt}) "
-                "SET r.evidence_score = 0.0, r.assumption_flag = true",
-                {"s": src, "t": rel_type, "tgt": tgt},
-            )
+            field.discard_relation(src, rel_type, tgt)
             _log.info("Verdict DISCARD: %s -[%s]-> %s  markerad för pruning", src, rel_type, tgt)
         except Exception as e:
             _log.warning("Kunde inte applicera DISCARD: %s", e)
@@ -777,12 +765,9 @@ async def deepdive_node(
     out_rels   = field.out_relations(node_name)
     domain     = "okänd"
     try:
-        cmeta = field._conn.execute(
-            "MATCH (c:Concept {name:$n}) RETURN c.domain AS domain",
-            {"n": node_name},
-        ).get_as_df()
-        if not cmeta.empty:
-            domain = str(cmeta.iloc[0].get("domain") or "okänd")
+        d = field.concept_domain(node_name)
+        if d:
+            domain = d
     except Exception:
         pass
 

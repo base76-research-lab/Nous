@@ -174,13 +174,10 @@ async def ask_brain(query: str, chat_mode: bool = False, session_id: str = "main
 
         # Hämta de starkaste kopplingarna som korttidsminne.
         try:
-            recent = field._conn.execute(
-                "MATCH (a:Concept)-[r:Relation]->(b:Concept) "
-                "RETURN a.name, r.type, b.name ORDER BY r.strength DESC LIMIT 15"
-            ).get_as_df()
+            recent = field.top_relations_by_strength(15)
             memories = [
-                f"{row['a.name']} --[{row['r.type']}]--> {row['b.name']}"
-                for _, row in recent.iterrows()
+                f"{row['src_name']} --[{row['type']}]--> {row['tgt_name']}"
+                for row in recent
             ]
             context_str = "\n".join(memories)
         except Exception:

@@ -1,14 +1,10 @@
 from __future__ import annotations
 
+import sqlite3
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
-try:
-    import kuzu  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    kuzu = None
 
 
 def _now_iso() -> str:
@@ -97,11 +93,11 @@ class BrainDB:
         self._live: dict[str, ResidualEdgeState] = {}
         self._archive: dict[str, ArchivedEdgeRecord] = {}
 
-        self._kuzu_conn: Any | None = None
-        self._kuzu_write_enabled = False
-        self._kuzu_error: str | None = None
-        if use_kuzu and kuzu is not None:
-            self._init_kuzu()
+        self._sqlite_conn: sqlite3.Connection | None = None
+        self._sqlite_write_enabled = False
+        self._sqlite_error: str | None = None
+        if use_kuzu:  # parameter kept for API compat
+            self._init_sqlite()
 
     @property
     def cycle(self) -> int:
@@ -109,46 +105,57 @@ class BrainDB:
 
     @property
     def kuzu_error(self) -> str | None:
-        return self._kuzu_error
+        return self._sqlite_error
 
-    def _init_kuzu(self) -> None:
-        self.kuzu_path.parent.mkdir(parents=True, exist_ok=True)
+    def _init_sqlite(self) -> None:
+        path = self.kuzu_path.with_suffix(".sqlite")
+        path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            db = kuzu.Database(str(self.kuzu_path))
-            conn = kuzu.Connection(db)
-            self._kuzu_conn = conn
-            self._kuzu_write_enabled = True
+            self._sqlite_conn = sqlite3.connect(str(path), check_same_thread=False)
+            self._sqlite_conn.execute("PRAGMA journal_mode=WAL")
+            self._sqlite_conn.execute("PRAGMA busy_timeout=5000")
+            self._sqlite_write_enabled = True
             self._ensure_schema()
-        except Exception as exc:  # pragma: no cover - depends on kuzu runtime
-            self._kuzu_error = f"init_failed: {exc}"
-            self._kuzu_conn = None
-            self._kuzu_write_enabled = False
+        except Exception as exc:  # pragma: no cover
+            self._sqlite_error = f"init_failed: {exc}"
+            self._sqlite_conn = None
+            self._sqlite_write_enabled = False
 
-    def _try_exec(self, query: str) -> bool:
-        if not self._kuzu_conn:
+    def _try_exec(self, query: str, params: tuple = ()) -> bool:
+        if not self._sqlite_conn:
             return False
         try:
-            self._kuzu_conn.execute(query)
+            self._sqlite_conn.execute(query, params)
+            self._sqlite_conn.commit()
             return True
-        except Exception as exc:  # pragma: no cover - depends on kuzu runtime
-            self._kuzu_error = f"query_failed: {exc}"
+        except Exception as exc:  # pragma: no cover
+            self._sqlite_error = f"query_failed: {exc}"
             return False
 
     def _ensure_schema(self) -> None:
-        # Kuzu syntax can vary by version; try conservative variants.
-        created_nodes = self._try_exec(
-            "CREATE NODE TABLE IF NOT EXISTS BrainNode(node_id STRING, PRIMARY KEY(node_id));"
-        )
-        if not created_nodes:
-            self._try_exec("CREATE NODE TABLE BrainNode(node_id STRING, PRIMARY KEY(node_id));")
-
-        created_rel = self._try_exec(
-            "CREATE REL TABLE IF NOT EXISTS ResidualEdge(FROM BrainNode TO BrainNode, edge_id STRING, rel_type STRING, w DOUBLE, u DOUBLE, evidence_score DOUBLE, provenance STRING, created_at STRING, updated_at STRING, crystallized_at STRING, snapshot_cycle INT64, snapshot_reason STRING);"
-        )
-        if not created_rel:
-            self._try_exec(
-                "CREATE REL TABLE ResidualEdge(FROM BrainNode TO BrainNode, edge_id STRING, rel_type STRING, w DOUBLE, u DOUBLE, evidence_score DOUBLE, provenance STRING, created_at STRING, updated_at STRING, crystallized_at STRING, snapshot_cycle INT64, snapshot_reason STRING);"
-            )
+        if not self._sqlite_conn:
+            return
+        self._sqlite_conn.executescript("""
+            CREATE TABLE IF NOT EXISTS brain_node (
+                node_id TEXT PRIMARY KEY
+            );
+            CREATE TABLE IF NOT EXISTS residual_edge (
+                edge_id TEXT PRIMARY KEY,
+                src TEXT NOT NULL,
+                tgt TEXT NOT NULL,
+                rel_type TEXT,
+                w REAL,
+                u REAL,
+                evidence_score REAL,
+                provenance TEXT,
+                created_at TEXT,
+                updated_at TEXT,
+                crystallized_at TEXT,
+                snapshot_cycle INTEGER,
+                snapshot_reason TEXT
+            );
+        """)
+        self._sqlite_conn.commit()
 
     def upsert_live_edge(
         self,
@@ -285,51 +292,23 @@ class BrainDB:
         self._write_kuzu_record(rec)
 
     def _write_kuzu_record(self, rec: ArchivedEdgeRecord) -> None:
-        if not self._kuzu_conn or not self._kuzu_write_enabled:
+        if not self._sqlite_conn or not self._sqlite_write_enabled:
             return
-        # Best-effort Kuzu persistence; local in-memory archive remains canonical
-        # in environments where Kuzu syntax/runtime differs.
-        q_src = _quote(rec.src)
-        q_tgt = _quote(rec.tgt)
-        q_id = _quote(rec.edge_id)
-        q_rel = _quote(rec.rel_type)
-        q_prov = _quote(rec.provenance)
-        q_created = _quote(rec.created_at)
-        q_updated = _quote(rec.updated_at)
-        q_cr = _quote(rec.crystallized_at or "")
-        q_reason = _quote(rec.snapshot_reason)
-        snapshot_cycle = rec.snapshot_cycle if rec.snapshot_cycle is not None else -1
-        queries = [
-            f"MERGE (n:BrainNode {{node_id: '{q_src}'}});",
-            f"MERGE (n:BrainNode {{node_id: '{q_tgt}'}});",
-            (
-                "MATCH (s:BrainNode {node_id: '"
-                + q_src
-                + "'}), (t:BrainNode {node_id: '"
-                + q_tgt
-                + "'}) "
-                + "MERGE (s)-[e:ResidualEdge {edge_id: '"
-                + q_id
-                + "'}]->(t) "
-                + "SET e.rel_type = '"
-                + q_rel
-                + "', "
-                + f"e.w = {rec.w}, e.u = {rec.u}, e.evidence_score = {rec.evidence_score}, "
-                + "e.provenance = '"
-                + q_prov
-                + "', e.created_at = '"
-                + q_created
-                + "', e.updated_at = '"
-                + q_updated
-                + "', e.crystallized_at = '"
-                + q_cr
-                + f"', e.snapshot_cycle = {snapshot_cycle}, "
-                + "e.snapshot_reason = '"
-                + q_reason
-                + "';"
-            ),
-        ]
-        for query in queries:
-            if not self._try_exec(query):
-                self._kuzu_write_enabled = False
-                break
+        try:
+            self._sqlite_conn.execute(
+                "INSERT OR REPLACE INTO brain_node (node_id) VALUES (?)", (rec.src,))
+            self._sqlite_conn.execute(
+                "INSERT OR REPLACE INTO brain_node (node_id) VALUES (?)", (rec.tgt,))
+            self._sqlite_conn.execute(
+                "INSERT OR REPLACE INTO residual_edge "
+                "(edge_id, src, tgt, rel_type, w, u, evidence_score, provenance, "
+                "created_at, updated_at, crystallized_at, snapshot_cycle, snapshot_reason) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (rec.edge_id, rec.src, rec.tgt, rec.rel_type, rec.w, rec.u,
+                 rec.evidence_score, rec.provenance, rec.created_at, rec.updated_at,
+                 rec.crystallized_at or "", rec.snapshot_cycle if rec.snapshot_cycle is not None else -1,
+                 rec.snapshot_reason))
+            self._sqlite_conn.commit()
+        except Exception as exc:
+            self._sqlite_write_enabled = False
+            self._sqlite_error = f"write_failed: {exc}"

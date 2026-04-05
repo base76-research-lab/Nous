@@ -1200,6 +1200,8 @@ def bisoc(
                               help="Min topologisk similaritet (0-1)"),
     epsilon: float = typer.Option(2.0, "--epsilon", "-e",
                                   help="Vietoris-Rips epsilon"),
+    limit: int = typer.Option(50, "--limit", "-l",
+                              help="Max antal domäner att analysera (top-N efter storlek)"),
 ) -> None:
     """
     Hitta bisociationskandidater via TDA (Topologisk Dataanalys).
@@ -1207,16 +1209,22 @@ def bisoc(
     Domänpar med hög strukturell likhet (τ) men ingen semantisk länk —
     det är där 1+1=3-potentialen är störst (Koestler 1964).
     """
-    from nouse.field.surface import FieldSurface
     from nouse.tda.bridge import is_rust_active
+    from nouse.client import daemon_running, get_bisoc
 
-    field = FieldSurface(read_only=True)
     engine = "[green]Rust[/green]" if is_rust_active() else "[yellow]Python[/yellow]"
     console.print(f"\n[bold cyan]TDA Bisociation[/bold cyan]  "
                   f"motor={engine}  τ≥{tau}  ε={epsilon}\n")
 
-    candidates = field.bisociation_candidates(tau_threshold=tau,
-                                              max_epsilon=epsilon)
+    if daemon_running():
+        data = get_bisoc(tau=tau, epsilon=epsilon, max_domains=limit)
+        candidates = data.get("candidates", [])
+    else:
+        from nouse.field.surface import FieldSurface
+        field = FieldSurface(read_only=True)
+        candidates = field.bisociation_candidates(tau_threshold=tau,
+                                                  max_epsilon=epsilon,
+                                                  max_domains=limit)
     if not candidates:
         console.print("[dim]Inga kandidater — lägg till fler domäner först.[/dim]")
         return
@@ -2694,6 +2702,51 @@ def allowlist_cmd(
         return
 
     console.print("[red]Ogiltig action.[/red] Använd: list | pending | add | remove | approve")
+
+
+@app.command(name="api-keys")
+def api_keys_cmd(
+    action: str = typer.Argument("list", help="list | create | revoke"),
+    tenant: str = typer.Option("", "--tenant", "-t", help="Tenant-id (krävs för create)"),
+    label: str = typer.Option("", "--label", "-l", help="Beskrivning av nyckeln"),
+    key: str = typer.Option("", "--key", "-k", help="API-nyckel att återkalla (revoke)"),
+) -> None:
+    """Hantera SaaS API-nycklar (nsk-...). Kräver nouse-saas."""
+    from nouse.saas.auth import create_key, list_keys, revoke_key
+
+    if action == "create":
+        if not tenant:
+            console.print("[red]--tenant krävs för create.[/red]")
+            raise typer.Exit(1)
+        new_key = create_key(tenant_id=tenant, label=label)
+        console.print(f"\n[bold green]API-nyckel skapad[/bold green] (visas bara en gång):\n")
+        console.print(f"  [bold cyan]{new_key}[/bold cyan]\n")
+        console.print(f"[dim]Tenant: {tenant}  Label: {label or '–'}[/dim]")
+
+    elif action == "list":
+        rows = list_keys(tenant_id=tenant or None)
+        if not rows:
+            console.print("[dim]Inga nycklar.[/dim]")
+            return
+        console.print(f"[bold cyan]API-nycklar[/bold cyan]")
+        for r in rows:
+            status = "[green]aktiv[/green]" if r["active"] else "[red]inaktiv[/red]"
+            console.print(f"  {r['key_hash']}  tenant={r['tenant_id']}  "
+                          f"label={r['label'] or '–'}  {status}  {r['created_at'][:10]}")
+
+    elif action == "revoke":
+        if not key:
+            console.print("[red]--key krävs för revoke.[/red]")
+            raise typer.Exit(1)
+        ok = revoke_key(key)
+        if ok:
+            console.print("[green]Nyckel inaktiverad.[/green]")
+        else:
+            console.print("[red]Nyckel hittades inte.[/red]")
+            raise typer.Exit(1)
+
+    else:
+        console.print("[red]Ogiltig action.[/red] Använd: list | create | revoke")
 
 
 @app.command(name="ingress")

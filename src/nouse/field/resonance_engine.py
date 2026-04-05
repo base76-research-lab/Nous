@@ -132,10 +132,8 @@ class ResonanceEngine:
 
         # Inkludera isolerade noder (inga utgående relationer)
         try:
-            df = self._field._conn.execute(
-                "MATCH (c:Concept) RETURN c.name AS name, c.domain AS domain"
-            ).get_as_df()
-            for _, row in df.iterrows():
+            all_concepts = self._field.concepts()
+            for row in all_concepts:
                 name = str(row.get("name") or "").strip()
                 dom = str(row.get("domain") or "external").strip()
                 if name:
@@ -201,14 +199,9 @@ class ResonanceEngine:
         return stats
 
     def _batch_fetch_all_relations(self) -> list[dict]:
-        """EN KuzuDB-query hämtar alla src→rel_type→tgt-tripplar."""
+        """Hämtar alla src→rel_type→tgt-tripplar."""
         try:
-            df = self._field._conn.execute(
-                "MATCH (a:Concept)-[r:Relation]->(b:Concept) "
-                "RETURN a.name AS src, r.type AS rel_type, b.name AS tgt, "
-                "a.domain AS src_domain"
-            ).get_as_df()
-            return df.to_dict("records")
+            return self._field.query_all_relations(include_domain=True)
         except Exception as e:
             _log.warning("Batch-fetch misslyckades: %s — faller tillbaka på per-nod", e)
             return self._per_node_fetch_fallback()

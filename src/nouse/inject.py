@@ -378,10 +378,11 @@ class NouseBrainHTTP:
     The interface is identical to NouseBrain so callers need no changes.
     """
 
-    def __init__(self, base_url: str = "http://127.0.0.1:8765") -> None:
+    def __init__(self, base_url: str = "http://127.0.0.1:8765", api_key: str | None = None) -> None:
         import httpx
         self._base = base_url.rstrip("/")
-        self._client = httpx.Client(timeout=30.0)
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        self._client = httpx.Client(timeout=30.0, headers=headers)
 
     # ── Primary query API ─────────────────────────────────────────────────────
 
@@ -491,6 +492,8 @@ def attach(
     *,
     port: int = 8765,
     prefer_http: bool = True,
+    api_key: str | None = None,
+    base_url: str | None = None,
 ) -> "NouseBrain | NouseBrainHTTP":
     """
     One-line entry point.  Auto-detects a running daemon and connects via HTTP
@@ -499,7 +502,10 @@ def attach(
         brain = nouse.attach()               # auto: HTTP if daemon running
         brain = nouse.attach(prefer_http=False)  # always direct KuzuDB
         brain = nouse.attach(read_only=True) # eval / direct read
+        brain = nouse.attach(api_key="nsk-xxx", base_url="https://api.nouse.ai")  # SaaS cloud
     """
+    if api_key and base_url:
+        return NouseBrainHTTP(base_url=base_url, api_key=api_key)
     if prefer_http:
         try:
             import httpx

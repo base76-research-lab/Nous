@@ -146,16 +146,12 @@ def extract_axiom_signature(
 
     try:
         # Utgående relationer (djup 1)
-        out_rels = field_surface._conn.execute(
-            "MATCH (a:Concept {name: $name})-[r:Relation]->(b:Concept) "
-            "RETURN r.type AS rtype, b.name AS tgt, b.domain AS tgt_domain",
-            parameters={"name": concept},
-        ).get_as_df()
+        out_rels = field_surface.out_relations(concept)
 
-        for _, row in out_rels.iterrows():
-            rtype = str(row.get("rtype", "") or "")
-            tgt = str(row.get("tgt", "") or "")
-            tgt_domain = str(row.get("tgt_domain", "") or "")
+        for row in out_rels:
+            rtype = str(row.get("type", "") or "")
+            tgt = str(row.get("target", "") or "")
+            tgt_domain = field_surface.concept_domain(tgt) or "" if tgt else ""
             if rtype:
                 rel_types_out.append(rtype)
             if tgt_domain:
@@ -165,28 +161,20 @@ def extract_axiom_signature(
             # Djup 2: grannens utgående relationer
             if tgt:
                 try:
-                    d2 = field_surface._conn.execute(
-                        "MATCH (a:Concept {name: $name})-[r:Relation]->(b:Concept) "
-                        "RETURN r.type AS rtype LIMIT 5",
-                        parameters={"name": tgt},
-                    ).get_as_df()
+                    d2_rels = field_surface.out_relations(tgt)
                     depth2_rel_types.extend(
-                        str(r.get("rtype", "") or "")
-                        for _, r in d2.iterrows()
-                        if r.get("rtype")
+                        str(r.get("type", "") or "")
+                        for r in d2_rels[:5]
+                        if r.get("type")
                     )
                 except Exception:
                     pass
 
         # Inkommande relationer (djup 1)
-        in_rels = field_surface._conn.execute(
-            "MATCH (a:Concept)-[r:Relation]->(b:Concept {name: $name}) "
-            "RETURN r.type AS rtype",
-            parameters={"name": concept},
-        ).get_as_df()
+        in_rels = field_surface._in_relations(concept)
 
-        for _, row in in_rels.iterrows():
-            rtype = str(row.get("rtype", "") or "")
+        for row in in_rels:
+            rtype = str(row.get("type", "") or "")
             if rtype:
                 rel_types_in.append(rtype)
             degree += 1
@@ -195,16 +183,7 @@ def extract_axiom_signature(
         _log.debug("Kunde inte extrahera signatur för '%s': %s", concept, e)
 
     # Hämta domän
-    domain = "general"
-    try:
-        d_res = field_surface._conn.execute(
-            "MATCH (c:Concept {name: $name}) RETURN c.domain AS domain LIMIT 1",
-            parameters={"name": concept},
-        ).get_as_df()
-        if not d_res.empty:
-            domain = str(d_res.iloc[0].get("domain", "general") or "general")
-    except Exception:
-        pass
+    domain = field_surface.concept_domain(concept) or "general"
 
     return AxiomSignature(
         concept=concept,
@@ -246,14 +225,9 @@ def find_graph_path(
             current = path[-1]
 
             try:
-                neighbors = field_surface._conn.execute(
-                    "MATCH (a:Concept {name: $name})-[r:Relation]->(b:Concept) "
-                    "RETURN b.name AS name LIMIT 20",
-                    parameters={"name": current},
-                ).get_as_df()
+                nbr_list = field_surface.neighbors(current, limit=20)
 
-                for _, row in neighbors.iterrows():
-                    neighbor = str(row.get("name", "") or "")
+                for neighbor in nbr_list:
                     if not neighbor:
                         continue
                     if neighbor == target:
@@ -701,14 +675,10 @@ async def run_cross_domain_discovery(
     # Hämta domäner om ej specade
     if domains is None:
         try:
-            domain_df = field_surface._conn.execute(
-                "MATCH (c:Concept) RETURN DISTINCT c.domain AS domain LIMIT 50"
-            ).get_as_df()
             domains = [
-                str(r.get("domain", "") or "")
-                for _, r in domain_df.iterrows()
-                if r.get("domain") and str(r.get("domain", "")).lower() not in ("general", "meta", "")
-            ]
+                d for d in field_surface.domains()
+                if d and d.lower() not in ("general", "meta", "")
+            ][:50]
         except Exception as e:
             _log.warning("Kunde inte hämta domäner: %s", e)
             return session
@@ -719,11 +689,8 @@ async def run_cross_domain_discovery(
     domain_nodes: dict[str, list[str]] = {}
     for domain in domains:
         try:
-            nodes_df = field_surface._conn.execute(
-                "MATCH (c:Concept {domain: $domain}) RETURN c.name AS name LIMIT $limit",
-                parameters={"domain": domain, "limit": sample_per_domain * 3},
-            ).get_as_df()
-            names = [str(r.get("name", "") or "") for _, r in nodes_df.iterrows() if r.get("name")]
+            concept_rows = field_surface.concepts(domain=domain, limit=sample_per_domain * 3)
+            names = [str(r.get("name", "") or "") for r in concept_rows if r.get("name")]
             if names:
                 import random
                 random.shuffle(names)

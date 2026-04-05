@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.0] - 2026-04-05
+
+### Changed
+- **BREAKING:** Replaced KuzuDB backend with SQLite WAL + NetworkX.
+  - SQLite (stdlib) for persistent storage with WAL journal mode.
+  - NetworkX MultiDiGraph for in-memory graph traversal (BFS, path finding, degree).
+  - All raw Cypher queries replaced with public methods on FieldSurface.
+  - BrainDB (kernel/db.py) also migrated from KuzuDB to SQLite.
+  - `kuzu` moved to optional `[migrate]` dependency group.
+  - `networkx>=3.2` added as core dependency.
+- 12+ new public methods on FieldSurface for external code (no more `_conn.execute`).
+
+### Added
+- Migration script: `scripts/migrate_kuzu_to_sqlite.py` (requires `pip install nouse[migrate]`).
+
+### Fixed
+- Eliminated KuzuDB single-writer lock crashes (issue #3295 in archived KuzuDB repo).
+- Concurrent CLI/daemon access now works via SQLite WAL.
+
 ## [0.2.3] - 2026-04-05
 
 ### Fixed

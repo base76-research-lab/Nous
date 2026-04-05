@@ -71,11 +71,7 @@ def _next_id(rows: list[dict[str, Any]]) -> int:
 
 def _concept_connectivity(field: FieldSurface, name: str) -> int:
     out_degree = len(field.out_relations(name))
-    in_df = field._conn.execute(  # noqa: SLF001
-        "MATCH (a)-[r:Relation]->(b:Concept {name:$n}) RETURN count(r) AS n",
-        {"n": name},
-    ).get_as_df()
-    in_degree = int(in_df["n"].iloc[0]) if not in_df.empty else 0
+    in_degree = field.in_degree(name)
     return int(out_degree + in_degree)
 
 

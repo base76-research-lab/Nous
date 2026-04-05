@@ -31,22 +31,17 @@ async def generate_morning_report(field: FieldSurface) -> str:
     # Eftersom "FieldSurface" just nu bara har `domains()`, `concepts()` och `relations` via query,
     # kör vi en dedikerad Kuzu-query för att hitta de mest intressanta (starkaste) nyliga bryggorna
     try:
-        latest = field._conn.execute(
-            "MATCH (a:Concept)-[r:Relation]->(b:Concept) "
-            "WHERE r.strength > 0.5 "
-            "RETURN a.name AS src, r.type AS type, b.name AS tgt, r.source_tag AS tag "
-            "LIMIT 10"
-        ).get_as_df()
+        latest = field.top_relations_by_strength(10, threshold=0.5)
     except Exception as e:
         log.error(f"Kunde inte hämta relations för rapport: {e}")
-        return "Självreflektionen kunde inte genereras, Kuzu-databasen felade."
+        return "Självreflektionen kunde inte genereras."
 
-    if latest.empty:
+    if not latest:
         return "Systemet är i sin linda. Inga starka bryggor har konsoliderats än."
 
     bridges_text = "\n".join(
-        f"- {r['src']} --[{r['type']}]--> {r['tgt']} (källa: {r['tag']})"
-        for _, r in latest.iterrows()
+        f"- {r['src_name']} --[{r['type']}]--> {r['tgt_name']}"
+        for r in latest
     )
 
     prompt = (

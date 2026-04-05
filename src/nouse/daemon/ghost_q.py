@@ -108,35 +108,17 @@ def find_weak_nodes(field, limit: int = 9) -> list[str]:
     Returnerar lista med koncept-namn.
     """
     try:
-        conn = field._db.execute(
-            """
-            MATCH (a:Concept)-[r:Relation]->(b:Concept)
-            WITH a.name AS name, avg(r.strength) AS avg_str, count(r) AS n_rels
-            WHERE avg_str < $threshold AND n_rels <= 3
-            RETURN name, avg_str, n_rels
-            ORDER BY avg_str ASC
-            LIMIT $limit
-            """,
-            {"threshold": GHOST_Q_WEAK_THRESHOLD / 0.25 + 1.0, "limit": limit}
+        rows = field.find_weak_concepts(
+            threshold=GHOST_Q_WEAK_THRESHOLD / 0.25 + 1.0,
+            max_rels=3,
+            limit=limit,
         )
-        rows = conn.get_as_df()
-        if rows is None or len(rows) == 0:
-            return []
-        return list(rows["name"].values)
+        return [str(r["name"]) for r in rows if r.get("name")]
     except Exception as e:
         _log.debug("find_weak_nodes fallback: %s", e)
-        # Fallback: hämta slumpmässiga noder med låg strength
         try:
-            rows = field._db.execute(
-                """
-                MATCH (a:Concept)-[r:Relation]->(b:Concept)
-                WITH a.name AS name, avg(r.strength) AS avg_str
-                WHERE avg_str <= 1.2
-                RETURN name ORDER BY avg_str ASC LIMIT $limit
-                """,
-                {"limit": limit}
-            ).get_as_df()
-            return list(rows["name"].values) if rows is not None else []
+            rows = field.find_weak_concepts(threshold=1.2, limit=limit)
+            return [str(r["name"]) for r in rows if r.get("name")]
         except Exception:
             return []
 
@@ -147,30 +129,13 @@ def find_dangling_edges(field, limit: int = 1) -> list[str]:
     Dessa är kunskapsfrontieren — Nouse vet att X→Y men inget om Y.
     """
     try:
-        # Hämta alla kända nod-namn
-        known_rows = field._db.execute(
-            "MATCH (a:Concept) RETURN a.name AS name LIMIT 50000"
-        ).get_as_df()
-        if known_rows is None or len(known_rows) == 0:
-            return []
-        known = set(known_rows["name"].values)
-
-        # Hämta relation-mål
-        rel_rows = field._db.execute(
-            """
-            MATCH (a:Concept)-[r:Relation]->(b:Concept)
-            RETURN b.name AS tgt, r.strength AS str
-            ORDER BY str DESC LIMIT 5000
-            """
-        ).get_as_df()
-        if rel_rows is None:
-            return []
-
+        all_concepts = {str(c.get("name") or "") for c in field.concepts() if c.get("name")}
+        dangling_rows = field.find_dangling_targets(limit=5000)
         dangling = []
         seen = set()
-        for _, row in rel_rows.iterrows():
-            tgt = str(row["tgt"])
-            if tgt and tgt not in known and tgt not in seen:
+        for row in dangling_rows:
+            tgt = str(row.get("tgt") or "")
+            if tgt and tgt not in all_concepts and tgt not in seen:
                 dangling.append(tgt)
                 seen.add(tgt)
             if len(dangling) >= limit:

@@ -444,6 +444,16 @@ def get_nerv(domain_a: str, domain_b: str, max_hops: int = 8):
     }
 
 
+@app.get("/api/bisoc")
+def get_bisoc(tau: float = 0.55, epsilon: float = 2.0, max_domains: int = 50):
+    """Bisociationskandidater via TDA."""
+    field = get_field()
+    candidates = field.bisociation_candidates(
+        tau_threshold=tau, max_epsilon=epsilon, max_domains=max_domains
+    )
+    return {"candidates": candidates}
+
+
 @app.get("/api/limbic")
 def get_limbic():
     state = load_state()
@@ -517,13 +527,9 @@ def _graph_rows(
     safe_nodes = _coerce_int(limit_nodes, default=500, minimum=10, maximum=20000)
     safe_edges = _coerce_int(limit_edges, default=safe_nodes * 2, minimum=10, maximum=60000)
 
-    nodes_df = field._conn.execute(
-        f"MATCH (c:Concept) "
-        f"RETURN c.name AS id, c.domain AS dom, c.source AS source, c.created AS created "
-        f"LIMIT {safe_nodes}"
-    ).get_as_df()
+    nodes_raw = field.get_concepts_with_metadata(safe_nodes)
     nodes: list[dict[str, Any]] = []
-    for _, row in nodes_df.iterrows():
+    for row in nodes_raw:
         node_id = _coerce_text(row.get("id"))
         if not node_id:
             continue
@@ -540,26 +546,12 @@ def _graph_rows(
     if not nodes:
         return [], []
 
-    # Försök med evidensfält först; falla tillbaka till legacy-schema om fält saknas.
-    try:
-        edges_df = field._conn.execute(
-            f"MATCH (a:Concept)-[r:Relation]->(b:Concept) "
-            f"RETURN a.name AS src, r.type AS rel, r.strength AS strength, "
-            f"r.created AS created, r.evidence_score AS evidence_score, b.name AS tgt "
-            f"LIMIT {safe_edges}"
-        ).get_as_df()
-    except Exception:
-        edges_df = field._conn.execute(
-            f"MATCH (a:Concept)-[r:Relation]->(b:Concept) "
-            f"RETURN a.name AS src, r.type AS rel, r.strength AS strength, "
-            f"r.created AS created, b.name AS tgt "
-            f"LIMIT {safe_edges}"
-        ).get_as_df()
+    edges_raw = field.query_all_relations_with_metadata(safe_edges, include_evidence=True)
 
     node_ids = {n["id"] for n in nodes}
     edges: list[dict[str, Any]] = []
     dedupe: dict[str, int] = {}
-    for _, row in edges_df.iterrows():
+    for row in edges_raw:
         src = _coerce_text(row.get("src"))
         tgt = _coerce_text(row.get("tgt"))
         rel = _coerce_text(row.get("rel")) or "related_to"
@@ -2896,11 +2888,8 @@ async def post_chat(req: ChatRequest):
         return {"response": reply, "trace_id": trace_id, "run_id": run_id, "session_id": session["id"]}
     
     try:
-        recent = field._conn.execute(
-            "MATCH (a:Concept)-[r:Relation]->(b:Concept) "
-            "RETURN a.name, r.type, b.name ORDER BY r.strength DESC LIMIT 15"
-        ).get_as_df()
-        memories = [f"{row['a.name']} --[{row['r.type']}]--> {row['b.name']}" for _, row in recent.iterrows()]
+        recent = field.top_relations_by_strength(15)
+        memories = [f"{row['src_name']} --[{row['type']}]--> {row['tgt_name']}" for row in recent]
         context_str = "\n".join(memories)
     except Exception:
         context_str = "(Ingen kontext) "
@@ -3359,14 +3348,11 @@ async def post_agent_chat(req: AgentRequest):
         require_web_source = bool(require_search_tool and web_tools_available)
 
         try:
-            recent = field._conn.execute(
-                "MATCH (a:Concept)-[r:Relation]->(b:Concept) "
-                "RETURN a.name, r.type, b.name ORDER BY r.strength DESC LIMIT 8"
-            ).get_as_df()
+            recent = field.top_relations_by_strength(8)
             context_str = "\n".join(
                 [
-                    f"{row['a.name']} -[{row['r.type']}]-> {row['b.name']}"
-                    for _, row in recent.iterrows()
+                    f"{row['src_name']} -[{row['type']}]-> {row['tgt_name']}"
+                    for row in recent
                 ]
             )
         except Exception:

@@ -87,11 +87,7 @@ class LearningCoordinator:
         if evidence_score < CONFIDENCE_GATE:
             return
         try:
-            self.field._conn.execute(
-                "MATCH (a:Concept {name:$s})-[r:Relation {assumption_flag:true}]->(b:Concept {name:$t}) "
-                "SET r.assumption_flag = false",
-                {"s": src, "t": tgt},
-            )
+            self.field.clear_assumption_flags(src, tgt)
         except Exception:
             pass
 
@@ -110,10 +106,7 @@ class LearningCoordinator:
         """
         g = 1 + min(4, int(math.floor(math.log2(max(1, support_count)))))
         try:
-            self.field._conn.execute(
-                "MATCH (c:Concept {name:$n}) SET c.granularity = $g",
-                {"n": name, "g": g},
-            )
+            self.field.set_concept_granularity(name, g)
         except Exception:
             pass
 

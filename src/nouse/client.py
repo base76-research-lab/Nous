@@ -373,6 +373,14 @@ def get_trace(start: str, end: str, max_hops: int = 10, max_paths: int = 3) -> d
     return r.json()
 
 
+def get_bisoc(tau: float = 0.55, epsilon: float = 2.0, max_domains: int = 50) -> dict:
+    r = httpx.get(f"{DAEMON_BASE}/api/bisoc",
+                  params={"tau": tau, "epsilon": epsilon, "max_domains": max_domains},
+                  timeout=120.0)
+    r.raise_for_status()
+    return r.json()
+
+
 def get_output_trace(trace_id: str | None = None, limit: int = 200) -> dict:
     params: dict[str, str | int] = {"limit": limit}
     if trace_id:

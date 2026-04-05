@@ -36,25 +36,9 @@ def prune_weak_edges(field: "FieldSurface") -> int:  # type: ignore[name-defined
     Returnerar antal borttagna kanter.
     """
     cutoff = (datetime.now(timezone.utc) - timedelta(days=MIN_AGE_DAYS)).isoformat()
-
-    result = field._conn.execute(
-        "MATCH ()-[r:Relation]->() "
-        "WHERE r.strength < $threshold AND r.created < $cutoff "
-        "RETURN count(r) AS n",
-        {"threshold": WEAK_THRESHOLD, "cutoff": cutoff},
-    ).get_as_df()
-
-    count = int(result["n"].iloc[0]) if not result.empty else 0
-
+    count = field.delete_weak_relations(WEAK_THRESHOLD, cutoff)
     if count > 0:
-        field._conn.execute(
-            "MATCH (a)-[r:Relation]->(b) "
-            "WHERE r.strength < $threshold AND r.created < $cutoff "
-            "DELETE r",
-            {"threshold": WEAK_THRESHOLD, "cutoff": cutoff},
-        )
         log.info(f"Pruning: tog bort {count} svaga kanter (strength<{WEAK_THRESHOLD}, ålder>{MIN_AGE_DAYS}d)")
-
     return count
 
 
@@ -63,22 +47,9 @@ def prune_orphan_nodes(field: "FieldSurface") -> int:  # type: ignore[name-defin
     Ta bort noder utan några relationer alls (orphans).
     Returnerar antal borttagna noder.
     """
-    result = field._conn.execute(
-        "MATCH (c:Concept) "
-        "WHERE NOT EXISTS { MATCH (c)-[:Relation]-() } "
-        "RETURN count(c) AS n",
-    ).get_as_df()
-
-    count = int(result["n"].iloc[0]) if not result.empty else 0
-
+    count = field.delete_orphan_concepts()
     if count > 0:
-        field._conn.execute(
-            "MATCH (c:Concept) "
-            "WHERE NOT EXISTS { MATCH (c)-[:Relation]-() } "
-            "DELETE c",
-        )
         log.info(f"Pruning: tog bort {count} orphan-noder")
-
     return count
 
 
