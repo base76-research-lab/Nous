@@ -13,7 +13,7 @@ Epistemic grounding for any model.
 
 [Quick Start](#quick-start) · [Why It Matters](#why-it-matters) · [What You Get](#what-you-get) · [Benchmark](#run-the-benchmark-yourself)
 
-![Nouse demo](IMG/demo.gif)
+![Nouse demo](IMG/demo-en.gif)
 
 Repo social preview asset: [IMG/nouse-social-preview.svg](IMG/nouse-social-preview.svg)
 
