@@ -1,203 +1,167 @@
-# NoUse — 5-minuters guide
+# NoUse — 5-minute Quickstart
 
-> **NoUse** (νοῦς, "nous") — den kognitiva substrat-frameworken som ger din LLM en plastisk hjärna.
+> **NoUse** gives an LLM agent structured memory that knows what is known, how confidently it is known, and where knowledge ends.
 
-## Installation
+## What you will do in 5 minutes
+
+1. Install the package.
+2. Attach to a local NoUse brain.
+3. Query it for grounded context.
+4. Inject that context into the model you already use.
+
+## Install
 
 ```bash
 pip install nouse
 ```
 
-## Grundkoncept
-
-NoUse separerar **hjärnan** (persistent kognitiv substrat) från **larynxen** (LLM-runtime). En hjärna — många klienter.
-
-```
-Claude / GPT / din agent
-         ↓
-    nouse.Kernel()           ← Du är här
-         ↓
-  Residual Streams (w, r, u)
-  Minnesnivåer: working → episodic → semantic → procedural
-  Evidens-gatad plasticitet
-```
-
-## Snabbstart: 5 minuter
-
-### 1. Skapa en hjärna
+## Fastest path
 
 ```python
 import nouse
 
-k = nouse.Kernel()
+brain = nouse.attach()
+result = brain.query("transformer attention mechanism")
+
+print(result.context_block())
+print(result.confidence)
 ```
 
-### 2. Lägg till noder (hjärnregioner / koncept)
+`attach()` auto-detects the local daemon if it is already running. If not, it falls back to direct local graph access.
+
+## What you get back
+
+`brain.query(...)` returns a structured result, not just raw text.
+
+```text
+[Nouse memory]
+• transformer attention: mechanism for routing token influence across context
+
+Validated relations:
+  transformer —[uses]→ attention  [ev=0.92]
+  attention —[modulates]→ token relevance  [ev=0.81]
+
+Uncertain / under review:
+  attention —[is_equivalent_to]→ memory routing  [ev=0.41] ⚑
+```
+
+That is the product surface: a model gets a grounded epistemic frame before it answers.
+
+## Use it with your provider
+
+### OpenAI
 
 ```python
-k.add_node(
-    "hippocampus",
-    node_type="region",
-    label="Hippocampus",
-    states={"episodic_encoder": 0.7, "spatial_mapper": 0.3},
-    uncertainty=0.5,
-    evidence_score=0.0,
-    goal_weight=0.0,
-    attrs={"hemisphere": "bilateral"},
+from openai import OpenAI
+import nouse
+
+client = OpenAI()
+brain = nouse.attach()
+
+question = "How does attention affect token relevance?"
+context = brain.query(question).context_block()
+
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=[
+        {"role": "system", "content": context},
+        {"role": "user", "content": question},
+    ],
 )
 
-k.add_node(
-    "prefrontal_cortex",
-    node_type="region",
-    label="Prefrontal Cortex",
-    states={"executive": 0.8, "working_memory": 0.2},
-    uncertainty=0.3,
-    evidence_score=0.4,
-    goal_weight=0.6,
-    attrs={},
-)
+print(response.choices[0].message.content)
 ```
 
-### 3. Skapa kanter med Residual Streams
-
-Varje kant har tre kanaler:
-- **w** — strukturell synaptisk styrka [0..1], persistent
-- **r** — residualsignal [-2..2], ephemeral per cykel
-- **u** — osäkerhet [0..1], blockerar konsolidering om hög
+### Anthropic
 
 ```python
-k.upsert_edge(
-    "hippo_to_pfc",
-    src="hippocampus",
-    rel_type="consolidated_into",
-    tgt="prefrontal_cortex",
-    w=0.4,         # Medelstark synaptisk koppling
-    r=0.0,         # Ingen aktiv signal just nu
-    u=0.6,         # Ganska osäker
-    provenance="episodic_learning",
+from anthropic import Anthropic
+import nouse
+
+client = Anthropic()
+brain = nouse.attach()
+
+question = "What do we know about topological plasticity?"
+context = brain.query(question).context_block()
+
+response = client.messages.create(
+    model="claude-3-7-sonnet-latest",
+    max_tokens=800,
+    system=context,
+    messages=[
+        {"role": "user", "content": question},
+    ],
 )
 
-edge = k.edges["hippo_to_pfc"]
-print(f"path_signal = {edge.path_signal:.3f}")
-# → path_signal = w + 0.45*r - 0.25*u = 0.4 + 0 - 0.15 = 0.250
+print(response.content[0].text)
 ```
 
-### 4. Kör en kognitiv cykel
+### Ollama
 
 ```python
-from nouse import FieldEvent
+import ollama
+import nouse
 
-event = FieldEvent(
-    edge_id="hippo_to_pfc",
-    src="hippocampus",
-    rel_type="consolidated_into",
-    tgt="prefrontal_cortex",
-    w_delta=0.05,       # Stärk kopplingen
-    r_delta=0.8,        # Aktivera residualsignalen
-    u_delta=-0.1,       # Minska osäkerheten (nytt bevis)
-    evidence_score=0.7,
-    provenance="experiment:recall_test",
+brain = nouse.attach()
+
+question = "Summarize what is known about epistemic grounding."
+context = brain.query(question).context_block()
+
+response = ollama.chat(
+    model="qwen3.5:latest",
+    messages=[
+        {"role": "system", "content": context},
+        {"role": "user", "content": question},
+    ],
 )
 
-k.step(events=[event])
-
-edge = k.edges["hippo_to_pfc"]
-print(f"w={edge.w:.2f}, r={edge.r:.3f}, u={edge.u:.2f}")
-print(f"path_signal = {edge.path_signal:.3f}")
+print(response["message"]["content"])
 ```
 
-### 5. Kristallisera starka kanter
-
-Kanter med `w > 0.55` och `u < 0.35` blir permanenta minnesspår:
-
-```python
-# Kör flera cykler med bevis...
-for _ in range(20):
-    k.step(events=[FieldEvent(
-        edge_id="hippo_to_pfc",
-        src="hippocampus", rel_type="consolidated_into", tgt="prefrontal_cortex",
-        w_delta=0.03, u_delta=-0.05, evidence_score=0.85,
-        provenance="repeated_activation",
-    )])
-
-crystallized = k.crystallize()
-print(f"Kristalliserade kanter: {[e.edge_id for e in crystallized]}")
-```
-
-### 6. Spara och ladda hjärnan
-
-```python
-k.save("~/.local/share/nouse/brain.json")
-
-# Ladda senare:
-k2 = nouse.Kernel.load("~/.local/share/nouse/brain.json")
-```
-
----
-
-## Minnesnivåer
-
-| Nivå | Karaktär | Nod-typ | Livslängd |
-|------|----------|---------|-----------|
-| **working** | Snabb decay, r-tung | Aktiva kanter | Cykler |
-| **episodic** | Tidsstämplat | EpisodeNode | Timmar–dagar |
-| **semantic** | Konsoliderat, evidens-viktat | ConceptNode | Veckor–månader |
-| **procedural** | Handlingsmönster | TaskNode | Permanent |
-
-```python
-print(nouse.MEMORY_TIERS)
-# ('working', 'episodic', 'semantic', 'procedural')
-```
-
----
-
-## CLI-kommandon
+## If you want the daemon running
 
 ```bash
-# Starta Brain Kernel daemon (persistent runtime)
-nouse-brain --state-path ~/.local/share/nouse/brain.json --tick-seconds 1.0
+# Start the learning daemon
+nouse-brain
 
-# Starta MCP-server (för Claude, VS Code, etc.)
-nouse-mcp --tick-seconds 1.0
-
-# Starta REST API (skrivskyddad, för research)
+# Optional: expose the HTTP API used by attach() auto-detection
 nouse-server
 
-# Kör ett autonomt mission-kontrakt
-nouse-mission --mission ops/missions/first_real_ai_v1.json
+# Optional: expose NoUse as an MCP server
+nouse-mcp
 ```
 
-## VS Code MCP-integration
+## If you want the future cloud path
 
-```json
-{
-  "mcpServers": {
-    "nouse": {
-      "command": "nouse-mcp",
-      "args": ["--tick-seconds", "1.0"],
-      "env": {
-        "BRAIN_DB_STATE_PATH": "~/.local/share/nouse/brain.json"
-      }
-    }
-  }
-}
+The local-first path is the default. The planned upgrade path is a managed cloud brain:
+
+```python
+brain = nouse.attach(api_key="nouse_sk_...")
 ```
 
----
+That is the direction for users who want larger hosted memory graphs, shared project memory, or less local setup.
 
-## Varför inte en vanlig vektordatabas?
+## Core idea in one diagram
 
-| Funktion | NoUse | Vector DB | LLM Memory |
-|----------|-------|-----------|------------|
-| Topologisk plasticitet | ✅ | ❌ | ❌ |
-| Evidens-gatade skrivningar | ✅ | ❌ | ❌ |
-| Minnesnivåer | ✅ | ❌ | ⚠️ |
-| Residual streams (w/r/u) | ✅ | ❌ | ❌ |
-| Modell-agnostisk | ✅ | ⚠️ | ❌ |
-| Full observabilitet | ✅ | ❌ | ❌ |
+```text
+your docs / chats / research
+            ↓
+      NoUse graph memory
+            ↓
+    confidence + relations + gaps
+            ↓
+      injected into any LLM
+```
 
-Residual streams uppnår **100% bridge detection** mot 0.75% för statiska vikter i simulation.
+## When to use NoUse
 
----
+- When a coding or research agent needs persistent project memory
+- When confidence and uncertainty matter as much as the answer itself
+- When you want the system to expose what is unknown instead of bluffing
+- When you want local-first memory instead of hidden hosted state
 
-*Dokumentation: se `docs/` för fullständig arkitektur, schema och API-kontrakt.*
+## If you want the lower-level brain kernel
+
+NoUse also exposes a deeper kernel API with residual streams, crystallization, and explicit field events. That path is still available, but it is not the fastest way to get value from the package.
+
+See the full docs and source for the lower-level kernel, daemon, and graph internals.

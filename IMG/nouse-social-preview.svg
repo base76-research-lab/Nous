@@ -1,0 +1,64 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="80" y1="40" x2="1160" y2="600" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111F"/>
+      <stop offset="1" stop-color="#13263E"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="246" y1="140" x2="530" y2="396" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F08EA2"/>
+      <stop offset="0.5" stop-color="#9FB7CE"/>
+      <stop offset="1" stop-color="#46D2DC"/>
+    </linearGradient>
+    <linearGradient id="line" x1="260" y1="138" x2="522" y2="390" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#EAA0B0"/>
+      <stop offset="0.55" stop-color="#A5B7C9"/>
+      <stop offset="1" stop-color="#49D7E2"/>
+    </linearGradient>
+    <filter id="glow" x="0" y="0" width="1280" height="640" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape"/>
+      <feGaussianBlur stdDeviation="22" result="effect1_foregroundBlur"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <circle cx="1120" cy="108" r="166" fill="#18304D" fill-opacity="0.55"/>
+  <circle cx="982" cy="546" r="208" fill="#10263D" fill-opacity="0.8"/>
+  <circle cx="150" cy="548" r="180" fill="#0D2034" fill-opacity="0.95"/>
+
+  <g opacity="0.26" filter="url(#glow)">
+    <path d="M164 318L232 204L356 218L414 324L354 438L226 434L164 318Z" stroke="url(#line)" stroke-width="22"/>
+    <path d="M356 218L472 154L570 212L566 340L474 394L414 324" stroke="url(#line)" stroke-width="22"/>
+    <path d="M232 204L272 108L398 96L472 154" stroke="url(#line)" stroke-width="22"/>
+  </g>
+
+  <g>
+    <path d="M164 318L232 204L356 218L414 324L354 438L226 434L164 318Z" stroke="url(#line)" stroke-width="12"/>
+    <path d="M356 218L472 154L570 212L566 340L474 394L414 324" stroke="url(#line)" stroke-width="12"/>
+    <path d="M232 204L272 108L398 96L472 154" stroke="url(#line)" stroke-width="12"/>
+
+    <circle cx="164" cy="318" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="232" cy="204" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="356" cy="218" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="414" cy="324" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="354" cy="438" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="226" cy="434" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="472" cy="154" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="570" cy="212" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="566" cy="340" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="474" cy="394" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="272" cy="108" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+    <circle cx="398" cy="96" r="28" fill="#0D1B2B" stroke="#C4D4E2" stroke-width="10"/>
+  </g>
+
+  <text x="678" y="224" fill="#F5A313" font-family="Inter, Arial, sans-serif" font-size="92" font-weight="800" letter-spacing="-2">NoUse</text>
+  <text x="678" y="286" fill="#E4EEF9" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="700">Structured memory for LLM agents</text>
+  <text x="678" y="338" fill="#B6C7DA" font-family="Inter, Arial, sans-serif" font-size="28">Knows what it knows, how confidently it knows it,</text>
+  <text x="678" y="376" fill="#B6C7DA" font-family="Inter, Arial, sans-serif" font-size="28">and where knowledge runs out.</text>
+
+  <rect x="678" y="430" width="462" height="86" rx="18" fill="#10243A" stroke="#214765" stroke-width="2"/>
+  <text x="712" y="478" fill="#4FD5E0" font-family="JetBrains Mono, monospace" font-size="24">brain = nouse.attach()</text>
+  <text x="712" y="510" fill="#E6F0FA" font-family="JetBrains Mono, monospace" font-size="22">result = brain.query(question)</text>
+
+  <text x="678" y="584" fill="#7B95AE" font-family="Inter, Arial, sans-serif" font-size="22">base76-research-lab/NoUse</text>
+</svg>
