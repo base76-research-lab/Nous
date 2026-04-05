@@ -49,7 +49,7 @@ def migrate(kuzu_path: Path, sqlite_path: Path, *, dry_run: bool = False) -> dic
         print(f"Warning: Could not read concepts: {e}")
         concepts = []
 
-    # Read all relations
+    # Read all relations — try full schema first, fall back to basic
     try:
         df = conn.execute(
             "MATCH (a:Concept)-[r:Relation]->(b:Concept) "
@@ -58,9 +58,18 @@ def migrate(kuzu_path: Path, sqlite_path: Path, *, dry_run: bool = False) -> dic
         ).get_as_df()
         relations = df.to_dict("records")
         stats["relations"] = len(relations)
-    except Exception as e:
-        print(f"Warning: Could not read relations: {e}")
-        relations = []
+    except Exception:
+        try:
+            df = conn.execute(
+                "MATCH (a:Concept)-[r:Relation]->(b:Concept) "
+                "RETURN a.name AS src, b.name AS tgt, r.type, r.why, r.strength, r.created"
+            ).get_as_df()
+            relations = df.to_dict("records")
+            stats["relations"] = len(relations)
+            print("  (Using basic schema — evidence_score/assumption_flag not in source)")
+        except Exception as e:
+            print(f"Warning: Could not read relations: {e}")
+            relations = []
 
     # Read concept_knowledge
     knowledge = []
