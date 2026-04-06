@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> · <a href="#the-result">Benchmark</a> · <a href="#how-it-works">How It Works</a> · <a href="#how-nouse-differs-from-alternatives">vs Alternatives</a> · <a href="#use-with-openai-anthropic-or-ollama">Examples</a> · <a href="#research">Research</a> · <a href="#roadmap">Roadmap</a>
+  <a href="#quick-start">Quick Start</a> · <a href="#the-result">Benchmark</a> · <a href="#how-it-works">How It Works</a> · <a href="#how-nouse-differs-from-alternatives">vs Alternatives</a> · <a href="#use-with-openai-anthropic-or-ollama">Examples</a> · <a href="#research">Research</a> · <a href="#roadmap">Roadmap</a> · <a href="#community">Community</a>
 </p>
 
 <p align="center">
@@ -402,6 +402,16 @@ Requires Python 3.11+. Graph stored in `~/.local/share/nouse/`.
 | **Docker support** | 📋 | One-command deployment for teams |
 | **Managed cloud** | 📋 | `nouse.attach(api_key="nouse_sk_...")` — hosted brain for teams |
 | **Multi-tenant API** | 📋 | Shared project memory, team collaboration, SLAs |
+
+---
+
+## Community
+
+- [GitHub Discussions](https://github.com/base76-research-lab/NoUse/discussions) — Q&A, ideas, research notes, show & tell
+- [Open an issue](https://github.com/base76-research-lab/NoUse/issues) — bugs, feature requests, domain benchmark submissions
+- [Contributing guide](CONTRIBUTING.md) — how to contribute code, benchmarks, examples, and docs
+
+Contributions welcome — especially domain-specific question banks. See [CONTRIBUTING.md](CONTRIBUTING.md) for how.
 
 ---
 
