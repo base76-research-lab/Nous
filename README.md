@@ -168,7 +168,7 @@ response = openai.chat(messages=[
 ])
 ```
 
-## Use With OpenAI, Anthropic, Or Ollama
+## Use With OpenAI, Anthropic, Ollama or Groq
 
 ### OpenAI
 
@@ -237,6 +237,28 @@ response = ollama.chat(
 )
 
 print(response["message"]["content"])
+```
+
+### Groq
+
+```python
+from groq import Groq
+import nouse
+
+client = Groq()
+brain = nouse.attach()
+
+question = "What does this project know about Hebbian learning?"
+context = brain.query(question).context_block()
+
+response = client.chat.completions.create(
+    model="llama3-8b-8192",
+    messages=[
+        {"role": "system", "content": context},
+        {"role": "user", "content": question},
+    ],
+)
+print(response.choices[0].message.content)
 ```
 
 The pattern is always the same: `brain.query(...)` first, provider call second.
