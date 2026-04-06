@@ -7,6 +7,7 @@
 </p>
 
 <p align="center">
+  <a href="https://discord.gg/Fbwmr7Vv"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://pypi.org/project/nouse/"><img src="https://img.shields.io/pypi/v/nouse" alt="PyPI"></a>
   <a href="https://github.com/base76-research-lab/NoUse/actions/workflows/tests.yml"><img src="https://github.com/base76-research-lab/NoUse/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
@@ -429,6 +430,7 @@ Requires Python 3.11+. Graph stored in `~/.local/share/nouse/`.
 
 ## Community
 
+- [Discord](https://discord.gg/Fbwmr7Vv) — real-time chat, help, show & tell
 - [GitHub Discussions](https://github.com/base76-research-lab/NoUse/discussions) — Q&A, ideas, research notes, show & tell
 - [Open an issue](https://github.com/base76-research-lab/NoUse/issues) — bugs, feature requests, domain benchmark submissions
 - [Contributing guide](CONTRIBUTING.md) — how to contribute code, benchmarks, examples, and docs
