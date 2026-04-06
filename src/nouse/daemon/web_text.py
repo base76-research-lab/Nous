@@ -91,7 +91,9 @@ def _parse_vtt_text(raw: str) -> str:
             continue
         cleaned = re.sub(r"<[^>]+>", "", l).strip()
         if cleaned:
-            parts.append(html.unescape(cleaned))
+            decoded = html.unescape(cleaned)
+            if not parts or decoded != parts[-1]:
+                parts.append(decoded)
     return "\n".join(parts)
 
 
@@ -107,9 +109,10 @@ def _extract_youtube_text_via_ytdlp(url: str, vid: str) -> tuple[str, str]:
             "--write-auto-sub",
             "--write-sub",
             "--sub-langs",
-            "sv.*,en.*",
+            "en,sv,en.*,sv.*",
             "--sub-format",
             "vtt",
+            "--no-abort-on-error",
             "-o",
             out_tmpl,
             url,

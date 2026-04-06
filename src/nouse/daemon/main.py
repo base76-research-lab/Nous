@@ -691,6 +691,8 @@ async def brain_loop(
                                     r["tgt"],
                                     why=r.get("why", ""),
                                     source_tag=meta.get("path", ""),
+                                    domain_src=r.get("domain_src", "okänd"),
+                                    domain_tgt=r.get("domain_tgt", "okänd"),
                                 )
                                 LearningCoordinator(field, limbic_state).on_fact(
                                     r["src"], r["type"], r["tgt"],
@@ -704,6 +706,8 @@ async def brain_loop(
                                     why=r.get("why", ""),
                                     evidence_score=float(r.get("evidence_score") or 0.35),
                                     source=meta.get("path", ""),
+                                    domain_src=r.get("domain_src", "okänd"),
+                                    domain_tgt=r.get("domain_tgt", "okänd"),
                                 )
                                 count += 1
                             return count
@@ -942,6 +946,8 @@ async def brain_loop(
                                 b["tgt"],
                                 why=b.get("why", ""),
                                 source_tag="syntes",
+                                domain_src=b.get("domain_src", "okänd"),
+                                domain_tgt=b.get("domain_tgt", "okänd"),
                             )
                             LearningCoordinator(field, limbic_state).on_fact(
                                 b["src"], b["rel_type"], b["tgt"],
@@ -955,6 +961,8 @@ async def brain_loop(
                                 why=b.get("why", ""),
                                 evidence_score=float(b.get("evidence_score") or 0.35),
                                 source="syntes",
+                                domain_src=b.get("domain_src", "okänd"),
+                                domain_tgt=b.get("domain_tgt", "okänd"),
                             )
                             count += 1
                         return count
@@ -1169,6 +1177,8 @@ async def brain_loop(
                                             source_tag=f"curiosity_loop:{ass.tier}",
                                             evidence_score=float(ass.score),
                                             assumption_flag=(ass.tier == "hypotes"),
+                                            domain_src=r.get("domain_src", "okänd"),
+                                            domain_tgt=r.get("domain_tgt", "okänd"),
                                         )
                                         LearningCoordinator(field, limbic_state).on_fact(
                                             r["src"], r["type"], r["tgt"],
@@ -1182,6 +1192,8 @@ async def brain_loop(
                                             why=r.get("why", ""),
                                             evidence_score=float(r.get("evidence_score") or 0.35),
                                             source=f"curiosity:{ass.tier}",
+                                            domain_src=r.get("domain_src", "okänd"),
+                                            domain_tgt=r.get("domain_tgt", "okänd"),
                                         )
                                         _count += 1
                                     return _count, _scores, _tiers

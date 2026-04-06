@@ -208,12 +208,14 @@ class FieldSurface:
                      why: str = "", strength: float = 1.0,
                      source_tag: str = "auto",
                      evidence_score: float | None = None,
-                     assumption_flag: bool | None = None) -> None:
+                     assumption_flag: bool | None = None,
+                     domain_src: str = "external",
+                     domain_tgt: str = "external") -> None:
         ts = datetime.utcnow().isoformat()
-        for name in (src, tgt):
+        for name, domain in ((src, domain_src), (tgt, domain_tgt)):
             self.add_concept(
                 name,
-                domain="external",
+                domain=domain,
                 granularity=1,
                 source=source_tag,
                 ensure_knowledge=False,

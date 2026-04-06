@@ -870,7 +870,12 @@ def learn_from(
 
     async def _run_db() -> tuple[int, dict]:
         field = FieldSurface()
-        rels = await extract_relations(text, {"path": source, "source": source_tag})
+        rels = await extract_relations(text, {
+            "path": source,
+            "source": source_tag,
+            "extract_models": "minimax-m2.7:cloud,deepseek-r1:1.5b",
+            "extract_timeout_sec": 75.0,
+        })
         for r in rels:
             field.add_concept(r["src"], r["domain_src"], source=source_tag)
             field.add_concept(r["tgt"], r["domain_tgt"], source=source_tag)

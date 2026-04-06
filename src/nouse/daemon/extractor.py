@@ -21,7 +21,7 @@ _log = logging.getLogger("nouse.extractor")
 MODEL = (
     os.getenv("NOUSE_EXTRACT_MODEL")
     or os.getenv("NOUSE_OLLAMA_MODEL")
-    or "qwen3.5:latest"
+    or "deepseek-r1:1.5b"
 ).strip()
 FALLBACK_MODEL = (os.getenv("NOUSE_EXTRACT_FALLBACK_MODEL") or "").strip()
 GLOBAL_CANDIDATES_RAW = (os.getenv("NOUSE_MODEL_CANDIDATES") or "").strip()
@@ -166,6 +166,69 @@ _HEURISTIC_PATTERNS: list[tuple[re.Pattern[str], str]] = [
             re.IGNORECASE,
         ),
         "är_del_av",
+    ),
+    (
+        re.compile(
+            r"(?P<src>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})\s+"
+            r"(?:influences?|affects?|impacts?|påverkar)\s+"
+            r"(?P<tgt>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})",
+            re.IGNORECASE,
+        ),
+        "modulerar",
+    ),
+    (
+        re.compile(
+            r"(?P<src>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})\s+"
+            r"(?:produces?|generates?|enables?|producerar|möjliggör)\s+"
+            r"(?P<tgt>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})",
+            re.IGNORECASE,
+        ),
+        "producerar",
+    ),
+    (
+        re.compile(
+            r"(?P<src>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})\s+"
+            r"(?:strengthens?|enhances?|stärker|ökar)\s+"
+            r"(?P<tgt>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})",
+            re.IGNORECASE,
+        ),
+        "stärker",
+    ),
+    (
+        re.compile(
+            r"(?P<src>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})\s+"
+            r"(?:involves?|includes?|contains?|consists? of|innefattar)\s+"
+            r"(?P<tgt>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})",
+            re.IGNORECASE,
+        ),
+        "är_del_av",
+    ),
+    (
+        re.compile(
+            r"(?P<src>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})\s+"
+            r"(?:is (?:associated|linked|connected|related) (?:with|to))\s+"
+            r"(?P<tgt>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})",
+            re.IGNORECASE,
+        ),
+        "är_analogt_med",
+    ),
+    (
+        re.compile(
+            r"(?P<src>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})\s+"
+            r"(?:reduces?|decreases?|inhibits?|minskar|hämmar)\s+"
+            r"(?P<tgt>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})",
+            re.IGNORECASE,
+        ),
+        "försvagar",
+    ),
+    (
+        re.compile(
+            r"(?P<src>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})\s+"
+            r"(?:mediates?|controls?|governs?|drives?|styr)\s+"
+            r"(?P<tgt>[A-Za-z0-9ÅÄÖåäö_\- ]{2,60})",
+            re.IGNORECASE,
+        ),
+        "reglerar",
     ),
 ]
 

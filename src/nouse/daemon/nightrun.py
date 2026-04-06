@@ -41,6 +41,9 @@ STATUS_FILE  = Path.home() / ".local" / "share" / "nouse" / "nightrun_status.jso
 CONSOLIDATION_MIN_EVIDENCE  = float(os.getenv("NOUSE_NIGHTRUN_MIN_EVIDENCE",  "0.45"))
 CONSOLIDATION_MIN_SUPPORT   = int(os.getenv("NOUSE_NIGHTRUN_MIN_SUPPORT",     "1"))
 STRONG_CONSOLIDATION        = float(os.getenv("NOUSE_NIGHTRUN_STRONG_EVIDENCE","0.65"))
+# Grace period: nya koncept (< GRACE_HOURS gamla) konsolideras vid lägre tröskel
+GRACE_HOURS                 = int(os.getenv("NOUSE_NIGHTRUN_GRACE_HOURS",     "48"))
+GRACE_MIN_EVIDENCE          = float(os.getenv("NOUSE_NIGHTRUN_GRACE_EVIDENCE", "0.15"))
 
 NightRunMode = Literal["idle", "night", "always", "never"]
 
@@ -169,6 +172,9 @@ async def run_night_consolidation(
     consolidated_ids: set[str] = set()
 
     # ── Steg 1+2+3: Evaluera och konsolidera ──────────────────────────────────
+    now_ts = time.time()
+    grace_cutoff = now_ts - (GRACE_HOURS * 3600)
+
     for entry in entries:
         if time.monotonic() > deadline:
             _log.warning("NightRun: tidsgräns nådd (%d min)", max_minutes)
@@ -176,7 +182,16 @@ async def run_night_consolidation(
 
         ev = entry.evidence_score
 
-        if ev >= min_evidence:
+        # Grace period: nya poster (< GRACE_HOURS gamla) får lägre tröskel
+        try:
+            entry_ts = datetime.fromisoformat(entry.ts).timestamp()
+            is_recent = entry_ts > grace_cutoff
+        except (ValueError, OSError):
+            is_recent = True  # vid parse-fel — var generös
+
+        effective_threshold = GRACE_MIN_EVIDENCE if is_recent else min_evidence
+
+        if ev >= effective_threshold:
             # Stärk kanten i grafen — med evidens-skalat delta
             if not dry_run:
                 coordinator.on_fact(
@@ -188,15 +203,16 @@ async def run_night_consolidation(
             consolidated_ids.add(entry.id)
             result.consolidated += 1
             _log.debug(
-                "Konsoliderar: %s─[%s]→%s  ev=%.2f",
-                entry.src, entry.rel_type, entry.tgt, ev
+                "Konsoliderar: %s─[%s]→%s  ev=%.2f%s",
+                entry.src, entry.rel_type, entry.tgt, ev,
+                " (grace)" if is_recent and ev < min_evidence else ""
             )
         else:
             # Svag evidens — lämna unconsolidated, den försvinner vid prune_old()
             result.discarded += 1
             _log.debug(
                 "Kasserar (ev=%.2f < %.2f): %s→%s",
-                ev, CONSOLIDATION_MIN_EVIDENCE, entry.src, entry.tgt
+                ev, effective_threshold, entry.src, entry.tgt
             )
 
         await asyncio.sleep(0)  # yield till event loop
@@ -208,11 +224,24 @@ async def run_night_consolidation(
     # ── Steg 5: Bisociation-pass på nya noder ─────────────────────────────────
     new_nodes = {e.src for e in entries} | {e.tgt for e in entries}
     new_domains = {e.domain_src for e in entries} | {e.domain_tgt for e in entries}
+    new_domains.discard("okänd")  # okänd domän ger inga meningsfulla bisociationer
 
-    if len(new_domains) >= 2 and not dry_run:
-        domain_list = list(new_domains)
-        for i, da in enumerate(domain_list):
-            for db in domain_list[i+1:]:
+    if not dry_run and new_domains:
+        # Hämta befintliga domäner och jämför nya mot dem — inte bara nya sinsemellan
+        try:
+            existing_domains = set(field.domains()) - new_domains
+            existing_domains.discard(None)
+        except Exception:
+            existing_domains = set()
+
+        # Kombinera: nya mot nya + nya mot befintliga (max 10 befintliga för perf)
+        compare_domains = list(existing_domains)[:10]
+        all_domains = list(new_domains) + compare_domains
+
+        for i, da in enumerate(list(new_domains)):
+            for db in all_domains:
+                if da == db:
+                    continue
                 if time.monotonic() > deadline:
                     break
                 try:

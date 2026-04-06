@@ -1905,6 +1905,7 @@ async def post_ingest(req: IngestRequest):
     trace_id = new_trace_id("ingest")
     started = time.monotonic()
     field = get_field()
+    from nouse.daemon.node_inbox import get_inbox  # noqa: E402
     meta = {"source": req.source, "path": req.source}
     record_event(
         trace_id,
@@ -2004,7 +2005,18 @@ async def post_ingest(req: IngestRequest):
                                why=r.get("why", ""),
                                source_tag=req.source,
                                evidence_score=decision.auto_score,
-                               assumption_flag=(decision.tier == "hypotes"))
+                               assumption_flag=(decision.tier == "hypotes"),
+                               domain_src=r.get("domain_src", "okänd"),
+                               domain_tgt=r.get("domain_tgt", "okänd"))
+            # Lägg till i inbox → nightrun konsolidering + bisociation
+            get_inbox().add(
+                r["src"], r["type"], r["tgt"],
+                why=r.get("why", ""),
+                evidence_score=decision.auto_score,
+                source=req.source,
+                domain_src=r.get("domain_src", "okänd"),
+                domain_tgt=r.get("domain_tgt", "okänd"),
+            )
             added += 1
     try:
         get_memory().ingest_episode(
@@ -2061,6 +2073,46 @@ async def post_ingest(req: IngestRequest):
         "queued": False,
         "trace_id": trace_id,
     }
+
+
+class BisociateRequest(BaseModel):
+    problem: str
+    context: str = ""
+    feedback: bool = True
+
+
+@app.post("/api/bisociate")
+async def post_bisociate(req: BisociateRequest):
+    """
+    Bisociativ problemlösning — korsdomän-sökning via NoUse-grafen.
+    Bryter ner problemet till primitiver, söker ALLA domäner, syntetiserar lösningar.
+    Resultatet matas tillbaka som ny kunskap i grafen (feedback loop).
+    """
+    from nouse.tools.bisociative_solver import solve
+    try:
+        result = await asyncio.get_event_loop().run_in_executor(
+            None, lambda: solve(req.problem, context=req.context, feedback=req.feedback)
+        )
+        return {
+            "problem": result.problem,
+            "original_domain": result.original_domain,
+            "primitives": [
+                {"name": p.name, "description": p.description,
+                 "search_domains": p.search_domains, "graph_hits": len(p.graph_hits)}
+                for p in result.primitives
+            ],
+            "suggestions": [
+                {"source_domain": s.source_domain, "concept": s.concept,
+                 "application": s.application, "implementation": s.implementation,
+                 "confidence": s.confidence, "novelty": s.novelty}
+                for s in result.suggestions
+            ],
+            "synthesis": result.synthesis,
+            "new_knowledge_ingested": result.ingested,
+        }
+    except Exception as e:
+        log.warning("Bisociate failed: %s", e)
+        return {"error": str(e), "suggestions": []}
 
 
 @app.post("/api/conductor/cycle")

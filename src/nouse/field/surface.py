@@ -178,6 +178,8 @@ class FieldSurface:
         G.clear()
         cur = self._sql.cursor()
         for row in cur.execute("SELECT name, domain, granularity, source, created FROM concept"):
+            if row["name"] is None:
+                continue
             G.add_node(row["name"], domain=row["domain"],
                        granularity=row["granularity"],
                        source=row["source"], created=row["created"])
@@ -185,6 +187,8 @@ class FieldSurface:
             "SELECT id, src, tgt, type, why, strength, created, "
             "evidence_score, assumption_flag FROM relation"
         ):
+            if not row["src"] or not row["tgt"]:
+                continue
             G.add_edge(row["src"], row["tgt"], key=row["id"], id=row["id"],
                        type=row["type"], why=row["why"],
                        strength=row["strength"] or 1.0,
@@ -221,10 +225,11 @@ class FieldSurface:
             self.ensure_minimal_concept_knowledge(name, domain=domain, source=source)
 
     def add_relation(self, src, rel_type, tgt, why="", strength=1.0,
-                     source_tag="auto", evidence_score=None, assumption_flag=None):
+                     source_tag="auto", evidence_score=None, assumption_flag=None,
+                     domain_src="external", domain_tgt="external"):
         ts = datetime.utcnow().isoformat()
-        for name in (src, tgt):
-            self.add_concept(name, domain="external", granularity=1,
+        for name, domain in ((src, domain_src), (tgt, domain_tgt)):
+            self.add_concept(name, domain=domain, granularity=1,
                              source=source_tag, ensure_knowledge=False)
         why_clean = (why or "").strip()
         ev = float(evidence_score) if evidence_score is not None else (
