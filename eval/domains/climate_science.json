@@ -1,0 +1,302 @@
+[
+  {
+    "question": "What is the primary greenhouse gas responsible for human-caused climate change?",
+    "answer": "carbon dioxide (CO2)",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What physical mechanism causes the greenhouse effect?",
+    "answer": "greenhouse gases absorb and re-emit infrared radiation, trapping heat in the lower atmosphere",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the pre-industrial baseline concentration of CO2 used in climate science?",
+    "answer": "approximately 280 ppm",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the current atmospheric CO2 concentration as of the early 2020s?",
+    "answer": "approximately 420 ppm",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What temperature target is established by the Paris Agreement?",
+    "answer": "limit warming to 1.5°C above pre-industrial levels, with an upper bound of 2°C",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is radiative forcing?",
+    "answer": "the change in energy flux in the atmosphere caused by natural or anthropogenic factors, measured in W/m²",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the global warming potential (GWP) of methane over a 100-year period?",
+    "answer": "approximately 28–34 times that of CO2",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the global warming potential of nitrous oxide over 100 years?",
+    "answer": "approximately 265–298 times that of CO2",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the main natural source of methane emissions?",
+    "answer": "wetlands",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is climate sensitivity?",
+    "answer": "the equilibrium change in global mean surface temperature following a doubling of atmospheric CO2",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the estimated equilibrium climate sensitivity range according to the IPCC Sixth Assessment Report?",
+    "answer": "2.5°C to 4°C, with a best estimate of 3°C",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the albedo effect in the context of climate?",
+    "answer": "the reflectivity of Earth's surface; higher albedo (e.g., ice and snow) reflects more solar radiation and has a cooling effect",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the ice-albedo feedback?",
+    "answer": "as ice melts, darker ocean or land is exposed, absorbing more heat and causing further warming",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is ocean acidification?",
+    "answer": "the decrease in ocean pH caused by absorption of atmospheric CO2, which forms carbonic acid",
+    "domain": "climate_science"
+  },
+  {
+    "question": "By approximately how much has ocean pH decreased since pre-industrial times?",
+    "answer": "approximately 0.1 pH units, representing a 26% increase in acidity",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is thermal expansion in the context of sea level rise?",
+    "answer": "the increase in ocean volume as water warms, contributing to sea level rise",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What are the two main contributors to current sea level rise?",
+    "answer": "thermal expansion of ocean water and melting of glaciers and ice sheets",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the Atlantic Meridional Overturning Circulation (AMOC)?",
+    "answer": "a system of ocean currents that transports warm water northward in the Atlantic and returns cold deep water southward; a key component of global climate regulation",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is a tipping point in climate science?",
+    "answer": "a threshold beyond which a component of the climate system undergoes an abrupt, self-reinforcing, and potentially irreversible change",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is permafrost and why is it relevant to climate change?",
+    "answer": "permanently frozen ground in polar regions that stores large amounts of organic carbon; thawing releases CO2 and methane, creating a positive feedback loop",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the difference between weather and climate?",
+    "answer": "weather refers to short-term atmospheric conditions; climate refers to long-term average patterns of weather over 30 or more years",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the Keeling Curve?",
+    "answer": "a continuous record of atmospheric CO2 concentration measured at Mauna Loa Observatory since 1958, showing a consistent upward trend",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What causes the seasonal oscillation visible in the Keeling Curve?",
+    "answer": "the annual cycle of photosynthesis and respiration in Northern Hemisphere vegetation",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What are aerosols and how do they affect climate?",
+    "answer": "tiny particles in the atmosphere; they can cool the climate by reflecting sunlight (direct effect) or by promoting cloud formation (indirect effect)",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the carbon cycle?",
+    "answer": "the biogeochemical cycle by which carbon is exchanged among the biosphere, pedosphere, geosphere, hydrosphere, and atmosphere",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What are carbon sinks?",
+    "answer": "natural or artificial reservoirs that absorb more carbon from the atmosphere than they release; major sinks include forests and oceans",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the role of the ocean as a carbon sink?",
+    "answer": "oceans absorb approximately 25–30% of anthropogenic CO2 emissions through physical dissolution and biological processes",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is net zero emissions?",
+    "answer": "the state in which greenhouse gas emissions released are balanced by an equivalent amount removed from the atmosphere",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is a carbon budget?",
+    "answer": "the maximum cumulative CO2 emissions consistent with limiting warming to a specific temperature target",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the difference between mitigation and adaptation in climate policy?",
+    "answer": "mitigation reduces the causes of climate change by cutting emissions; adaptation adjusts to current or expected climate impacts",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the IPCC and what does it produce?",
+    "answer": "the Intergovernmental Panel on Climate Change; it produces comprehensive scientific assessment reports on climate change, impacts, and response options",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the difference between RCPs and SSPs used in IPCC reports?",
+    "answer": "RCPs (Representative Concentration Pathways) describe future greenhouse gas concentrations; SSPs (Shared Socioeconomic Pathways) combine emissions scenarios with socioeconomic narratives and are used in the Sixth Assessment Report",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is SSP5-8.5?",
+    "answer": "a high-emissions scenario in which fossil fuel use continues to grow rapidly, leading to approximately 8.5 W/m² of radiative forcing by 2100",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the urban heat island effect?",
+    "answer": "urban areas are warmer than surrounding rural areas due to heat-absorbing infrastructure, reduced vegetation, and waste heat from human activity",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is El Niño and how does it relate to global temperature records?",
+    "answer": "a periodic warming of the central and eastern tropical Pacific that disrupts global weather patterns; El Niño years typically show higher global mean surface temperatures",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the stratospheric ozone layer's relationship to climate change?",
+    "answer": "ozone depletion and climate change interact but are distinct problems; some ozone-depleting substances are also potent greenhouse gases; stratospheric cooling from CO2 can slow ozone recovery",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is direct air capture (DAC)?",
+    "answer": "technology that removes CO2 directly from ambient air using chemical processes, then stores or utilises the captured carbon",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is bioenergy with carbon capture and storage (BECCS)?",
+    "answer": "a negative emissions technology combining biomass energy production with CCS; plants absorb CO2 while growing and the CO2 released during combustion is captured and stored",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the Greenland Ice Sheet and why is it significant for sea level?",
+    "answer": "the second largest ice body on Earth; its complete melting would raise sea levels by approximately 7 metres",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What would be the approximate sea level rise from complete melting of the West Antarctic Ice Sheet?",
+    "answer": "approximately 3–5 metres",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the difference between black carbon and CO2 as climate forcers?",
+    "answer": "black carbon (soot) is a short-lived climate forcer that warms by absorbing sunlight; CO2 is long-lived and accumulates in the atmosphere for centuries to millennia",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is solar geoengineering (stratospheric aerosol injection)?",
+    "answer": "a proposed intervention that would inject reflective particles into the stratosphere to reduce incoming solar radiation and cool the planet",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the primary driver of Arctic amplification?",
+    "answer": "the Arctic is warming two to four times faster than the global average, driven primarily by ice-albedo feedback and changes in atmospheric and oceanic heat transport",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the carbon cycle feedback from increased wildfires?",
+    "answer": "wildfires release stored carbon to the atmosphere; climate change increases fire frequency and severity, creating a positive feedback loop",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the water vapour feedback in climate?",
+    "answer": "as temperature rises, the atmosphere holds more water vapour, which is itself a greenhouse gas, amplifying initial warming—the largest positive feedback in the climate system",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What fraction of observed global warming since pre-industrial times is attributable to human activities, according to the IPCC AR6?",
+    "answer": "human influence has warmed the climate at an unprecedented rate; it is unequivocal that human activities are responsible for approximately 1.07°C of warming as of 2011–2020",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the difference between transient climate response (TCR) and equilibrium climate sensitivity (ECS)?",
+    "answer": "TCR is the warming at the time of CO2 doubling under a 1% per year increase scenario; ECS is the long-term warming after the climate fully equilibrates to doubled CO2",
+    "domain": "climate_science"
+  },
+  {
+    "question": "Why do climate models project greater warming over land than over the oceans?",
+    "answer": "oceans have higher heat capacity and regulate temperature through evaporation; land surfaces warm faster due to lower thermal inertia and reduced moisture availability",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the Milankovitch cycle?",
+    "answer": "cyclical variations in Earth's orbit and axial tilt (eccentricity, obliquity, and precession) that modulate the amount and distribution of solar energy reaching Earth, driving glacial-interglacial cycles",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the relationship between CO2 and temperature in ice core records?",
+    "answer": "ice cores show that CO2 and temperature have varied together over glacial cycles; historically temperature slightly led CO2, but today CO2 is the primary driver of warming",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is permafrost carbon feedback?",
+    "answer": "thawing permafrost releases previously frozen organic carbon as CO2 and methane, amplifying warming in a self-reinforcing cycle",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the difference between a positive and negative feedback in the climate system?",
+    "answer": "a positive feedback amplifies the initial perturbation (e.g., ice-albedo); a negative feedback dampens it (e.g., increased outgoing longwave radiation with warming, also called Planck feedback)",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the Planck feedback?",
+    "answer": "as surface temperature increases, the planet emits more longwave radiation to space, providing a stabilising negative feedback",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What are the main sectors responsible for global greenhouse gas emissions?",
+    "answer": "energy (electricity and heat production), transport, industry, agriculture, land use and forestry, and buildings",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the contribution of agriculture to global greenhouse gas emissions?",
+    "answer": "approximately 10–12% of global emissions, primarily from livestock (methane and nitrous oxide), rice cultivation, and synthetic fertiliser use",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the role of deforestation in climate change?",
+    "answer": "deforestation releases stored carbon, reduces carbon uptake, and can alter regional precipitation and albedo; it accounts for roughly 10–15% of global CO2 emissions",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the last glacial maximum and when did it occur?",
+    "answer": "the period of maximum glacier extent during the most recent ice age, approximately 20,000 years ago, when CO2 was around 180 ppm and global mean temperature was about 4–7°C cooler than today",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the concept of committed warming?",
+    "answer": "the additional warming that will occur in the future even if all greenhouse gas emissions stopped immediately, due to the thermal inertia of the climate system and gases already in the atmosphere",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What are compound climate events?",
+    "answer": "the co-occurrence or sequential occurrence of multiple climate hazards (e.g., simultaneous heat waves and droughts) that produce greater impacts than each event alone",
+    "domain": "climate_science"
+  },
+  {
+    "question": "What is the difference between weather attribution and climate attribution science?",
+    "answer": "weather attribution assesses whether a specific extreme weather event was made more likely or intense by climate change; climate attribution science establishes that observed long-term climate changes are caused by human emissions",
+    "domain": "climate_science"
+  }
+]
