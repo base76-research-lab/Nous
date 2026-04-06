@@ -326,6 +326,14 @@ def daemon(
             console.print("[yellow]Daemon ej igång[/yellow]")
 
 
+@app.command(name="status")
+def status() -> None:
+    """Show graph stats, memory breakdown, daemon health, and last activity."""
+    from nouse.cli.commands.status import run_status
+
+    run_status()
+
+
 @app.command(name="mcp")
 def mcp_cmd(
     action: str = typer.Argument("serve", help="serve"),
