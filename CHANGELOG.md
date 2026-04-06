@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-04-06
+
+### Added
+- LICENSE file (MIT full text).
+- CONTRIBUTING.md, CODE_OF_CONDUCT.md, SECURITY.md.
+- GitHub Actions CI (pytest on Python 3.11/3.12).
+- Issue templates (bug report, feature request) and PR template.
+- `examples/` directory with 4 runnable scripts (basic_query, with_openai, with_ollama, ingest_document).
+- `src/nouse/tools/` module (recursive_ingest, bisociative_solver, island_bridge, seed_decomposition).
+- Research section in README linking to The Larynx Problem paper (Zenodo + PhilPapers).
+- Roadmap section in README.
+- Comparison matrix in README (vs Mem0, MemGPT/Letta, Claude Memory).
+
+### Changed
+- README overhaul: CI badge, cleaner structure, fixed stale KuzuDB references to SQLite.
+- Daemon improvements: extractor enhancements, nightrun consolidation, web server expansions.
+
+### Removed
+- `IMG/Namnlös design.png` (non-ASCII filename, renamed to design-mockup.png).
+- `IMG/demo.gif` (1.4MB redundant, kept demo-en.gif at 51KB).
+- `inject.py.bak` backup file.
+
 ## [0.3.1] - 2026-04-05
 
 ### Fixed
