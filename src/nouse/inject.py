@@ -348,22 +348,27 @@ class NouseBrain:
                         prompt, system=BOOTSTRAP_SYSTEM, max_tokens=450
                     )
                 else:
-                    # Fallback: use Ollama directly with configured model
-                    import os, httpx
-                    _model = model or os.getenv("NOUSE_OLLAMA_MODEL", "deepseek-r1:1.5b")
-                    ollama_base = os.getenv("OLLAMA_HOST", "http://localhost:11434")
-                    payload = {
-                        "model": _model,
-                        "messages": [
-                            {"role": "system", "content": BOOTSTRAP_SYSTEM},
-                            {"role": "user", "content": prompt},
-                        ],
-                        "stream": False,
-                    }
-                    async with httpx.AsyncClient(timeout=30.0) as client:
-                        r = await client.post(f"{ollama_base}/api/chat", json=payload)
-                        r.raise_for_status()
-                        response = r.json().get("message", {}).get("content", "")
+                    # Use NouseAgent bootstrap role (single-model, no external API)
+                    from nouse.llm.agent import NouseAgent
+                    agent = NouseAgent(model)
+                    relations_direct = await agent.bootstrap(topic)
+                    # Bootstrap role returns relations directly — skip extract_relations
+                    count = 0
+                    for rel in relations_direct:
+                        src = rel.get("src", "")
+                        tgt = rel.get("tgt", "")
+                        rel_type = rel.get("rel_type", rel.get("type", "relates_to"))
+                        ev = float(rel.get("confidence", rel.get("evidence_score", evidence_score)))
+                        if src and tgt and len(src) > 1 and len(tgt) > 1:
+                            self._field.add_relation(
+                                src, rel_type, tgt,
+                                why="bootstrapped from model weights",
+                                evidence_score=ev,
+                                source_tag="domain_bootstrap",
+                            )
+                            count += 1
+                    _log.info("domain_bootstrap('%s'): %d relations seeded via NouseAgent", topic, count)
+                    return count
 
                 if not response:
                     return 0
