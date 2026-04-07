@@ -5,6 +5,7 @@ nouse.search.escalator — Knowledge Escalation Pipeline
 Triggas när brain.query() ger låg konfidens eller tomt svar.
 
 Nivå 1: Graf (ev ≥ threshold)       → return direkt, ingen escalation
+Nivå 4: Domän saknas → bootstrap LLM-vikter → skriv till graf → re-query
 Nivå 2: DDG web-sök + scrape        → injicera i kontext + lär in i graf
 Nivå 3: NightRun-queue              → ny fakta → DeepDive async konsolidering
 
@@ -38,6 +39,40 @@ ESCALATION_MAX_RESULTS = int(os.getenv("NOUSE_ESCALATION_MAX_RESULTS", "3"))
 ESCALATION_TIMEOUT     = float(os.getenv("NOUSE_ESCALATION_TIMEOUT", "20.0"))
 BRAVE_API_KEY          = os.getenv("BRAVE_API_KEY", "")
 
+BOOTSTRAP_MODEL   = os.getenv("NOUSE_BOOTSTRAP_MODEL",
+                               os.getenv("NOUSE_OLLAMA_MODEL", "gemma4:e2b"))
+BOOTSTRAP_TIMEOUT = float(os.getenv("NOUSE_BOOTSTRAP_TIMEOUT", "90.0"))
+BOOTSTRAP_MIN_RELATIONS = int(os.getenv("NOUSE_BOOTSTRAP_MIN_RELATIONS", "5"))
+
+_BOOTSTRAP_SYSTEM = """\
+Du är en kunskapsdestillator. Givet en fråga:
+
+1. Identifiera den övergripande domänen
+2. Identifiera 3-5 centrala subdomäner inom den domänen
+3. Generera 4-6 relationer PER subdomän
+4. Generera 3-5 kopplingar MELLAN subdomänerna
+
+Returnera ENBART en lista med faktapåståenden, ett per rad, i formatet:
+- [koncept_a] [relationstyp] [koncept_b]
+
+Tillåtna relationstyper (använd exakt ett av dessa ord):
+möjliggör  orsakar  är_del_av  modulerar  är_analogt_med  beskriver  stärker  leder_till
+
+Exempel:
+- quantum_coherence möjliggör energy_transfer
+- ENAQT modulerar quantum_transport_efficiency
+- photosynthetic_reaction_center är_del_av photosynthesis
+- enzyme_catalysis är_analogt_med quantum_tunneling_in_dna
+
+Generera 25–40 relationer totalt — täck hela domänträdet, inte bara frågan.
+Inga rubriker, förklaringar eller kod — bara listan.\
+"""
+
+_BOOTSTRAP_REL_TYPES = {
+    "möjliggör", "orsakar", "är_del_av", "modulerar",
+    "är_analogt_med", "beskriver", "stärker", "leder_till",
+}
+
 
 # ── Result type ───────────────────────────────────────────────────────────────
 
@@ -50,6 +85,55 @@ class EscalationResult:
     confidence_before: float    # graf-konfidens innan escalation
     snippets: list[str] = field(default_factory=list)
     learned: bool = False       # True om ny fakta skrevs till grafen
+
+
+# ── L4: Domain bootstrap ─────────────────────────────────────────────────────
+
+async def _bootstrap_domain(query: str) -> list[tuple[str, str, str]]:
+    """
+    Fråga lokal Ollama om domänkunskap för en fråga.
+    Returnerar lista av (src, rel_type, tgt) från modellens parametriska vikter.
+    Skriver ingenting till grafen — anroparen ansvarar för det.
+    """
+    ollama_base = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    payload = {
+        "model": BOOTSTRAP_MODEL,
+        "stream": False,
+        "messages": [
+            {"role": "system", "content": _BOOTSTRAP_SYSTEM},
+            {"role": "user",   "content": f"Fråga: {query}"},
+        ],
+    }
+    try:
+        async with httpx.AsyncClient(timeout=BOOTSTRAP_TIMEOUT) as hx:
+            r = await hx.post(f"{ollama_base}/api/chat", json=payload)
+            r.raise_for_status()
+            response = r.json().get("message", {}).get("content", "") or ""
+    except Exception as e:
+        _log.warning("L4 bootstrap Ollama call failed: %s", e)
+        return []
+
+    return _parse_bootstrap_response(response)
+
+
+def _parse_bootstrap_response(text: str) -> list[tuple[str, str, str]]:
+    """
+    Parsar rader som '- quantum_coherence möjliggör energy_transfer'
+    till (src, rel_type, tgt)-tupler.
+    """
+    relations: list[tuple[str, str, str]] = []
+    for raw_line in text.splitlines():
+        line = raw_line.strip().lstrip("-•* ").strip()
+        if not line:
+            continue
+        tokens = line.split()
+        for i, token in enumerate(tokens):
+            if token.lower() in _BOOTSTRAP_REL_TYPES and i > 0 and i < len(tokens) - 1:
+                src = "_".join(tokens[:i]).lower()
+                tgt = "_".join(tokens[i + 1:]).lower()
+                relations.append((src, token.lower(), tgt))
+                break
+    return relations
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -84,6 +168,7 @@ async def escalate_query(
 
     _log.info("Escalating '%s' (conf=%.2f < %.2f)", query[:60], conf, threshold)
 
+<<<<<<< Updated upstream
     # Nivå 2: LLM bootstrap — seed graph from model weights if domain is unknown
     llm_learned = False
     if learn and not brain._read_only and not graph_result.has_knowledge:
@@ -102,6 +187,35 @@ async def escalate_query(
                 )
 
     # Nivå 3: web-sök
+=======
+    # Nivå 4: domän saknas helt → bootstrap från LLM-vikter → re-query
+    if not graph_result.has_knowledge and conf == 0.0 and learn and not getattr(brain, "_read_only", False):
+        _log.info("L4 bootstrap: ingen domäntäckning för '%s'", query[:60])
+        rels = await _bootstrap_domain(query)
+        if len(rels) >= BOOTSTRAP_MIN_RELATIONS:
+            for src, rel_type, tgt in rels:
+                try:
+                    brain.add(src, rel_type, tgt,
+                              why="l4_domain_bootstrap", evidence_score=0.4)
+                except Exception as e:
+                    _log.debug("L4 add_relation failed: %s", e)
+            _log.info("L4 bootstrap: %d relationer skrivna till graf", len(rels))
+            graph_result = brain.query(query)
+            conf = graph_result.confidence
+            if graph_result.has_knowledge:
+                bootstrap_block = graph_result.context_block()
+                bootstrap_block += "\n\n[domän bootstrappad från modellvikter — ej externt validerad]"
+                return EscalationResult(
+                    query=query,
+                    context_block=bootstrap_block,
+                    sources=[],
+                    escalated=True,
+                    confidence_before=0.0,
+                    learned=True,
+                )
+
+    # Nivå 2: web-sök
+>>>>>>> Stashed changes
     snippets, sources = await _web_search(query, max_results=max_results)
     web_block = _format_web_block(snippets, sources)
 

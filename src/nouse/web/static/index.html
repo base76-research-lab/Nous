@@ -17,6 +17,7 @@
     }
 
     #graph-container { position: fixed; inset: 0; }
+    #city-container  { position: fixed; inset: 0; display: none; }
 
     /* ── HUD Panels ─────────────────────────────────────────── */
     .hud {
@@ -302,10 +303,14 @@
   <button class="view-btn"        id="btn-domain"   onclick="setView('domain')">⬡ Domänvy</button>
   <button class="view-btn"        id="btn-ripple"   onclick="setView('ripple')">◎ Hopp-ripple</button>
   <button class="view-btn"        id="btn-path"     onclick="setView('path')">⟿ Sök väg</button>
+  <button class="view-btn"        id="btn-city"     onclick="setView('city')">⛩ Stad</button>
 </div>
 
 <!-- Graph container -->
 <div id="graph-container"></div>
+
+<!-- City view container -->
+<div id="city-container"></div>
 
 <!-- Stats HUD -->
 <div class="hud" id="hud-stats">
@@ -391,6 +396,7 @@
 <!-- 3D Force Graph via CDN -->
 <script src="https://unpkg.com/three@0.155.0/build/three.min.js"></script>
 <script src="https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js"></script>
+<script src="/static/city.js"></script>
 
 <script>
 'use strict';
@@ -412,6 +418,49 @@ function domainColor(domain) {
     domainColorIdx++;
   }
   return domainColors[domain];
+}
+
+// ── View mode ─────────────────────────────────────────────────
+let currentView = 'concept';
+
+function setView(mode) {
+  currentView = mode;
+
+  // Uppdatera knappar
+  document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`btn-${mode}`);
+  if (btn) btn.classList.add('active');
+
+  const graphEl = document.getElementById('graph-container');
+  const cityEl  = document.getElementById('city-container');
+
+  if (mode === 'city') {
+    // Visa city, dölj graph
+    graphEl.style.display = 'none';
+    cityEl.style.display  = 'block';
+    // Initiera city-vyn (lazy)
+    if (!window._nouseCityView && typeof cityViewInit === 'function') {
+      cityViewInit(graphData);
+    }
+    return;
+  }
+
+  // Visa graph, dölj city
+  graphEl.style.display = 'block';
+  cityEl.style.display  = 'none';
+
+  if (!Graph) return;
+
+  // Befintlig vy-logik
+  if (mode === 'concept') {
+    graphData.nodes.forEach(n => { n.hidden = false; });
+    Graph.graphData(graphData);
+  } else if (mode === 'domain') {
+    const sel = document.getElementById('domain-filter');
+    if (sel && sel.value) filterDomainByName(sel.value);
+    else { graphData.nodes.forEach(n => { n.hidden = false; }); Graph.graphData(graphData); }
+  }
+  // ripple/path hanteras av deras egna knappar
 }
 
 // ── State ──────────────────────────────────────────────────────
@@ -825,6 +874,12 @@ function connectSSE() {
         addNode(data.id, data.domain, data.source);
         break;
       }
+    }
+
+    // Vidarebefordra till city-vyn om aktiv
+    if (currentView === 'city' && typeof cityViewPulse === 'function') {
+      const nodeId = data.src || data.axiom || data.id;
+      if (nodeId) cityViewPulse(nodeId);
     }
   };
 

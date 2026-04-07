@@ -4221,3 +4221,5 @@ async def brain_add(req: _BrainAddRequest):
 
 def start_server(host="127.0.0.1", port=8765):
     uvicorn.run("nouse.web.server:app", host=host, port=port, reload=False)
+
+main = start_server

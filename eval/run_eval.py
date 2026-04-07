@@ -61,14 +61,15 @@ Svara ENDAST med ett JSON-objekt:
 
 
 PROVIDERS = {
-    # model-prefix → (base_url, api_key_env, response_path)
+    # model-prefix → (base_url, api_key_env)
+    # None som base_url = Ollama native /api/chat (hanterar thinking-mode korrekt)
     "cerebras/": ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY"),
     "groq/":     ("https://api.groq.com/openai/v1", "GROQ_API_KEY"),
-    "ollama/":   (os.getenv("OLLAMA_HOST", "http://localhost:11434") + "/v1", None),
+    "ollama/":   (None, None),   # native API — undviker tom content vid thinking-mode
 }
 
-def _resolve_provider(model: str) -> tuple[str, dict]:
-    """Return (base_url, headers) for a model string like 'groq/llama-3.3-70b-versatile'."""
+def _resolve_provider(model: str) -> tuple[str | None, str, dict]:
+    """Return (base_url, real_model, headers). base_url=None → Ollama native."""
     for prefix, (base_url, key_env) in PROVIDERS.items():
         if model.startswith(prefix):
             real_model = model[len(prefix):]
@@ -89,7 +90,7 @@ async def call_llm(client, model: str, system: str, user: str,
     base_url, real_model, headers = _resolve_provider(model)
 
     if base_url is None:
-        # Ollama native /api/chat
+        # Ollama native /api/chat — returnerar message.content korrekt även vid thinking-mode
         ollama_base = os.getenv("OLLAMA_HOST", "http://localhost:11434")
         payload = {
             "model": real_model,
@@ -133,16 +134,23 @@ async def call_llm(client, model: str, system: str, user: str,
 
 async def run_single(client, model: str, question: dict,
                      use_nouse: bool, brain=None) -> dict:
+    from nouse.search.escalator import escalate_query
+
     q_text = question["question"]
     t0 = time.monotonic()
 
     if use_nouse and brain:
-        ctx = brain.context_block(q_text, top_k=5, max_axioms=10)
+        # Kör via escalatorn — L4 domain bootstrap triggar automatiskt om domän saknas
+        esc = await escalate_query(q_text, brain)
+        ctx = esc.context_block
+        had_context = bool(ctx and not ctx.startswith("[domän bootstrappad") or
+                           esc.escalated)
         user_prompt = f"{ctx}\n\n---\n{q_text}" if ctx else q_text
         system = SYSTEM_NOUSE
     else:
         user_prompt = q_text
         system = SYSTEM_BASELINE
+        had_context = False
 
     answer = await call_llm(client, model, system, user_prompt)
     elapsed = time.monotonic() - t0
@@ -154,9 +162,7 @@ async def run_single(client, model: str, question: dict,
         "question": q_text,
         "answer": answer,
         "elapsed_s": round(elapsed, 2),
-        "had_context": use_nouse and bool(
-            brain and brain.context_block(q_text, top_k=3)
-        ),
+        "had_context": had_context,
     }
 
 
@@ -288,7 +294,7 @@ async def main(args):
 
     load_env_files()
     client = AsyncOllama()
-    brain = nouse.attach(read_only=True)
+    brain = nouse.attach(read_only=False)  # L4 domain bootstrap måste kunna skriva
 
     # Läs frågor
     q_path = Path(__file__).parent / "questions.json"

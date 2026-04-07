@@ -1,153 +1,110 @@
 # Nouse Eval Results
-Genererad: 2026-04-03 09:42
+Genererad: 2026-04-07 12:50
 ## Sammanfattning
 | Konfiguration | Modell | Nouse | Frågor | Avg Score | Halluc | Tid/q |
 |---|---|:---:|:---:|:---:|:---:|:---:|
-| A — liten, ingen Nouse | `cerebras/llama3.1-8b` | — | 60 | 1.38/3 (46%) | 0 | 0.8s |
-| B — liten + Nouse | `cerebras/llama3.1-8b` | ✅ | 60 | 2.88/3 (96%) | 0 | 15.8s |
-| C — stor, ingen Nouse | `groq/llama-3.3-70b-versatile` | — | 60 | 1.40/3 (47%) | 0 | 0.7s |
+| A — liten, ingen Nouse | `ollama/gemma4:e2b` | — | 35 | 2.20/3 (73%) | 0 | 27.3s |
+| B — liten + Nouse | `ollama/gemma4:e2b` | ✅ | 35 | 0.57/3 (19%) | 0 | 21.5s |
+| C — stor, ingen Nouse | `ollama/gemma4:e2b` | — | 35 | 2.20/3 (73%) | 0 | 27.3s |
 
 ## Fråga-för-fråga (urval)
 
-### q047
-**cerebras/llama3.1-8b** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.cerebras.ai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+### qb029
+**ollama/gemma4:e2b** [score=3/3]  
+> The phonon bath of a protein scaffold acts as a primary source of environmental coupling for the excited electronic states (excitons) in light-harvesting systems.
 
-**cerebras/llama3.1-8b +Nouse** [score=3/3]  
-> Baserat på kunskapsminnet kan jag beskriva relationen mellan topological data analysis och bisociation som följande:
+Phonon-exciton coupling facilitates 
 
-"Topologisk dataanalys [stärker] bisociation" med en osäkerhetsgrad på 0,45. Detta
-
-**groq/llama-3.3-70b-versatile** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.groq.com/openai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+**ollama/gemma4:e2b +Nouse** [score=0/3]  
+> Jag har ingen information i mitt kunskapsminne (Nouse) som relaterar till hur phonon-badet från en proteinscaffolds interagerar med kvantkoherens i ljushämtande system.
 
 
-### q004
-**cerebras/llama3.1-8b** [score=3/3]  
-> Jag kan inte hitta någon information om FieldSurface och b76.field. Can du vara mer specifik? Till exempel är detta ett vanligt uttryck inom en specifik industri eller ett specifikt system? 
+### qb004
+**ollama/gemma4:e2b** [score=3/3]  
+> Promoting vibrations in the transition state (TS) barrier of enzymes like dihydrofolate reductase (DHFR) implies that the enzyme actively couples specific vibrational modes of the substrate and the pr
 
-Om du fö
-
-**cerebras/llama3.1-8b +Nouse** [score=3/3]  
-> Då Nouse minne visar att FieldSurface modulerar b76.field, beskriver FieldSurface b76.field och FieldSurface är del av b76.field (var med hög säkerhet), kan vi dra följande slutsats:
-
-Detta syftar til
-
-**groq/llama-3.3-70b-versatile** [score=3/3]  
-> Jag är osäker på exakta konsekvenserna eftersom jag saknar specifik information om vad FieldSurface och b76.field representerar. Generellt sett kan en påverkan på en variabel eller ett fält (i detta f
+**ollama/gemma4:e2b +Nouse** [score=0/3]  
+> Jag har ingen information i mitt strukturerade kunskapsminne (Nouse) gällande implikationerna av att främja vibrationer för att övervinna tröskeln till övergångstillstånd i enzymer som dihydrofolatred
 
 
-### q026
-**cerebras/llama3.1-8b** [score=3/3]  
-> Jag är inte säker på vad "NightRun" är, men jag tror du syftar på Night Running eller Nocturnal Run (eftersom jag hittade "NightRun" som en app som kan röra sig runt detta).
+### qb010
+**ollama/gemma4:e2b** [score=2/3]  
+> The persistence of quantum coherence in biological systems is critically dependent on minimizing decoherence caused by the interaction with the surrounding protein environment.
 
-Hippocampal replay är en 
+The protein environmen
 
-**cerebras/llama3.1-8b +Nouse** [score=3/3]  
-> Enligt Kunskapsminnet finns det två relaterade påståenden om NightRun och hippocampal replay:
+**ollama/gemma4:e2b +Nouse** [score=0/3]  
+> Jag har ingen information i mitt kunskapsminne som direkt relaterar den persistensen av kvantkoherens vid rumstemperatur i biologiska system till proteinmiljöns spektraldensitet.
 
-1. claim: NightRun --[är_analogt_med]--> hippocampal replay (Uncertainty=0.55)
-2. claim: NightRun --[ändr
-
-**groq/llama-3.3-70b-versatile** [score=3/3]  
-> NightRun är ett koncept inom neurovetenskapen som syftar på processen där hjärnan bearbetar och konsoliderar minnen under sömn. Hippocampal replay är en specifik typ av neural aktivitet som observerat
+Min kunskap behandla
 
 
-### q051
-**cerebras/llama3.1-8b** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.cerebras.ai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+### qb027
+**ollama/gemma4:e2b** [score=3/3]  
+> Tuning reorganization energy ($\lambda$) by the protein matrix is crucial because it modulates the electronic coupling between redox centers in cytochrome c oxidase (COX).
 
-**cerebras/llama3.1-8b +Nouse** [score=3/3]  
-> Enligt Nouse-minnet är FieldSurface relaterat till b76.field via både "är_del_av" och "modulerar" relationer. Dessa relationer har hög trovärdighet (verifieringsvärde = 0,81). Så:
+The reorganization energy r
 
-* FieldSurface -[är
-
-**groq/llama-3.3-70b-versatile** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.groq.com/openai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+**ollama/gemma4:e2b +Nouse** [score=0/3]  
+> Jag har ingen information i mitt kunskapsminne (Nouse) om implikationerna av omorganisationsenergituning av proteinmatrisen för att optimera elektrontunnelingseffektiviteten i cytochrom c oxidas.
 
 
-### q030
-**cerebras/llama3.1-8b** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.cerebras.ai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+### qb013
+**ollama/gemma4:e2b** [score=1/3]  
+> The relationship is hypothesized within the field of magnetoreception. Birds are believed to use the Earth's geomagnetic field as a navigational map.
 
-**cerebras/llama3.1-8b +Nouse** [score=3/3]  
-> Enligt 'Nouse' kan man dra slutsatsen:
-KuzuDB beskriver och konsolgerar en global webbaserad databasinstans (claim: KuzuDB --[beskriver]--> global Web-instans, claim: KuzuDB --[konsoliderar]--> global
+The radical pair mechanism (RPM) is invoked as a 
 
-**groq/llama-3.3-70b-versatile** [score=2/3]  
-> KuzuDB är en graf- och dokumentdatabas. Den är utformad för att hantera stora mängder data och stödjer globala webbapplikationer genom att erbjuda flexibilitet och skalbarhet. KuzuDB relaterar till gl
+**ollama/gemma4:e2b +Nouse** [score=1/3]  
+> Kunskapsminnet anger att den **radical pair hypothesis** modulerar **Earth's magnetic field** med en evidensvärde på 0.85.
 
-
-### q025
-**cerebras/llama3.1-8b** [score=3/3]  
-> Koestlers originalformulering är: "Att se ett mönster, ett mönster av mönster som kan tolkas på två olika sätt." 
-
-Detta relaterar till bisociation genom att beskriva ett tillstånd av tvärvetenskaplig
-
-**cerebras/llama3.1-8b +Nouse** [score=3/3]  
-> Koestlers originalformulering är ett koncept inom domänen "kognitiv psykologi". Enligt min kunskapsminne följer det att Koestlers originalformulering beskriver "bisociation", vilket är en länk mellan 
-
-**groq/llama-3.3-70b-versatile** [score=3/3]  
-> Koestlers originalformulering är "bisociation": att två eller flera logiska och kognitiva ramar kombineras på ett nytt och oväntat sätt. Detta leder till en ny och kreativ idé eller lösning. Arthur Ko
+Detta etablerar en koppling mellan hypotesen och jordens magnetfält. Dock in
 
 
-### q055
-**cerebras/llama3.1-8b** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.cerebras.ai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+### qb006
+**ollama/gemma4:e2b** [score=2/3]  
+> The Fenna-Matthews-Olson (FMO) complex is a large, tightly organized protein-pigment antenna system found in photosynthetic organisms. It functions as an efficient light-harvesting array.
 
-**cerebras/llama3.1-8b +Nouse** [score=3/3]  
-> Baserat på kunskapsminnet är b76.client ett koncept i grafen som relateras till 'AsyncOllama' via 'är_del_av' och importeras från b76.ollama_client.client som det huvudsakliga klientkomponenten. Det f
+It facilita
 
-**groq/llama-3.3-70b-versatile** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.groq.com/openai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+**ollama/gemma4:e2b +Nouse** [score=0/3]  
+> Jag har ingen information i mitt kunskapsminne om Fenna-Matthews-Olson-komplexet eller hur det underlättar excitonöverföring i gröna svavelbakterier.
 
 
-### q033
-**cerebras/llama3.1-8b** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.cerebras.ai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+### qb022
+**ollama/gemma4:e2b** [score=2/3]  
+> The asymmetry in the double-well potential energy surface (PES) in G-C versus A-T base pairs reflects the differential energy barriers and well depths for the respective tautomeric forms.
 
-**cerebras/llama3.1-8b +Nouse** [score=3/3]  
-> Enligt kunskapsminnet finns det ingen evidens för relationen "brain-db-core är analogt med brain stem" som inte är osäker (uncertainty=0.65). Informationen i "Nouse memory" anger att relationen "brain
+This asymme
 
-**groq/llama-3.3-70b-versatile** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.groq.com/openai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+**ollama/gemma4:e2b +Nouse** [score=0/3]  
+> Jag har ingen information i mitt strukturerade kunskapsminne (Nouse) som relaterar till hur asymmetrin i dubbelpotentialens energiytor för G-C kontra A-T baspar relaterar till deras relativa tautomers
 
 
-### q057
-**cerebras/llama3.1-8b** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.cerebras.ai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+### qb018
+**ollama/gemma4:e2b** [score=2/3]  
+> Deuterium substitution alters the vibrational frequencies and zero-point energy of the odorant molecules. According to vibrational theory, these changes affect the molecular geometry and the strength 
 
-**cerebras/llama3.1-8b +Nouse** [score=3/3]  
-> Forskning är anatogt med utveckling, med en överenskommelse om sannolikhet på 0,84. Det visar en stark relatering mellan dessa två koncept, vilket betyder att forskning och utveckling förhåller sig li
-
-**groq/llama-3.3-70b-versatile** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.groq.com/openai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+**ollama/gemma4:e2b +Nouse** [score=0/3]  
+> Kunskapsminnet innehåller ingen specifik information om hur deuteriumsubstitution i odantmolekyler relaterar till förändringar i luktperception enligt den vibrationella teorin.
 
 
-### q040
-**cerebras/llama3.1-8b** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.cerebras.ai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+### qb008
+**ollama/gemma4:e2b** [score=2/3]  
+> 2D electronic spectroscopy (2DES) detects quantum coherence beating signals by mapping the time-dependent evolution and correlations of electronic states.
 
-**cerebras/llama3.1-8b +Nouse** [score=3/3]  
-> I Nouse-minnet finns två tydliga kopplingar mellan KuzuDB och global Web-instans. 
+The mechanism relies on measuring third-orde
 
-Förstärkt av dessa två, så kan vi dra slutsatsen:
+**ollama/gemma4:e2b +Nouse** [score=0/3]  
+> Kunskapsminnet innehåller inte specifik information om den mekanism genom vilken 2D elektronisk spektroskopi detekterar koherensbeating-signaler i fotosyntetiska pigment-protein komplex. Informationen
 
-KuzuDB beskriver en global Web-instans och konsoliderar samtidigt
 
-**groq/llama-3.3-70b-versatile** [score=0/3]  
-> [ERROR: Client error '429 Too Many Requests' for url 'https://api.groq.com/openai/v1/chat/completions'
-For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]
+### qb025
+**ollama/gemma4:e2b** [score=1/3]  
+> The Moser-Dutton ruler framework relates electron tunneling rates to the spatial separation between redox cofactors by framing the electron transfer as a quantum mechanical tunneling process.
+
+The tun
+
+**ollama/gemma4:e2b +Nouse** [score=2/3]  
+> Moser-Dutton ruler beskriver elektrontunneling med hög evidens (ev=0.85). Det finns en direkt relation i kunskapsminnet som stipulerar att elektronöverföringsfrekvensen (*electron transfer rate*) förs
 

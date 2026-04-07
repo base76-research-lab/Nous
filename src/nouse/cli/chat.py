@@ -620,7 +620,7 @@ def _remember_local_exchange(*, session_id: str, run_id: str, query: str, answer
 
 def _system_prompt(field: FieldSurface) -> str:
     stats   = field.stats()
-    domains = sorted(field.domains())[:20]
+    domains = sorted([d for d in field.domains() if d is not None])[:20]
     return f"""Du är Nouse — ett autonomt kunskapssystem byggt på en strukturell kunskapsgraf.
 
 GRAFENS NULÄGE: {stats['concepts']} koncept, {stats['relations']} relationer

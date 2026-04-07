@@ -171,6 +171,42 @@ async def run_night_consolidation(
 
     consolidated_ids: set[str] = set()
 
+    # ── Steg 0: Konsolidera modelsessions (Hebbian replay & co-occurrence) ────
+    try:
+        from nouse.memory import modelsessions
+        sessions = modelsessions.iter_sessions(limit=1000)
+        # Hebbian strengthening: stärk paths för återkommande queries
+        query_counts = {}
+        for s in sessions:
+            q = s.get("query")
+            if not q:
+                continue
+            query_counts[q] = query_counts.get(q, 0) + 1
+        for q, count in query_counts.items():
+            if count > 1:
+                # Stärk alla edges som matchar queryn
+                nodes = field.node_context_for_query(q, limit=6)
+                for node in nodes:
+                    name = node.get("name", "")
+                    if not name:
+                        continue
+                    rels = field.out_relations(name)
+                    for rel in rels:
+                        tgt = rel.get("target")
+                        typ = rel.get("type")
+                        if tgt and typ:
+                            field.strengthen(name, tgt, delta=0.05 * (count-1))
+        # Bygg co_occurs_with-relationer mellan topics som ofta förekommer ihop
+        for s in sessions:
+            nodes_used = s.get("nodes_used") or []
+            for i, a in enumerate(nodes_used):
+                for b in nodes_used[i+1:]:
+                    if a != b:
+                        field.add_relation(a, "co_occurs_with", b, why="modelsessions", strength=0.5)
+        _log.info("NightRun: modelsessions replay och co-occurrence klar")
+    except Exception as e:
+        _log.warning("NightRun: modelsessions replay/co-occurrence misslyckades: %s", e)
+
     # ── Steg 1+2+3: Evaluera och konsolidera ──────────────────────────────────
     now_ts = time.time()
     grace_cutoff = now_ts - (GRACE_HOURS * 3600)

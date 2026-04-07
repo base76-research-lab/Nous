@@ -189,11 +189,32 @@ class NouseBrain:
         axioms.sort(key=lambda a: -a.evidence)
         return axioms
 
-    def query(self, question: str, top_k: int = 6) -> QueryResult:
+    def query(self, question: str, top_k: int = 6, model: str = None) -> QueryResult:
         """
         Full structured query — for eval harness.
         Returns concepts + axioms + confidence score + domains.
+        Checks modelsessions for replay before querying graph.
         """
+        try:
+            from nouse.memory import modelsessions
+        except ImportError:
+            modelsessions = None
+
+        # Zero-token replay: check modelsessions
+        if modelsessions is not None:
+            found = modelsessions.find_session(question, model=model)
+            if found:
+                # Minimal QueryResult from session log
+                return QueryResult(
+                    query=found.get("query", question),
+                    concepts=[],
+                    axioms=[],
+                    confidence=found.get("confidence_out") or 0.0,
+                    domains=[],
+                    has_knowledge=True,
+                )
+
+        # Normal path
         nodes = self._field.node_context_for_query(question, limit=top_k)
         profiles: list[ConceptProfile] = []
         all_axioms: list[Axiom] = []
@@ -265,9 +286,14 @@ class NouseBrain:
         except Exception:
             return []
 
+<<<<<<< Updated upstream
     def learn(self, prompt: str, response: str, source: str = "conversation",
               domain_hint: str = "") -> None:
         """Extract and store knowledge from a prompt/response pair."""
+=======
+    def learn(self, prompt: str, response: str, source: str = "conversation", model: str = None, context_block: str = "", confidence_in: float = None, confidence_out: float = None, nodes_used: list = None, tokens_saved: int = 0) -> None:
+        """Extract and store knowledge from a prompt/response pair. Also logs to modelsessions."""
+>>>>>>> Stashed changes
         import asyncio
         import logging
         from nouse.daemon.extractor import extract_relations
@@ -404,6 +430,23 @@ class NouseBrain:
                 "domain_bootstrap runner failed: %s", e
             )
             return 0
+
+        # Log session to modelsessions
+        try:
+            from nouse.memory import modelsessions
+            modelsessions.log_session(
+                model=model or "unknown",
+                query=prompt,
+                answer=response,
+                context_block=context_block,
+                confidence_in=confidence_in,
+                confidence_out=confidence_out,
+                nodes_used=nodes_used or [],
+                tokens_saved=tokens_saved,
+                extra={"source": source}
+            )
+        except Exception:
+            pass
 
     def add(
         self,
