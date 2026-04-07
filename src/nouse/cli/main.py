@@ -347,6 +347,24 @@ def relay_cmd(
     relay_app()
 
 
+@app.command(name="run")
+def run_cmd(
+    question: str = typer.Argument("", help="Question to ask (omit for interactive REPL)"),
+    model: str = typer.Option("", "--model", "-m", help="Model to use (default: from policy)"),
+) -> None:
+    """Run NoUse as an interactive epistemic assistant with full graph R/W.
+
+    \b
+    Examples:
+      nouse run                              # interactive REPL
+      nouse run "What is epistemic memory?"  # single query
+      nouse run --model gemma4:26b           # higher quality model
+      ollama create NoUse -f examples/Modelfile && nouse run --model NoUse
+    """
+    from nouse.cli.commands.run import run_cmd as _run
+    _run(question=question or None, model=model)
+
+
 @app.command(name="mcp")
 def mcp_cmd(
     action: str = typer.Argument("serve", help="serve"),
