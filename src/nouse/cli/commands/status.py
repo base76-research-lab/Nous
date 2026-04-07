@@ -197,6 +197,14 @@ def run_status(
     mem = memory_counts(memory_dir)
     d = daemon_info(daemon_url)
 
+    # Session cache stats
+    session_stats: dict = {}
+    try:
+        from nouse.session.modelsessions import session_stats as _ss
+        session_stats = _ss()
+    except Exception:
+        pass
+
     gap_part = f" · {graph['gaps']} gaps detected" if graph["gaps"] else ""
     print(f"Nouse v{version}")
     print(f"Graph:         {graph['nodes']} nodes · {graph['edges']} edges{gap_part}")
@@ -205,6 +213,12 @@ def run_status(
         f" · semantic={mem['semantic']}"
         f" · procedural={mem['procedural']}"
     )
+
+    if session_stats:
+        n = session_stats.get("total_sessions", 0)
+        saved = session_stats.get("tokens_saved", 0)
+        saved_str = f"{saved:,}" if saved else "0"
+        print(f"Sessions:      {n} cached · {saved_str} tokens saved")
 
     if d["running"]:
         pid_part = f"PID {d['pid']}, " if d.get("pid") else ""

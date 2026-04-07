@@ -475,6 +475,14 @@ class NightRunScheduler:
             self.status.total_pruned       += result.pruned
             self.status.last_error         = ""
             self.status.save()
+
+            # Session cache consolidation — strengthen Hebbian paths, build co-occurrence edges
+            try:
+                from nouse.session.modelsessions import consolidate_sessions
+                consolidate_sessions(field)
+            except Exception as _ce:
+                _log.debug("Session consolidation skipped: %s", _ce)
+
             return result
         except Exception as e:
             self.status.last_error = str(e)

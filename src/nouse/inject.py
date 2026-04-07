@@ -265,9 +265,27 @@ class NouseBrain:
         except Exception:
             return []
 
+    def recall_session(self, query: str) -> dict | None:
+        """
+        Check the cross-model session cache for an exact previous answer.
+        Returns the cached session dict (with 'answer' key) or None.
+        Token cost: zero if found.
+        """
+        try:
+            from nouse.session.modelsessions import recall_session
+            return recall_session(query)
+        except Exception:
+            return None
+
     def learn(self, prompt: str, response: str, source: str = "conversation",
-              domain_hint: str = "") -> None:
-        """Extract and store knowledge from a prompt/response pair."""
+              domain_hint: str = "", model: str = "unknown",
+              confidence_in: float = 0.0, confidence_out: float = 0.0,
+              nodes_used: list | None = None) -> None:
+        """Extract and store knowledge from a prompt/response pair.
+
+        Also logs a cross-model session so repeated queries can be served
+        from the graph with zero token cost.
+        """
         import asyncio
         import logging
         from nouse.daemon.extractor import extract_relations
@@ -297,6 +315,21 @@ class NouseBrain:
                     _log.debug("learn(): %d relations from '%s'", len(relations), source)
             except Exception as e:
                 _log.debug("learn() extraction failed (%s): %s", source, e)
+
+            # Log session for cross-model cache (fire-and-forget, never blocks learn)
+            try:
+                from nouse.session.modelsessions import log_session
+                log_session(
+                    query=prompt,
+                    answer=response,
+                    model=model,
+                    nodes_used=nodes_used or [],
+                    confidence_in=confidence_in,
+                    confidence_out=confidence_out,
+                    field=self._field,
+                )
+            except Exception as e:
+                _log.debug("session log failed: %s", e)
 
         try:
             loop = asyncio.get_event_loop()
