@@ -6,10 +6,12 @@ import time
 from pathlib import Path
 from statistics import mean
 
+
 import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from nouse.cli.lang import tr
 
 app = typer.Typer(
     name="nouse",
@@ -100,7 +102,7 @@ def _edge_assumptions(step: dict) -> list[str]:
     return assumptions
 
 
-def _print_front_door() -> None:
+
     try:
         version = _meta.version("nouse")
     except _meta.PackageNotFoundError:
@@ -110,123 +112,121 @@ def _print_front_door() -> None:
         Panel(
             f"[bold cyan]νοῦς  v{version}[/bold cyan]\n"
             "Epistemic grounding substrate for LLMs",
-            title="Nouse Front Door",
+            title=tr("front_title"),
             border_style="cyan",
         )
     )
 
-    # ── Start modes ──
-    t = Table(show_header=True, header_style="bold", title="🚀 Start", title_style="bold cyan")
-    t.add_column("Command", style="green", no_wrap=True)
-    t.add_column("Description")
-    t.add_row("nouse start me", "Direkt samtal med hjärnan (operatörsfokus)")
-    t.add_row("nouse start research", "Dashboard + observabilitet (scorecard, traces, metrics)")
-    t.add_row("nouse start autonomy", "Ingress/autonomi-läge (Clawbot, system-events, wake)")
-    t.add_row("nouse daemon start|web|status", "Brain loop — lyssnar på alla källor, uppdaterar grafen")
-    t.add_row("nouse web", "Realtids-dashboard (startar även daemon)")
+    # --- Start ---
+    t = Table(show_header=True, header_style="bold", title=f"🚀 {tr('start')}", title_style="bold cyan")
+    t.add_column(tr("command"), style="green", no_wrap=True)
+    t.add_column(tr("description"))
+    t.add_row("nouse start me", "Direct chat with the brain (operator focus)" if tr("start") == "Start" else "Direkt samtal med hjärnan (operatörsfokus)")
+    t.add_row("nouse start research", "Dashboard + observability (scorecard, traces, metrics)" if tr("start") == "Start" else "Dashboard + observabilitet (scorecard, traces, metrics)")
+    t.add_row("nouse start autonomy", "Ingress/autonomy mode (Clawbot, system-events, wake)" if tr("start") == "Start" else "Ingress/autonomi-läge (Clawbot, system-events, wake)")
+    t.add_row("nouse daemon start|web|status", "Brain loop — listens to all sources, updates the graph" if tr("start") == "Start" else "Brain loop — lyssnar på alla källor, uppdaterar grafen")
+    t.add_row("nouse web", "Realtime dashboard (also starts daemon)" if tr("start") == "Start" else "Realtids-dashboard (startar även daemon)")
     console.print(t)
 
-    # ── Conversation ──
-    t = Table(show_header=True, header_style="bold", title="💬 Konversation", title_style="bold cyan")
-    t.add_column("Command", style="green", no_wrap=True)
-    t.add_column("Description")
-    t.add_row("nouse chat  / i", "Agent-chat med tool-calling + grafväxt")
-    t.add_row("nouse run", "LLM-agnostisk REPL (Ollama, Claude, OpenAI, Copilot)")
-    t.add_row("nouse ask \"fråga\"", "Snabb one-shot fråga")
-    t.add_row("nouse snabbchat", "Lättviktig read-only chat")
-    t.add_row("nouse companion", "Samtalsläge — idéutbyte och relationsbyggande")
+    # --- Conversation ---
+    t = Table(show_header=True, header_style="bold", title=f"💬 {tr('conversation')}", title_style="bold cyan")
+    t.add_column(tr("command"), style="green", no_wrap=True)
+    t.add_column(tr("description"))
+    t.add_row("nouse chat  / i", "Agent chat with tool-calling + graph growth" if tr("conversation") == "Conversation" else "Agent-chat med tool-calling + grafväxt")
+    t.add_row("nouse run", "LLM-agnostic REPL (Ollama, Claude, OpenAI, Copilot)")
+    t.add_row("nouse ask 'question'", "Quick one-shot question" if tr("conversation") == "Conversation" else "Snabb one-shot fråga")
+    t.add_row("nouse snabbchat", "Lightweight read-only chat" if tr("conversation") == "Conversation" else "Lättviktig read-only chat")
+    t.add_row("nouse companion", "Dialogue mode — idea exchange and relationship building" if tr("conversation") == "Conversation" else "Samtalsläge — idéutbyte och relationsbyggande")
     console.print(t)
 
-    # ── Knowledge & Learning ──
-    t = Table(show_header=True, header_style="bold", title="📚 Kunskap & Inlärning", title_style="bold cyan")
-    t.add_column("Command", style="green", no_wrap=True)
-    t.add_column("Description")
-    t.add_row("nouse ingest", "Mata in fil eller text direkt i grafen")
-    t.add_row("nouse learn-from", "Lär från YouTube, webb, PDF eller lokal fil/katalog")
-    t.add_row("nouse scan-disk", "Kartlägg disk → rankat ingest-förslag")
-    t.add_row("nouse enrich-nodes", "Berika noder som saknar kontext (LLM-genererat)")
-    t.add_row("nouse enrich", "Berika isolerade noder via frontier LLM")
-    t.add_row("nouse knowledge-backfill", "Fyll saknade nodprofiler (kontext + fakta)")
-    t.add_row("nouse deepdive", "Axiom-discovery: djupanalys av noder i grafen")
-    t.add_row("nouse consolidation-run", "Manuell konsolidering episodiskt → semantiskt minne")
-    t.add_row("nouse nightrun", "NightRun — konsolidering av arbetsminne till FieldSurface")
+    # --- Knowledge & Learning ---
+    t = Table(show_header=True, header_style="bold", title=f"📚 {tr('knowledge')}", title_style="bold cyan")
+    t.add_column(tr("command"), style="green", no_wrap=True)
+    t.add_column(tr("description"))
+    t.add_row("nouse ingest", "Ingest file or text directly into the graph" if tr("knowledge") == "Knowledge & Learning" else "Mata in fil eller text direkt i grafen")
+    t.add_row("nouse learn-from", "Learn from YouTube, web, PDF or local file/folder" if tr("knowledge") == "Knowledge & Learning" else "Lär från YouTube, webb, PDF eller lokal fil/katalog")
+    t.add_row("nouse scan-disk", "Scan disk → ranked ingest suggestion" if tr("knowledge") == "Knowledge & Learning" else "Kartlägg disk → rankat ingest-förslag")
+    t.add_row("nouse enrich-nodes", "Enrich nodes missing context (LLM-generated)" if tr("knowledge") == "Knowledge & Learning" else "Berika noder som saknar kontext (LLM-genererat)")
+    t.add_row("nouse enrich", "Enrich isolated nodes via frontier LLM" if tr("knowledge") == "Knowledge & Learning" else "Berika isolerade noder via frontier LLM")
+    t.add_row("nouse knowledge-backfill", "Fill missing node profiles (context + facts)" if tr("knowledge") == "Knowledge & Learning" else "Fyll saknade nodprofiler (kontext + fakta)")
+    t.add_row("nouse deepdive", "Axiom-discovery: deep analysis of nodes in the graph" if tr("knowledge") == "Knowledge & Learning" else "Axiom-discovery: djupanalys av noder i grafen")
+    t.add_row("nouse consolidation-run", "Manual consolidation episodic → semantic memory" if tr("knowledge") == "Knowledge & Learning" else "Manuell konsolidering episodiskt → semantiskt minne")
+    t.add_row("nouse nightrun", "NightRun — consolidation of working memory to FieldSurface" if tr("knowledge") == "Knowledge & Learning" else "NightRun — konsolidering av arbetsminne till FieldSurface")
     console.print(t)
 
-    # ── Exploration & Discovery ──
-    t = Table(show_header=True, header_style="bold", title="🔍 Utforskning & Upptäckt", title_style="bold cyan")
-    t.add_column("Command", style="green", no_wrap=True)
-    t.add_column("Description")
-    t.add_row("nouse nerv", "Kortaste nervbana mellan två domäner")
-    t.add_row("nouse trace", "Resoneringskedja mellan koncept/domäner")
-    t.add_row("nouse bisoc", "Bisociationskandidater via TDA (topologisk analys)")
-    t.add_row("nouse bridge", "Latenta strukturella bryggor mellan koncept")
-    t.add_row("nouse cascade", "Kompounderad idésyntes: 1+1=3+1=5+1=9...")
-    t.add_row("nouse embed-search", "Semantisk sökning i lokal embedding-index")
-    t.add_row("nouse embed-index", "Bygg/utöka lokal embedding-index")
-    t.add_row("nouse eval-embed", "Snabb hit@k-eval på embedding-index")
-    t.add_row("nouse visualize", "Interaktiv HTML-graf av kunskapsgrafen")
+    # --- Exploration & Discovery ---
+    t = Table(show_header=True, header_style="bold", title=f"🔍 {tr('exploration')}", title_style="bold cyan")
+    t.add_column(tr("command"), style="green", no_wrap=True)
+    t.add_column(tr("description"))
+    t.add_row("nouse nerv", "Shortest nerve path between two domains" if tr("exploration") == "Exploration & Discovery" else "Kortaste nervbana mellan två domäner")
+    t.add_row("nouse trace", "Reasoning chain between concepts/domains" if tr("exploration") == "Exploration & Discovery" else "Resoneringskedja mellan koncept/domäner")
+    t.add_row("nouse bisoc", "Bisociation candidates via TDA (topological analysis)" if tr("exploration") == "Exploration & Discovery" else "Bisociationskandidater via TDA (topologisk analys)")
+    t.add_row("nouse bridge", "Latent structural bridges between concepts" if tr("exploration") == "Exploration & Discovery" else "Latenta strukturella bryggor mellan koncept")
+    t.add_row("nouse cascade", "Compound idea synthesis: 1+1=3+1=5+1=9..." if tr("exploration") == "Exploration & Discovery" else "Kompounderad idésyntes: 1+1=3+1=5+1=9...")
+    t.add_row("nouse embed-search", "Semantic search in local embedding index" if tr("exploration") == "Exploration & Discovery" else "Semantisk sökning i lokal embedding-index")
+    t.add_row("nouse embed-index", "Build/extend local embedding index" if tr("exploration") == "Exploration & Discovery" else "Bygg/utöka lokal embedding-index")
+    t.add_row("nouse eval-embed", "Quick hit@k-eval on embedding index" if tr("exploration") == "Exploration & Discovery" else "Snabb hit@k-eval på embedding-index")
+    t.add_row("nouse visualize", "Interactive HTML graph of the knowledge graph" if tr("exploration") == "Exploration & Discovery" else "Interaktiv HTML-graf av kunskapsgrafen")
     console.print(t)
 
-    # ── Brain State & Diagnostics ──
-    t = Table(show_header=True, header_style="bold", title="🧠 Hjärnstatus & Diagnostik", title_style="bold cyan")
-    t.add_column("Command", style="green", no_wrap=True)
-    t.add_column("Description")
-    t.add_row("nouse brain state|health|gap|metrics|live", "Direkt insyn i brain-db-core")
-    t.add_row("nouse limbic", "Limbiskt tillstånd (DA/NA/ACh/λ/arousal)")
-    t.add_row("nouse snapshot", "Forsknings-dump av hela hjärnans tillstånd")
-    t.add_row("nouse memory-audit", "Status för episodiskt/semantiskt minne")
-    t.add_row("nouse knowledge-audit", "Kontrollera att noder har kontext + fakta")
-    t.add_row("nouse doctor", "Driftdiagnostik + säkra auto-fixar")
-    t.add_row("nouse output-trace", "Output-trace (fråga → angrepp → verktyg → svar)")
-    t.add_row("nouse trace-probe", "Kör problemset och verifiera tracekedjan")
+    # --- Diagnostics ---
+    t = Table(show_header=True, header_style="bold", title=f"🧠 {tr('diagnostics')}", title_style="bold cyan")
+    t.add_column(tr("command"), style="green", no_wrap=True)
+    t.add_column(tr("description"))
+    t.add_row("nouse brain state|health|gap|metrics|live", "Direct insight into brain-db-core" if tr("diagnostics") == "Brain State & Diagnostics" else "Direkt insyn i brain-db-core")
+    t.add_row("nouse limbic", "Limbic state (DA/NA/ACh/λ/arousal)" if tr("diagnostics") == "Brain State & Diagnostics" else "Limbiskt tillstånd (DA/NA/ACh/λ/arousal)")
+    t.add_row("nouse snapshot", "Research dump of the entire brain state" if tr("diagnostics") == "Brain State & Diagnostics" else "Forsknings-dump av hela hjärnans tillstånd")
+    t.add_row("nouse memory-audit", "Status of episodic/semantic memory" if tr("diagnostics") == "Brain State & Diagnostics" else "Status för episodiskt/semantiskt minne")
+    t.add_row("nouse knowledge-audit", "Check that nodes have context + facts" if tr("diagnostics") == "Brain State & Diagnostics" else "Kontrollera att noder har kontext + fakta")
+    t.add_row("nouse doctor", "Diagnostics + safe auto-fixes" if tr("diagnostics") == "Brain State & Diagnostics" else "Driftdiagnostik + säkra auto-fixar")
+    t.add_row("nouse output-trace", "Output trace (question → attack → tool → answer)" if tr("diagnostics") == "Brain State & Diagnostics" else "Output-trace (fråga → angrepp → verktyg → svar)")
+    t.add_row("nouse trace-probe", "Run problem set and verify trace chain" if tr("diagnostics") == "Brain State & Diagnostics" else "Kör problemset och verifiera tracekedjan")
     console.print(t)
 
-    # ── Autonomy & Research ──
-    t = Table(show_header=True, header_style="bold", title="🤖 Autonomi & Forskning", title_style="bold cyan")
-    t.add_column("Command", style="green", no_wrap=True)
-    t.add_column("Description")
-    t.add_row("nouse autonomous", "Autonomt läge — upptäck och lägg till ny kunskap")
-    t.add_row("nouse kickstart", "Seeda agent/subagent-tasks + väck autonom loop")
-    t.add_row("nouse research-queue", "Inspektera/kör gap-baserad research-queue")
-    t.add_row("nouse mission", "Global mission för autonom riktning + mätning")
-    t.add_row("nouse hitl", "HITL-interrupts (pause/approve/reject)")
-    t.add_row("nouse wake", "Wake/system-events (autonom triggerbuss)")
+    # --- Autonomy & Research ---
+    t = Table(show_header=True, header_style="bold", title=f"🤖 {tr('autonomy')}", title_style="bold cyan")
+    t.add_column(tr("command"), style="green", no_wrap=True)
+    t.add_column(tr("description"))
+    t.add_row("nouse autonomous", "Autonomous mode — discover and add new knowledge" if tr("autonomy") == "Autonomy & Research" else "Autonomt läge — upptäck och lägg till ny kunskap")
+    t.add_row("nouse kickstart", "Seed agent/subagent-tasks + wake autonomous loop" if tr("autonomy") == "Autonomy & Research" else "Seeda agent/subagent-tasks + väck autonom loop")
+    t.add_row("nouse research-queue", "Inspect/run gap-based research queue" if tr("autonomy") == "Autonomy & Research" else "Inspektera/kör gap-baserad research-queue")
+    t.add_row("nouse mission", "Global mission for autonomous direction + measurement" if tr("autonomy") == "Autonomy & Research" else "Global mission för autonom riktning + mätning")
+    t.add_row("nouse hitl", "HITL interrupts (pause/approve/reject)" if tr("autonomy") == "Autonomy & Research" else "HITL-interrupts (pause/approve/reject)")
+    t.add_row("nouse wake", "Wake/system-events (autonomous trigger bus)" if tr("autonomy") == "Autonomy & Research" else "Wake/system-events (autonom triggerbuss)")
     console.print(t)
 
-    # ── Identity & Self ──
-    t = Table(show_header=True, header_style="bold", title="🪞 Identitet & Self", title_style="bold cyan")
-    t.add_column("Command", style="green", no_wrap=True)
-    t.add_column("Description")
-    t.add_row("nouse self", "Kontinuerlig identitet + minnen + drivkrafter")
-    t.add_row("nouse journal", "Daglig journal (självutveckling + öppna frågor)")
+    # --- Identity & Self ---
+    t = Table(show_header=True, header_style="bold", title=f"🪞 {tr('identity')}", title_style="bold cyan")
+    t.add_column(tr("command"), style="green", no_wrap=True)
+    t.add_column(tr("description"))
+    t.add_row("nouse self", "Continuous identity + memories + drives" if tr("identity") == "Identity & Self" else "Kontinuerlig identitet + minnen + drivkrafter")
+    t.add_row("nouse journal", "Daily journal (self-development + open questions)" if tr("identity") == "Identity & Self" else "Daglig journal (självutveckling + öppna frågor)")
     console.print(t)
 
-    # ── Integration & Ingress ──
-    t = Table(show_header=True, header_style="bold", title="🔌 Integration & Ingress", title_style="bold cyan")
-    t.add_column("Command", style="green", no_wrap=True)
-    t.add_column("Description")
-    t.add_row("nouse mcp serve", "MCP-server (stdio) för Copilot/OpenClaw")
-    t.add_row("nouse clawbot", "Clawbot bridge (status/allowlist/approve/ingest)")
-    t.add_row("nouse ingress", "Ingress-adapterlager (Telegram m.fl.)")
-    t.add_row("nouse allowlist", "Pairing/allowlist för extern ingress")
-    t.add_row("nouse plugins", "Skill/plugin-livscykel med versionsspårning")
+    # --- Integration & Ingress ---
+    t = Table(show_header=True, header_style="bold", title=f"🔌 {tr('integration')}", title_style="bold cyan")
+    t.add_column(tr("command"), style="green", no_wrap=True)
+    t.add_column(tr("description"))
+    t.add_row("nouse mcp serve", "MCP server (stdio) for Copilot/OpenClaw" if tr("integration") == "Integration & Ingress" else "MCP-server (stdio) för Copilot/OpenClaw")
+    t.add_row("nouse clawbot", "Clawbot bridge (status/allowlist/approve/ingest)" if tr("integration") == "Integration & Ingress" else "Clawbot bridge (status/allowlist/approve/ingest)")
+    t.add_row("nouse ingress", "Ingress adapter layer (Telegram etc.)" if tr("integration") == "Integration & Ingress" else "Ingress-adapterlager (Telegram m.fl.)")
+    t.add_row("nouse allowlist", "Pairing/allowlist for external ingress" if tr("integration") == "Integration & Ingress" else "Pairing/allowlist för extern ingress")
+    t.add_row("nouse plugins", "Skill/plugin lifecycle with version tracking" if tr("integration") == "Integration & Ingress" else "Skill/plugin-livscykel med versionsspårning")
     console.print(t)
 
-    # ── Configuration ──
-    t = Table(show_header=True, header_style="bold", title="⚙️  Konfiguration", title_style="bold cyan")
-    t.add_column("Command", style="green", no_wrap=True)
-    t.add_column("Description")
-    t.add_row("nouse setup", "Konfigurera lagringsprofil (small/medium/large)")
-    t.add_row("nouse llm", "Hantera LLM-providers — auto-detect & konfigurera")
-    t.add_row("nouse models", "Modell-failover policy per tasktyp")
-    t.add_row("nouse select-model", "Välj och spara aktiv LLM-modell (interaktivt)")
-    t.add_row("nouse session", "Sessionslager (lifecycle + runs + energi)")
-    t.add_row("nouse usage", "Usage/cost-telemetri per run/modell/session")
+    # --- Configuration ---
+    t = Table(show_header=True, header_style="bold", title=f"⚙️  {tr('config')}", title_style="bold cyan")
+    t.add_column(tr("command"), style="green", no_wrap=True)
+    t.add_column(tr("description"))
+    t.add_row("nouse setup", "Configure storage profile (small/medium/large)" if tr("config") == "Configuration" else "Konfigurera lagringsprofil (small/medium/large)")
+    t.add_row("nouse llm", "Manage LLM providers — auto-detect & configure" if tr("config") == "Configuration" else "Hantera LLM-providers — auto-detect & konfigurera")
+    t.add_row("nouse models", "Model failover policy per task type" if tr("config") == "Configuration" else "Modell-failover policy per tasktyp")
+    t.add_row("nouse select-model", "Select and save active LLM model (interactive)" if tr("config") == "Configuration" else "Välj och spara aktiv LLM-modell (interaktivt)")
+    t.add_row("nouse session", "Session layer (lifecycle + runs + energy)" if tr("config") == "Configuration" else "Sessionslager (lifecycle + runs + energi)")
+    t.add_row("nouse usage", "Usage/cost telemetry per run/model/session" if tr("config") == "Configuration" else "Usage/cost-telemetri per run/modell/session")
     console.print(t)
 
-    console.print(
-        "\n[dim]Snabbstart: [green]nouse start me[/green] · Detaljer: [green]nouse <command> --help[/green] · Version: [green]nouse -V[/green][/dim]"
-    )
+    console.print(f"\n[dim]{tr('quickstart')}[/dim]")
 
 
 def _ensure_daemon_background(*, web_port: int = 8765, wait_sec: float = 8.0) -> bool:
