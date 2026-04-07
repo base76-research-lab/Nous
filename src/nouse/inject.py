@@ -417,6 +417,50 @@ class NouseBrain:
         """Directly add a relation to the knowledge graph."""
         self._field.add_relation(src, rel_type, tgt, why=why, evidence_score=evidence_score)
 
+    # ── Session relay API ─────────────────────────────────────────────────────
+
+    def relay_open(self, goal: str, *, model: str = "unknown") -> dict:
+        """Start a new cross-model relay session. Returns session dict with session_id."""
+        from nouse.session.relay import relay_open
+        return relay_open(goal, model=model)
+
+    def relay_update(
+        self,
+        session_id: str,
+        *,
+        decision: str | None = None,
+        decision_why: str = "",
+        decision_confidence: float = 0.8,
+        open_question: str | None = None,
+        file_touched: str | None = None,
+        node_used: str | None = None,
+        summary: str | None = None,
+        model: str | None = None,
+    ) -> dict | None:
+        """Update an active relay session with new work context."""
+        from nouse.session.relay import relay_update
+        return relay_update(
+            session_id,
+            decision=decision,
+            decision_why=decision_why,
+            decision_confidence=decision_confidence,
+            open_question=open_question,
+            file_touched=file_touched,
+            node_used=node_used,
+            summary=summary,
+            model=model,
+        )
+
+    def relay_continue(self, session_id: str, *, model: str = "unknown") -> str:
+        """Return a compact context block for the next model picking up this session."""
+        from nouse.session.relay import relay_continue
+        return relay_continue(session_id, model=model)
+
+    def relay_list(self, *, status: str | None = None, limit: int = 10) -> list:
+        """List relay sessions."""
+        from nouse.session.relay import relay_list
+        return relay_list(status=status, limit=limit)
+
     def on_input(self, fn: Callable) -> Callable:
         """Decorator: enrich prompt before it reaches the LLM."""
         self._input_hooks.append(fn)

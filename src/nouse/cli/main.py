@@ -335,6 +335,18 @@ def status() -> None:
     run_status()
 
 
+@app.command(name="relay")
+def relay_cmd(
+    action: str = typer.Argument("list", help="open | list | show | continue | update | close"),
+    args: list[str] = typer.Argument(default=None),
+) -> None:
+    """Cross-model session relay — hand off work between any models."""
+    from nouse.cli.commands.relay import app as relay_app
+    import sys
+    sys.argv = ["nouse", "relay", action] + (args or [])
+    relay_app()
+
+
 @app.command(name="mcp")
 def mcp_cmd(
     action: str = typer.Argument("serve", help="serve"),
