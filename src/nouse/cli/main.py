@@ -407,7 +407,7 @@ def learn_from(
     from nouse.embeddings.index import JsonlVectorIndex, make_chunk_record
     from nouse.embeddings.ollama_embed import OllamaEmbedder
 
-    src = Path(path).expanduser()
+    src = Path(source).expanduser()
     if not src.exists():
         console.print(f"[red]Hittade inte: {src}[/red]")
         raise typer.Exit(1)
@@ -424,6 +424,11 @@ def learn_from(
 
     embedder = OllamaEmbedder()
     index = JsonlVectorIndex()
+    # Conservative defaults to keep learn-from operational even if CLI options
+    # are omitted from this command signature.
+    max_chars = 1200
+    overlap_chars = 180
+    batch = 16
 
     chunk_rows: list[dict] = []
     for f in files:
@@ -431,6 +436,10 @@ def learn_from(
             txt = extract_text(f)
         except Exception:
             continue
+        if debug_extract:
+            console.print(
+                f"[dim]extract: {f} · chars={len(txt)}[/dim]"
+            )
         if len(txt.strip()) < 80:
             continue
         chunks = chunk_text(txt, max_chars=max_chars, overlap_chars=overlap_chars)
@@ -477,48 +486,37 @@ def embed_search(
     query: str = typer.Argument(..., help="Semantisk fråga"),
     top_k: int = typer.Option(5, "--top-k", help="Antal träffar"),
 ) -> None:
-    from pathlib import Path
-
-    from ruamel.yaml import YAML
-
     from nouse.embeddings.index import search_index
     from nouse.embeddings.ollama_embed import OllamaEmbedder
 
-    pset = Path(set_path).expanduser()
-    if not pset.exists():
-        console.print(f"[red]Eval-set saknas:[/red] {pset}")
-        raise typer.Exit(1)
-
-    yaml = YAML(typ="safe")
-    data = yaml.load(pset.read_text(encoding="utf-8", errors="ignore")) or {}
-    queries = data.get("queries") or []
-    if not queries:
-        console.print("[red]Inga queries i eval-set.[/red]")
+    q = query.strip()
+    if not q:
+        console.print("[red]Tom query.[/red]")
         raise typer.Exit(1)
 
     embedder = OllamaEmbedder()
-
-    hits_total = 0
-    for item in queries:
-        q = str(item.get("query") or "").strip()
-        expected = [str(x).lower() for x in (item.get("expected_top5") or [])]
-        if not q:
-            continue
-
+    try:
         qv = embedder.embed_texts([q])[0]
-        got = search_index(query_vector=qv, top_k=top_k)
-        corpus = "\n".join((f"{h.path} {h.text}").lower() for h in got)
-        ok = any(e and e in corpus for e in expected)
-        hits_total += 1 if ok else 0
-        icon = "✓" if ok else "✗"
-        console.print(f"{icon} {item.get('id','?')}: {q[:90]}")
+    except Exception as e:
+        console.print(f"[red]Kunde inte skapa embedding:[/red] {e}")
+        raise typer.Exit(1) from e
 
-    total = len(queries)
-    ratio = hits_total / max(1, total)
-    console.print(
-        f"\n[bold]Eval klar[/bold]  hit@{top_k} = "
-        f"[cyan]{hits_total}/{total} ({ratio:.1%})[/cyan]"
-    )
+    got = search_index(query_vector=qv, top_k=max(1, top_k))
+    if not got:
+        console.print("[yellow]Inga träffar i embedding-index.[/yellow]")
+        return
+
+    console.print(f"[bold]Top {len(got)} träffar[/bold] för: [cyan]{q}[/cyan]\n")
+    for i, h in enumerate(got, start=1):
+        snippet = " ".join((h.text or "").split())
+        if len(snippet) > 220:
+            snippet = snippet[:217] + "..."
+        console.print(
+            f"{i}. [cyan]{h.score:.3f}[/cyan] "
+            f"[dim]{h.path}#{h.chunk_ix} · {h.source} · {h.domain_hint}[/dim]"
+        )
+        if snippet:
+            console.print(f"   {snippet}")
 
 
 @app.command()
