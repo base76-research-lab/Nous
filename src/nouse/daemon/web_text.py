@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import json
 import re
 import shutil
 import subprocess
@@ -21,6 +22,105 @@ def is_url(value: str) -> bool:
         return p.scheme in {"http", "https"} and bool(p.netloc)
     except Exception:
         return False
+
+
+def _collect_meta_content(soup: BeautifulSoup) -> dict[str, str]:
+    out: dict[str, str] = {}
+    for tag in soup.find_all("meta"):
+        try:
+            attrs = dict(tag.attrs or {})
+        except Exception:
+            continue
+        content_raw = attrs.get("content")
+        content = str(content_raw or "").strip()
+        if not content:
+            continue
+        for key in ("name", "property", "itemprop"):
+            raw = attrs.get(key)
+            meta_key = str(raw or "").strip().lower()
+            if meta_key and meta_key not in out:
+                out[meta_key] = content
+    return out
+
+
+def _first_nonempty(values: list[str]) -> str:
+    for value in values:
+        clean = str(value or "").strip()
+        if clean:
+            return clean
+    return ""
+
+
+def _collect_jsonld_objects(soup: BeautifulSoup) -> list[dict]:
+    rows: list[dict] = []
+    scripts = soup.find_all("script", attrs={"type": re.compile(r"application/ld\+json", re.IGNORECASE)})
+    for tag in scripts:
+        raw = str(tag.string or tag.get_text() or "").strip()
+        if not raw:
+            continue
+        try:
+            payload = json.loads(raw)
+        except Exception:
+            continue
+        stack = [payload]
+        while stack:
+            current = stack.pop()
+            if isinstance(current, dict):
+                rows.append(current)
+                graph = current.get("@graph")
+                if isinstance(graph, list):
+                    stack.extend(graph)
+            elif isinstance(current, list):
+                stack.extend(current)
+    return rows
+
+
+def _jsonld_author_name(value: object) -> str:
+    if isinstance(value, str):
+        return value.strip()
+    if isinstance(value, dict):
+        return str(value.get("name") or "").strip()
+    if isinstance(value, list):
+        for item in value:
+            name = _jsonld_author_name(item)
+            if name:
+                return name
+    return ""
+
+
+def _extract_jsonld_fields(rows: list[dict]) -> dict[str, str]:
+    title = ""
+    author = ""
+    published = ""
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        if not title:
+            title = str(
+                row.get("headline")
+                or row.get("name")
+                or row.get("title")
+                or ""
+            ).strip()
+        if not author:
+            author = _jsonld_author_name(row.get("author"))
+        if not published:
+            published = str(
+                row.get("datePublished")
+                or row.get("dateCreated")
+                or row.get("dateModified")
+                or ""
+            ).strip()
+        if title and author and published:
+            break
+    out: dict[str, str] = {}
+    if title:
+        out["title"] = title
+    if author:
+        out["author"] = author
+    if published:
+        out["published_at"] = published
+    return out
 
 
 def extract_text_from_url(url: str, timeout_s: float = 45.0) -> tuple[str, dict]:
@@ -45,13 +145,58 @@ def extract_text_from_url(url: str, timeout_s: float = 45.0) -> tuple[str, dict]
         return text, {"source": "web_pdf", "url": url}
 
     soup = BeautifulSoup(r.text, "lxml")
+    meta_content = _collect_meta_content(soup)
+    jsonld_fields = _extract_jsonld_fields(_collect_jsonld_objects(soup))
     for tag in soup(["script", "style", "noscript", "header", "footer", "nav", "aside"]):
         tag.decompose()
 
-    title = (soup.title.string or "").strip() if soup.title else ""
+    title = _first_nonempty(
+        [
+            (soup.title.string if soup.title and soup.title.string else ""),
+            meta_content.get("og:title", ""),
+            meta_content.get("twitter:title", ""),
+            meta_content.get("headline", ""),
+            jsonld_fields.get("title", ""),
+        ]
+    )
+    author = _first_nonempty(
+        [
+            meta_content.get("author", ""),
+            meta_content.get("article:author", ""),
+            meta_content.get("og:article:author", ""),
+            meta_content.get("parsely-author", ""),
+            meta_content.get("twitter:creator", ""),
+            jsonld_fields.get("author", ""),
+        ]
+    )
+    published = _first_nonempty(
+        [
+            meta_content.get("article:published_time", ""),
+            meta_content.get("og:published_time", ""),
+            meta_content.get("datepublished", ""),
+            meta_content.get("pubdate", ""),
+            meta_content.get("parsely-pub-date", ""),
+            meta_content.get("date", ""),
+            jsonld_fields.get("published_at", ""),
+        ]
+    )
+
     body = "\n".join(s.strip() for s in soup.stripped_strings if s.strip())
-    text = f"Web article: {title}\n\n{body}" if title else body
-    return text, {"source": "web_article", "url": url, "title": title}
+    header_lines = ["Web article" + (f": {title}" if title else "")]
+    if author:
+        header_lines.append(f"Author: {author}")
+    if published:
+        header_lines.append(f"Published: {published}")
+    header_lines.append(f"URL: {url}")
+
+    header = "\n".join(header_lines).strip()
+    text = f"{header}\n\n{body}".strip() if body else header
+    meta = {"source": "web_article", "url": url, "title": title}
+    if author:
+        meta["author"] = author
+    if published:
+        meta["published_at"] = published
+    return text, meta
 
 
 def _is_youtube(url: str) -> bool:
