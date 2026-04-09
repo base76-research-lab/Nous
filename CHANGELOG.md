@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### 2026-04-09 — Sync Wave (Non-Docker)
+
+#### Fix #24 — Web ingest provenance metadata ([PR #32](https://github.com/base76-research-lab/NoUse/pull/32), [Issue #24](https://github.com/base76-research-lab/NoUse/issues/24))
+- Added article metadata extraction for `author` and `published_at` from HTML meta + JSON-LD.
+- Improved title fallback chain for web-ingested content.
+- Added daemon regression tests for metadata/provenance extraction.
+
+#### Fix #26 — MCP web search provider routing ([PR #33](https://github.com/base76-research-lab/NoUse/pull/33), [Issue #26](https://github.com/base76-research-lab/NoUse/issues/26))
+- Added optional `provider` parameter for `web_search` in MCP gateway.
+- Implemented deterministic provider fallback ordering.
+- Added support for env-driven default provider selection.
+- Expanded MCP web tool tests for provider behavior.
+
+#### Fix #25 — HITL low-risk auto-approve guards ([PR #34](https://github.com/base76-research-lab/NoUse/pull/34), [Issue #25](https://github.com/base76-research-lab/NoUse/issues/25))
+- Added sensitive-query detection utility for HITL gating.
+- Added low-risk mission-task auto-approve decision path (policy/env controlled).
+- Kept strict block behavior for sensitive operations.
+- Added HITL tests to lock decision behavior.
+
+#### Fix #27 — Graph center state API/client alignment ([PR #35](https://github.com/base76-research-lab/NoUse/pull/35), [Issue #27](https://github.com/base76-research-lab/NoUse/issues/27))
+- Added graph center persistence/read/reset endpoints (`/api/graph/cc`).
+- Added client helpers for graph center get/set/delete operations.
+- Added graph payload center metadata (`configured`, `node`, `in_view`, timestamps/source).
+- Added dedicated web tests for graph center roundtrip and payload behavior.
+
+#### Fix #28 — Insights extraction + recent API ([PR #36](https://github.com/base76-research-lab/NoUse/pull/36), [Issue #28](https://github.com/base76-research-lab/NoUse/issues/28))
+- Added `nouse.insights` extraction module for candidate generation, save, and promote flows.
+- Added env-aware path helper for storage path resolution.
+- Added `/api/insights/recent` endpoint with basis metadata and extracted links.
+- Added extractor tests and recent API payload tests.
+
+#### Fix #29 — Reusable NoUse-first LLM wrapper ([PR #37](https://github.com/base76-research-lab/NoUse/pull/37), [Issue #29](https://github.com/base76-research-lab/NoUse/issues/29))
+- Added reusable wrapper for grounded system prompt construction from NoUse memory.
+- Added flexible response text extraction for common model response shapes.
+- Added optional learn-back integration after model answer generation.
+- Added wrapper test coverage.
+
+#### Fix #30 — Provider/model-ref policy hardening ([PR #38](https://github.com/base76-research-lab/NoUse/pull/38), [Issue #30](https://github.com/base76-research-lab/NoUse/issues/30))
+- Hardened provider/model reference normalization in policy/runtime handling.
+- Improved ollama client behavior for provider-qualified model refs.
+- Added regression coverage for policy usage and provider model-ref handling.
+
 ## [0.4.0] - 2026-04-06
 
 ### Added
