@@ -14,6 +14,7 @@ _DEFAULT_WORKLOADS = {
     "agent": {"provider": "ollama", "candidates": []},
     "extract": {"provider": "ollama", "candidates": []},
     "synthesize": {"provider": "ollama", "candidates": []},
+    "bisoc": {"provider": "ollama", "candidates": []},
     "curiosity": {"provider": "ollama", "candidates": []},
 }
 
@@ -21,6 +22,7 @@ _EXPLICIT_PROVIDER_PREFIXES = {
     "ollama",
     "openai",
     "openai_compatible",
+    "codex",
     # OpenAI-compatible vendor aliases (used as explicit provider prefixes).
     "minimax",
     "openrouter",
@@ -71,6 +73,26 @@ def _qualify_model_ref(provider: str, model_ref: str) -> str:
     return f"{canonical}/{text}"
 
 
+def _looks_like_ollama_tag(model_ref: str) -> bool:
+    """
+    Heuristik: Ollama-modeller använder ofta `name:tag` (t.ex. gemma4:e2b).
+    OpenAI-kompatibla molnmodeller använder normalt inte kolon-taggar.
+    """
+    text = str(model_ref or "").strip()
+    if not text:
+        return False
+    if _has_explicit_provider_prefix(text):
+        return False
+    return ":" in text
+
+
+def _should_add_ollama_fallback(provider: str, model_ref: str) -> bool:
+    canonical = _canonical_provider(provider)
+    if canonical == "ollama":
+        return False
+    return _looks_like_ollama_tag(model_ref)
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -101,7 +123,7 @@ def _normalize_policy(raw: dict[str, Any] | None) -> dict[str, Any]:
             else:
                 clean_candidates = []
             norm_workloads[name] = {
-                "provider": str(row.get("provider") or "ollama").strip() or "ollama",
+                "provider": _canonical_provider(str(row.get("provider") or "ollama").strip()),
                 "candidates": clean_candidates,
             }
     for name, row in _DEFAULT_WORKLOADS.items():
@@ -161,9 +183,23 @@ def resolve_model_candidates(
     policy_candidates = row.get("candidates") if isinstance(row, dict) else []
     provider = str((row or {}).get("provider") or "ollama")
     source: list[str] = []
+
+    def _append_candidate(raw: str) -> None:
+        text = str(raw or "").strip()
+        if not text:
+            return
+        source.append(_qualify_model_ref(provider, text))
+        # Robusthet: om provider är OpenAI-kompatibel men kandidaten ser ut som
+        # lokal Ollama-tag, lägg till lokal fallback så chatten inte fastnar.
+        if _should_add_ollama_fallback(provider, text):
+            source.append(_qualify_model_ref("ollama", text))
+
     if isinstance(policy_candidates, list) and policy_candidates:
-        source.extend(_qualify_model_ref(provider, x) for x in policy_candidates if str(x).strip())
-    source.extend(_qualify_model_ref(provider, x) for x in (default_candidates or []) if str(x).strip())
+        for item in policy_candidates:
+            _append_candidate(str(item))
+    for item in (default_candidates or []):
+        _append_candidate(str(item))
+
     for model in source:
         if model in seen:
             continue
