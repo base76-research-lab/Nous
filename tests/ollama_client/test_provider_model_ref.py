@@ -6,6 +6,7 @@ from nouse.ollama_client.client import _canonical_provider, _split_provider_mode
 def test_canonical_provider_maps_aliases_to_openai_compatible():
     assert _canonical_provider("openai") == "openai_compatible"
     assert _canonical_provider("openai_compatible") == "openai_compatible"
+    assert _canonical_provider("codex") == "openai_compatible"
     assert _canonical_provider("minimax") == "openai_compatible"
     assert _canonical_provider("ollama") == "ollama"
 
@@ -29,3 +30,9 @@ def test_split_provider_model_ref_supports_ollama_prefix():
     provider, model = _split_provider_model_ref("ollama/qwen3.5:latest", "openai")
     assert provider == "ollama"
     assert model == "qwen3.5:latest"
+
+
+def test_split_provider_model_ref_supports_codex_prefix():
+    provider, model = _split_provider_model_ref("codex/gpt-5-codex", "ollama")
+    assert provider == "openai_compatible"
+    assert model == "gpt-5-codex"

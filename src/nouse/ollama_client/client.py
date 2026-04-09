@@ -76,6 +76,7 @@ _RETRYABLE_ERROR_MARKERS = (
 _OPENAI_COMPATIBLE_PROVIDER_ALIASES = {
     "openai",
     "openai_compatible",
+    "codex",
     "minimax",
     "openrouter",
     "fireworks",
@@ -248,7 +249,9 @@ class AsyncOllama:
     """
 
     def __init__(self, **kwargs):
-        load_env_files()
+        # Läs .env på varje init så nyckel-/provider-ändringar slår igenom
+        # utan att daemonen måste startas om.
+        load_env_files(force=True)
         self.provider = _canonical_provider(os.getenv("NOUSE_LLM_PROVIDER", "ollama"))
         self.chat = self.Chat(self, **kwargs)
 
