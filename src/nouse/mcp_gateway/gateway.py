@@ -96,8 +96,9 @@ MCP_TOOLS = [
         "function": {
             "name": "web_search",
             "description": (
-                "Sök på internet (DuckDuckGo). "
-                "Använd för att hitta uppdaterad eller saknad information."
+                "Sök på internet. "
+                "Använd för att hitta uppdaterad eller saknad information. "
+                "Valfritt: ange provider (t.ex. brave) för att prioritera den i denna körning."
             ),
             "parameters": {
                 "type": "object",
@@ -109,6 +110,13 @@ MCP_TOOLS = [
                     "max_results": {
                         "type": "integer",
                         "description": "Max antal träffar (default 5)",
+                    },
+                    "provider": {
+                        "type": "string",
+                        "description": (
+                            "Valfri sökprovider: auto | brave | serper | tavily | "
+                            "duckduckgo | ddg | duckduckgo_html"
+                        ),
                     },
                 },
                 "required": ["query"],
@@ -429,42 +437,103 @@ MCP_TOOLS = [
 
 # ── Tool Implementations ─────────────────────────────────────────────────────
 
-def web_search(query: str, max_results: int = 5) -> dict[str, Any]:
-    """Utför en webbsökning via API om nycklar finns, annars DuckDuckGo."""
-    if os.getenv("SERPER_API_KEY"):
-        out = _search_serper(query, max_results=max_results)
-        if "error" not in out:
-            return out
-    if os.getenv("TAVILY_API_KEY"):
-        out = _search_tavily(query, max_results=max_results)
-        if "error" not in out:
-            return out
-    brave_key = os.getenv("BRAVE_SEARCH_API_KEY") or os.getenv("BRAVE_API_KEY")
-    if brave_key:
-        out = _search_brave(query, max_results=max_results, api_key=brave_key)
-        if "error" not in out:
-            return out
+def _normalize_search_provider(provider: str | None) -> str:
+    p = str(provider or "").strip().lower()
+    aliases = {
+        "": "auto",
+        "default": "auto",
+        "ddg": "duckduckgo",
+        "duck": "duckduckgo",
+        "brave_search": "brave",
+        "google_serper": "serper",
+    }
+    return aliases.get(p, p or "auto")
 
-    # Fallback: DDG utan API-nyckel.
-    try:
-        results = []
-        with DDGS() as ddgs:
-            for r in ddgs.text(query, max_results=max_results):
-                results.append(r)
-        if results:
-            return {"provider": "duckduckgo", "query": query, "results": results}
-    except Exception as e:
-        log.warning(f"web_search misslyckades för '{query}': {e}")
 
-    # Sista fallback: hämta DuckDuckGo HTML och pars:a träffar.
-    try:
-        html_rows = _search_duckduckgo_html(query, max_results=max_results)
-        if html_rows:
-            return {"provider": "duckduckgo_html", "query": query, "results": html_rows}
-    except Exception as e:
-        log.warning(f"web_search html-fallback misslyckades för '{query}': {e}")
+def _provider_order(preferred: str) -> list[str]:
+    base = ["serper", "tavily", "brave", "duckduckgo", "duckduckgo_html"]
+    if preferred in {"auto", ""}:
+        return base
+    if preferred not in set(base):
+        return base
+    return [preferred] + [name for name in base if name != preferred]
 
-    return {"provider": "none", "query": query, "results": []}
+
+def web_search(query: str, max_results: int = 5, provider: str | None = None) -> dict[str, Any]:
+    """Utför en webbsökning med valbar provider-prioritering."""
+    preferred = _normalize_search_provider(provider)
+    order = _provider_order(preferred)
+
+    for name in order:
+        if name == "serper":
+            if not os.getenv("SERPER_API_KEY"):
+                continue
+            out = _search_serper(query, max_results=max_results)
+            if "error" not in out:
+                if preferred != "auto":
+                    out["provider_requested"] = preferred
+                return out
+            continue
+
+        if name == "tavily":
+            if not os.getenv("TAVILY_API_KEY"):
+                continue
+            out = _search_tavily(query, max_results=max_results)
+            if "error" not in out:
+                if preferred != "auto":
+                    out["provider_requested"] = preferred
+                return out
+            continue
+
+        if name == "brave":
+            brave_key = os.getenv("BRAVE_SEARCH_API_KEY") or os.getenv("BRAVE_API_KEY")
+            if not brave_key:
+                continue
+            out = _search_brave(query, max_results=max_results, api_key=brave_key)
+            if "error" not in out:
+                if preferred != "auto":
+                    out["provider_requested"] = preferred
+                return out
+            continue
+
+        if name == "duckduckgo":
+            try:
+                results = []
+                with DDGS() as ddgs:
+                    for r in ddgs.text(query, max_results=max_results):
+                        results.append(r)
+                if results:
+                    payload: dict[str, Any] = {
+                        "provider": "duckduckgo",
+                        "query": query,
+                        "results": results,
+                    }
+                    if preferred != "auto":
+                        payload["provider_requested"] = preferred
+                    return payload
+            except Exception as e:
+                log.warning(f"web_search misslyckades för '{query}': {e}")
+            continue
+
+        if name == "duckduckgo_html":
+            try:
+                html_rows = _search_duckduckgo_html(query, max_results=max_results)
+                if html_rows:
+                    payload = {
+                        "provider": "duckduckgo_html",
+                        "query": query,
+                        "results": html_rows,
+                    }
+                    if preferred != "auto":
+                        payload["provider_requested"] = preferred
+                    return payload
+            except Exception as e:
+                log.warning(f"web_search html-fallback misslyckades för '{query}': {e}")
+
+    out: dict[str, Any] = {"provider": "none", "query": query, "results": []}
+    if preferred != "auto":
+        out["provider_requested"] = preferred
+    return out
 
 
 def _search_duckduckgo_html(query: str, max_results: int) -> list[dict[str, Any]]:
@@ -1396,7 +1465,18 @@ def is_mcp_tool(name: str) -> bool:
 def execute_mcp_tool(name: str, args: dict[str, Any]) -> Any:
     """Kör MCP-verktyg och returnerar resultatet."""
     if name == "web_search":
-        return web_search(args["query"], args.get("max_results", 5))
+        provider = args.get("provider")
+        if not str(provider or "").strip():
+            env_default = str(os.getenv("NOUSE_WEB_SEARCH_DEFAULT_PROVIDER") or "").strip()
+            if env_default:
+                provider = env_default
+            elif (os.getenv("BRAVE_SEARCH_API_KEY") or os.getenv("BRAVE_API_KEY")):
+                provider = "brave"
+        return web_search(
+            args["query"],
+            args.get("max_results", 5),
+            provider=provider,
+        )
     if name == "fetch_url":
         return fetch_url(args["url"])
     if name == "list_local_mounts":

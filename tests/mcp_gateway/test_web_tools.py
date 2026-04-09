@@ -37,6 +37,68 @@ def test_web_search_falls_back_to_duckduckgo_html(monkeypatch):
     assert out["results"][0]["href"] == "https://example.com"
 
 
+def test_web_search_prefers_requested_brave_provider(monkeypatch):
+    calls: list[str] = []
+
+    monkeypatch.setenv("BRAVE_API_KEY", "test-key")
+    monkeypatch.delenv("SERPER_API_KEY", raising=False)
+    monkeypatch.delenv("TAVILY_API_KEY", raising=False)
+
+    def _fake_brave(query: str, max_results: int, api_key: str):  # noqa: ARG001
+        calls.append("brave")
+        return {
+            "provider": "brave",
+            "query": query,
+            "results": [{"title": "x", "href": "https://example.com", "body": "ok"}],
+        }
+
+    monkeypatch.setattr(gateway, "_search_brave", _fake_brave)
+
+    out = gateway.web_search("example", max_results=2, provider="brave")
+    assert out["provider"] == "brave"
+    assert out.get("provider_requested") == "brave"
+    assert calls == ["brave"]
+
+
+def test_execute_mcp_tool_web_search_forwards_provider(monkeypatch):
+    seen: dict[str, str] = {}
+
+    def _fake_web_search(query: str, max_results: int = 5, provider: str | None = None):
+        seen["query"] = query
+        seen["provider"] = str(provider or "")
+        return {"provider": "duckduckgo", "query": query, "results": []}
+
+    monkeypatch.setattr(gateway, "web_search", _fake_web_search)
+
+    out = gateway.execute_mcp_tool(
+        "web_search",
+        {"query": "epistemic grounding", "max_results": 3, "provider": "brave"},
+    )
+    assert out["query"] == "epistemic grounding"
+    assert seen["provider"] == "brave"
+
+
+def test_execute_mcp_tool_web_search_defaults_to_brave_when_key_present(monkeypatch):
+    seen: dict[str, str] = {}
+
+    monkeypatch.setenv("BRAVE_API_KEY", "x-test")
+    monkeypatch.delenv("NOUSE_WEB_SEARCH_DEFAULT_PROVIDER", raising=False)
+
+    def _fake_web_search(query: str, max_results: int = 5, provider: str | None = None):
+        seen["query"] = query
+        seen["provider"] = str(provider or "")
+        return {"provider": "brave", "query": query, "results": []}
+
+    monkeypatch.setattr(gateway, "web_search", _fake_web_search)
+
+    out = gateway.execute_mcp_tool(
+        "web_search",
+        {"query": "epistemic grounding", "max_results": 3},
+    )
+    assert out["query"] == "epistemic grounding"
+    assert seen["provider"] == "brave"
+
+
 def test_fetch_url_handles_pdf_content(monkeypatch):
     class _DummyResp:
         status_code = 200
