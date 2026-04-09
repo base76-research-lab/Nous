@@ -168,6 +168,28 @@ def get_status() -> dict:
     return r.json()
 
 
+def get_graph_center(timeout: float = 10.0) -> dict:
+    r = httpx.get(f"{DAEMON_BASE}/api/graph/cc", timeout=timeout)
+    r.raise_for_status()
+    return r.json()
+
+
+def post_graph_center(node: str, timeout: float = 10.0) -> dict:
+    r = httpx.post(
+        f"{DAEMON_BASE}/api/graph/cc",
+        json={"node": node},
+        timeout=timeout,
+    )
+    r.raise_for_status()
+    return r.json()
+
+
+def delete_graph_center(timeout: float = 10.0) -> dict:
+    r = httpx.delete(f"{DAEMON_BASE}/api/graph/cc", timeout=timeout)
+    r.raise_for_status()
+    return r.json()
+
+
 def get_sessions(limit: int = 30, status: str = "all", timeout: float = 10.0) -> dict:
     r = httpx.get(
         f"{DAEMON_BASE}/api/sessions",

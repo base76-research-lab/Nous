@@ -55,6 +55,12 @@ FAST_DELEGATE_ENABLED = str(os.getenv("NOUSE_CHAT_FAST_DELEGATE", "1")).strip().
 FAST_DELEGATE_MIN_WORDS = max(8, int(os.getenv("NOUSE_CHAT_FAST_DELEGATE_MIN_WORDS", "18")))
 INGEST_TIMEOUT_SEC = float(os.getenv("NOUSE_INGEST_TIMEOUT_SEC", "20"))
 CAPTURE_QUEUE_DIR = Path.home() / ".local" / "share" / "nouse" / "capture_queue"
+GRAPH_CENTER_STATE_PATH = Path(
+    os.getenv(
+        "NOUSE_GRAPH_CENTER_PATH",
+        str(Path.home() / ".local" / "share" / "nouse" / "graph_center.json"),
+    )
+).expanduser()
 QUEUE_DEFAULT_TASK_TIMEOUT_SEC = float(os.getenv("NOUSE_RESEARCH_QUEUE_TASK_TIMEOUT_SEC", "180"))
 QUEUE_DEFAULT_EXTRACT_TIMEOUT_SEC = float(os.getenv("NOUSE_RESEARCH_QUEUE_EXTRACT_TIMEOUT_SEC", "30"))
 from nouse.daemon.main import brain_loop
@@ -513,6 +519,102 @@ def _norm_text(value: Any) -> str:
     return re.sub(r"\s+", " ", unicodedata.normalize("NFKC", _coerce_text(value))).strip()
 
 
+def _graph_center_path() -> Path:
+    return GRAPH_CENTER_STATE_PATH
+
+
+def _load_graph_center_state() -> dict[str, Any]:
+    path = _graph_center_path()
+    if not path.exists():
+        return {}
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    node = _norm_text(raw.get("node"))
+    if not node:
+        return {}
+    return {
+        "node": node,
+        "updated_at": _coerce_text(raw.get("updated_at")),
+        "source": _coerce_text(raw.get("source")) or "api",
+    }
+
+
+def _save_graph_center_state(node: str, *, source: str = "api") -> dict[str, Any]:
+    clean_node = _norm_text(node)
+    if not clean_node:
+        raise ValueError("node saknas")
+    payload = {
+        "node": clean_node,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "source": _coerce_text(source) or "api",
+    }
+    path = _graph_center_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    return payload
+
+
+def _clear_graph_center_state() -> bool:
+    path = _graph_center_path()
+    if not path.exists():
+        return False
+    try:
+        path.unlink()
+        return True
+    except Exception:
+        return False
+
+
+def _resolve_node_id_in_rows(rows: list[dict[str, Any]], wanted: str) -> str:
+    clean = _norm_text(wanted)
+    if not clean:
+        return ""
+    for row in rows:
+        node_id = _coerce_text(row.get("id"))
+        if node_id == clean:
+            return node_id
+    wanted_cf = clean.casefold()
+    for row in rows:
+        node_id = _coerce_text(row.get("id"))
+        if node_id.casefold() == wanted_cf:
+            return node_id
+    return ""
+
+
+def _resolve_graph_center_node(field: FieldSurface, wanted: str) -> tuple[str, bool]:
+    clean = _norm_text(wanted)
+    if not clean:
+        return "", False
+
+    concept_domain = getattr(field, "concept_domain", None)
+    if callable(concept_domain):
+        try:
+            dom = concept_domain(clean)
+        except Exception:
+            dom = None
+        if dom:
+            return clean, True
+
+    try:
+        rows = field.concepts()
+    except Exception:
+        return clean, False
+
+    for row in rows:
+        name = _coerce_text((row or {}).get("name"))
+        if name == clean:
+            return name, True
+
+    clean_cf = clean.casefold()
+    for row in rows:
+        name = _coerce_text((row or {}).get("name"))
+        if name.casefold() == clean_cf:
+            return name, True
+    return clean, False
+
+
 def _edge_uid(src: str, rel_type: str, tgt: str, dup_index: int = 1) -> str:
     base = f"{src}::{rel_type}::{tgt}"
     return base if dup_index <= 1 else f"{base}::{dup_index}"
@@ -646,11 +748,21 @@ def _graph_payload(
 ) -> dict[str, Any]:
     field = get_field()
     nodes, edges = _graph_rows(limit_nodes=limit_nodes, limit_edges=limit_edges)
+    center_state = _load_graph_center_state()
+    center_node = _resolve_node_id_in_rows(nodes, center_state.get("node") or "")
+    configured_center = _norm_text(center_state.get("node"))
     return {
         "nodes": nodes,
         "edges": edges,
         "stats": field.stats(),
         "activity": _graph_activity(nodes, edges, activity_window=activity_window),
+        "center": {
+            "configured": bool(configured_center),
+            "node": center_node or (configured_center or None),
+            "in_view": bool(center_node),
+            "updated_at": _coerce_text(center_state.get("updated_at")),
+            "source": _coerce_text(center_state.get("source")) or "api",
+        },
     }
 
 
@@ -730,6 +842,64 @@ def _search_latest_journal(query: str, limit: int = 8) -> dict[str, Any]:
         "count": len(trimmed),
         "entries": trimmed,
     }
+
+
+class GraphCenterRequest(BaseModel):
+    node: str
+
+
+@app.get("/api/graph/cc")
+def get_graph_center():
+    state = _load_graph_center_state()
+    configured = bool(_norm_text(state.get("node")))
+    if not configured:
+        return {
+            "ok": True,
+            "configured": False,
+            "node": None,
+            "exists": False,
+            "updated_at": "",
+            "source": "",
+            "path": str(_graph_center_path()),
+        }
+
+    field = get_field()
+    resolved, exists = _resolve_graph_center_node(field, state.get("node") or "")
+    return {
+        "ok": True,
+        "configured": True,
+        "node": resolved,
+        "exists": bool(exists),
+        "updated_at": _coerce_text(state.get("updated_at")),
+        "source": _coerce_text(state.get("source")) or "api",
+        "path": str(_graph_center_path()),
+    }
+
+
+@app.post("/api/graph/cc")
+def set_graph_center(req: GraphCenterRequest):
+    wanted = _norm_text(req.node)
+    if not wanted:
+        return {"ok": False, "error": "node saknas"}
+    field = get_field()
+    resolved, exists = _resolve_graph_center_node(field, wanted)
+    if not exists:
+        return {"ok": False, "error": f"Node '{wanted}' hittades inte i grafen."}
+    payload = _save_graph_center_state(resolved, source="api")
+    return {
+        "ok": True,
+        "configured": True,
+        "node": resolved,
+        "exists": True,
+        "updated_at": _coerce_text(payload.get("updated_at")),
+        "source": _coerce_text(payload.get("source")) or "api",
+    }
+
+
+@app.delete("/api/graph/cc")
+def clear_graph_center():
+    removed = _clear_graph_center_state()
+    return {"ok": True, "cleared": bool(removed)}
 
 
 @app.get("/api/graph")
