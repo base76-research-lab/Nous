@@ -844,6 +844,111 @@ def _search_latest_journal(query: str, limit: int = 8) -> dict[str, Any]:
     }
 
 
+def _insights_path() -> Path:
+    memory_dir = Path(
+        os.getenv(
+            "NOUSE_MEMORY_DIR",
+            str(Path.home() / ".local" / "share" / "nouse" / "memory"),
+        )
+    ).expanduser()
+    return memory_dir / "insights.jsonl"
+
+
+def _extract_links_from_insight_row(row: dict[str, Any]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    url_re = re.compile(r"https?://[^\s<>\"]+")
+
+    def _append_from_text(text: str) -> None:
+        for m in url_re.findall(str(text or "")):
+            url = m.rstrip(").,;]")
+            if not url or url in seen:
+                continue
+            seen.add(url)
+            out.append(url)
+
+    _append_from_text(str(row.get("statement") or ""))
+    _append_from_text(str(row.get("source") or ""))
+
+    for key in ("basis_evidence_refs", "evidence_refs"):
+        refs = row.get(key)
+        if not isinstance(refs, list):
+            continue
+        for item in refs:
+            txt = _coerce_text(item)
+            if not txt:
+                continue
+            _append_from_text(txt)
+            if txt.startswith(("url:", "web:", "source_url:", "source_doc:")):
+                _append_from_text(txt.split(":", 1)[-1])
+
+    return out[:8]
+
+
+def _insight_entry_payload(row: dict[str, Any]) -> dict[str, Any]:
+    basis = row.get("basis") if isinstance(row.get("basis"), dict) else {}
+    sample_rows = basis.get("sample_rows") if isinstance(basis.get("sample_rows"), list) else []
+    score_components = (
+        basis.get("score_components")
+        if isinstance(basis.get("score_components"), dict)
+        else {}
+    )
+    return {
+        "ts": _coerce_text(row.get("ts")),
+        "insight_id": _coerce_text(row.get("insight_id")),
+        "kind": _coerce_text(row.get("kind")),
+        "tier": _coerce_text(row.get("tier")),
+        "score": _coerce_float(row.get("score"), default=0.0),
+        "support": _coerce_int(row.get("support"), default=0, minimum=0, maximum=1_000_000),
+        "mean_evidence": _coerce_float(row.get("mean_evidence"), default=0.0),
+        "statement": _coerce_text(row.get("statement")),
+        "anchor": _coerce_text(row.get("anchor") or row.get("src")),
+        "source": _coerce_text(row.get("source")),
+        "links": _extract_links_from_insight_row(row),
+        "basis": {
+            "method": _coerce_text(basis.get("method")),
+            "support_rows": _coerce_int(
+                basis.get("support_rows"),
+                default=_coerce_int(row.get("support"), default=0, minimum=0, maximum=1_000_000),
+                minimum=0,
+                maximum=1_000_000,
+            ),
+            "score_components": {
+                "evidence": _coerce_float(score_components.get("evidence"), default=0.0),
+                "support": _coerce_float(score_components.get("support"), default=0.0),
+                "novelty": _coerce_float(score_components.get("novelty"), default=0.0),
+                "actionability": _coerce_float(score_components.get("actionability"), default=0.0),
+            },
+            "sample_rows": sample_rows[:3],
+        },
+    }
+
+
+def _latest_insights(limit: int = 12) -> dict[str, Any]:
+    safe_limit = _coerce_int(limit, default=12, minimum=1, maximum=200)
+    path = _insights_path()
+    if not path.exists():
+        return {"ok": True, "path": str(path), "count": 0, "entries": []}
+
+    lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    entries: list[dict[str, Any]] = []
+    for raw in reversed(lines):
+        row = _coerce_text(raw)
+        if not row:
+            continue
+        try:
+            parsed = json.loads(row)
+        except Exception:
+            continue
+        if not isinstance(parsed, dict):
+            continue
+        entries.append(_insight_entry_payload(parsed))
+        if len(entries) >= safe_limit:
+            break
+
+    return {"ok": True, "path": str(path), "count": len(entries), "entries": entries}
+
+
 class GraphCenterRequest(BaseModel):
     node: str
 
@@ -1006,6 +1111,12 @@ def get_graph_focus(
         ),
         "journal": _search_latest_journal(resolved, limit=journal_limit),
     }
+
+
+@app.get("/api/insights/recent")
+def get_insights_recent(limit: int = 12):
+    """Senaste findings/claims med länkar + basis-data för visualisering."""
+    return _latest_insights(limit=limit)
 
 
 @app.get("/api/events")
