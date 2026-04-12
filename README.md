@@ -16,16 +16,33 @@
   <a href="https://github.com/base76-research-lab/Nous/actions/workflows/tests.yml"><img src="https://github.com/base76-research-lab/Nous/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
-  <a href="eval/RESULTS_INDEX.md"><img src="https://img.shields.io/badge/benchmark-run--indexed-blue" alt="Benchmark Index"></a>
+  <a href="https://github.com/base76-research-lab/Nous/wiki"><img src="https://img.shields.io/badge/wiki-nous-blue" alt="Wiki"></a>
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> · <a href="#why-this-category-is-different">Why This Category Is Different</a> · <a href="#the-result">Benchmark</a> · <a href="#how-nous-differs-from-alternatives">vs Alternatives</a> · <a href="#use-with-openai-anthropic-or-ollama">Examples</a> · <a href="#research">Research</a> · <a href="#roadmap">Roadmap</a> · <a href="#community">Community</a>
+  <a href="#quick-start">Quick Start</a> · <a href="#the-architectural-inversion">Inversion</a> · <a href="#what-nous-is">What Nous Is</a> · <a href="#the-result">Evidence</a> · <a href="#research">Research</a> · <a href="#roadmap">Roadmap</a> · <a href="#community">Community</a>
 </p>
 
 <p align="center">
   <img src="IMG/nouse-graph-growth.gif" alt="Nous knowledge graph growing — discovering concepts, substrates, gaps, and axioms" width="800">
 </p>
+
+---
+
+## The Architectural Inversion
+
+Most AI systems still place the language model at the center and attach tools, memory, and wrappers around it.
+
+`Nous` inverts that stack.
+
+<p align="center">
+  <img src="IMG/nous-stack-inversion.svg" alt="Industry stack versus Nous stack" width="100%">
+</p>
+
+In this picture, the language model is not discarded. It is repositioned.
+
+The model remains the expression system, the semantic surface, the larynx.  
+`Nous` is the persistent epistemic layer behind it.
 
 ---
 
@@ -62,16 +79,15 @@ The relevant question is therefore not only whether a model produced the expecte
 
 ## Why It Matters
 
-Nous is not an attempt to make an LLM slightly more fluent or slightly more helpful.
+What is currently called AI is mostly semantic prediction.
 
-It is an attempt to move part of intelligence back out of the output surface and into a persistent epistemic substrate.
+`Nous` is an attempt to define a different category of system: one that can preserve knowledge, uncertainty, contradiction, and structural change across time.
 
 - It stores relations, not just retrieved chunks.
-- It carries confidence, rationale, contradiction, and uncertainty with the memory itself.
+- It carries confidence, rationale, and uncertainty with the memory itself.
 - It makes the boundary between known, probable, and unknown visible to the model.
-- It learns across time instead of existing only inside a single prompt window.
 
-That matters exactly where fluent systems fail: when a model is close to hallucinating but still sounds convincing.
+That changes agent behavior in the place that actually matters: when a model is close to hallucinating but still sounds fluent.
 
 ## The Result
 
@@ -433,6 +449,8 @@ Further reading:
 - [The Larynx Problem (wiki)](https://github.com/base76-research-lab/Nous/wiki/The-Larynx-Problem)
 - [Benchmark philosophy (wiki)](https://github.com/base76-research-lab/Nous/wiki/Benchmark)
 - [Architecture (wiki)](https://github.com/base76-research-lab/Nous/wiki/Architecture)
+- [Nous Strategic Doctrine](docs/NOUS_STRATEGIC_DOCTRINE.md)
+- [Frontier Visibility Plan](docs/FRONTIER_VISIBILITY_PLAN.md)
 
 The theoretical foundation for Nous is described in:
 

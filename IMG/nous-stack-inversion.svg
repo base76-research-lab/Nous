@@ -1,0 +1,52 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Industry stack versus Nous stack</title>
+  <desc id="desc">A minimal diagram showing the industry pattern with the language model at the center versus the Nous pattern with the substrate at the center.</desc>
+  <rect width="1600" height="900" fill="#FCFAF5"/>
+
+  <text x="800" y="108" text-anchor="middle" fill="#14110F" font-family="'Times New Roman', 'Georgia', 'Baskerville', serif" font-size="62" letter-spacing="-0.8">
+    The Architectural Inversion
+  </text>
+  <text x="800" y="160" text-anchor="middle" fill="#8B8278" font-family="'Georgia', serif" font-size="24">
+    Industry treats the language model as the mind. Nous treats it as the larynx.
+  </text>
+
+  <rect x="120" y="240" width="590" height="500" rx="30" fill="#F6F1E6" stroke="#D9CFBF" stroke-width="2"/>
+  <rect x="890" y="240" width="590" height="500" rx="30" fill="#F6F1E6" stroke="#D9CFBF" stroke-width="2"/>
+
+  <text x="415" y="305" text-anchor="middle" fill="#4F473F" font-family="'Georgia', serif" font-size="26">Industry Pattern</text>
+  <text x="1185" y="305" text-anchor="middle" fill="#DAA42D" font-family="'Georgia', serif" font-size="26">Nous Pattern</text>
+
+  <rect x="225" y="352" width="380" height="86" rx="24" fill="#14110F"/>
+  <text x="415" y="406" text-anchor="middle" fill="#FCFAF5" font-family="'Georgia', serif" font-size="34">LLM</text>
+  <text x="415" y="470" text-anchor="middle" fill="#8B8278" font-family="'Georgia', serif" font-size="22">core intelligence / assumed mind</text>
+
+  <path d="M415 452V505" stroke="#C9CBD0" stroke-width="3" stroke-dasharray="8 8"/>
+  <path d="M415 560V613" stroke="#C9CBD0" stroke-width="3" stroke-dasharray="8 8"/>
+  <path d="M415 668V721" stroke="#C9CBD0" stroke-width="3" stroke-dasharray="8 8"/>
+
+  <rect x="275" y="505" width="280" height="56" rx="18" fill="#EFE6D6"/>
+  <text x="415" y="541" text-anchor="middle" fill="#4F473F" font-family="'Georgia', serif" font-size="26">tools / MCP</text>
+  <rect x="275" y="613" width="280" height="56" rx="18" fill="#EFE6D6"/>
+  <text x="415" y="649" text-anchor="middle" fill="#4F473F" font-family="'Georgia', serif" font-size="26">skills / wrappers</text>
+  <rect x="275" y="721" width="280" height="56" rx="18" fill="#EFE6D6"/>
+  <text x="415" y="757" text-anchor="middle" fill="#4F473F" font-family="'Georgia', serif" font-size="26">memory / accessories</text>
+
+  <rect x="995" y="352" width="380" height="86" rx="24" fill="#DAA42D"/>
+  <text x="1185" y="406" text-anchor="middle" fill="#14110F" font-family="'Georgia', serif" font-size="34">Nous</text>
+  <text x="1185" y="470" text-anchor="middle" fill="#8B8278" font-family="'Georgia', serif" font-size="22">persistent epistemic substrate / mind-facing layer</text>
+
+  <path d="M1185 452V505" stroke="#DAA42D" stroke-width="3" stroke-dasharray="8 8"/>
+  <path d="M1185 560V613" stroke="#D9CFBF" stroke-width="3" stroke-dasharray="8 8"/>
+  <path d="M1185 668V721" stroke="#D9CFBF" stroke-width="3" stroke-dasharray="8 8"/>
+
+  <rect x="1045" y="505" width="280" height="56" rx="18" fill="#14110F"/>
+  <text x="1185" y="541" text-anchor="middle" fill="#FCFAF5" font-family="'Georgia', serif" font-size="26">LLM / larynx</text>
+  <rect x="1045" y="613" width="280" height="56" rx="18" fill="#EFE6D6"/>
+  <text x="1185" y="649" text-anchor="middle" fill="#4F473F" font-family="'Georgia', serif" font-size="26">tools / MCP</text>
+  <rect x="1045" y="721" width="280" height="56" rx="18" fill="#EFE6D6"/>
+  <text x="1185" y="757" text-anchor="middle" fill="#4F473F" font-family="'Georgia', serif" font-size="26">operator / direction</text>
+
+  <text x="800" y="842" text-anchor="middle" fill="#8B8278" font-family="'Georgia', serif" font-size="22">
+    The decisive claim is not that the model is unnecessary, but that it is not the center.
+  </text>
+</svg>
