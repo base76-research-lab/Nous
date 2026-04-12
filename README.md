@@ -20,11 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> · <a href="#the-architectural-inversion">Inversion</a> · <a href="#what-nous-is">What Nous Is</a> · <a href="#the-result">Evidence</a> · <a href="#research">Research</a> · <a href="#roadmap">Roadmap</a> · <a href="#community">Community</a>
-</p>
-
-<p align="center">
-  <img src="IMG/nouse-graph-growth.gif" alt="Nous knowledge graph growing — discovering concepts, substrates, gaps, and axioms" width="800">
+  <a href="#minimal-example">Minimal Example</a> · <a href="#the-architectural-inversion">Inversion</a> · <a href="#what-nous-is">What Nous Is</a> · <a href="#reference-evidence">Evidence</a> · <a href="#research">Research</a> · <a href="#roadmap">Roadmap</a> · <a href="#community">Community</a>
 </p>
 
 ---
@@ -46,7 +42,7 @@ The model remains the expression system, the semantic surface, the larynx.
 
 ---
 
-## Try Nous In 60 Seconds
+## Minimal Example
 
 ```bash
 pip install nouse
@@ -61,9 +57,7 @@ print("confidence:", round(result.confidence, 2))
 PY
 ```
 
-If Nous already knows something relevant, you get back a grounded context block with validated relations, uncertainty, and explicit boundaries instead of a generic answer blob.
-
-If that output feels more useful than plain chat history or chunk retrieval, then the project is doing its job.
+`brain.query(...)` returns structured context rather than unstructured memory text. The point is not just recall, but an explicit epistemic frame: what is known, why it is known, and where confidence falls off.
 
 ---
 
@@ -89,9 +83,9 @@ What is currently called AI is mostly semantic prediction.
 
 That changes agent behavior in the place that actually matters: when a model is close to hallucinating but still sounds fluent.
 
-## The Result
+## Reference Evidence
 
-Reference run used for the claim below: `run_20260403_094211` (see `eval/RESULTS_INDEX.md`).
+One documented reference run is `run_20260403_094211` (see `eval/RESULTS_INDEX.md`).
 
 ```text
 Model                               Score   Questions
@@ -101,19 +95,19 @@ llama-3.3-70b  (no memory)          47%     60
 llama3.1-8b  + Nous memory  →      96%     60
 ```
 
-**In this reference run, an 8B model with Nous outperformed a 70B baseline.**
+On this domain-specific run, an 8B model with Nous grounding scored above a 70B baseline.
 
 The effect is not retrieval. It is *epistemic grounding* — a small, precise knowledge signal
 redirects the model's existing priors onto the correct frame, with confidence and evidence attached.
-We call this the **Intent Disambiguation Effect**.
+In the repo, this pattern is referred to as the **Intent Disambiguation Effect**.
 
-This is useful evidence for graph grounding. It is not yet a complete measure of a cognitive substrate.
+This is evidence for graph grounding. It is not, by itself, a general benchmark for intelligence or a complete measure of a cognitive substrate.
 
 → Full benchmark details: [eval/RESULTS.md](eval/RESULTS.md) · [eval/RESULTS_INDEX.md](eval/RESULTS_INDEX.md) · [Run it yourself](#run-the-benchmark-yourself)
 
 ---
 
-## What You Get
+## Core Properties
 
 | Capability | What it does |
 | --- | --- |
@@ -173,7 +167,7 @@ Nous does not try to replace the model. It treats the model as the larynx, and t
 
 ---
 
-## Quick start
+## Integration Pattern
 
 ```bash
 pip install nouse
@@ -195,7 +189,7 @@ print(result.strong_axioms())
 
 If the daemon is running, `attach()` connects over HTTP. Otherwise it falls back to direct local graph access. The same code works either way.
 
-Works with any provider — OpenAI, Anthropic, Groq, Cerebras, Ollama:
+Provider-specific examples follow below.
 
 ```python
 # You handle the LLM call. Nous handles the memory.
