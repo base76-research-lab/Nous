@@ -11,16 +11,14 @@
 </p>
 
 <p align="center">
-  <a href="https://discord.gg/Fbwmr7Vv"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://pypi.org/project/nouse/"><img src="https://img.shields.io/pypi/v/nouse" alt="PyPI"></a>
   <a href="https://github.com/base76-research-lab/Nous/actions/workflows/tests.yml"><img src="https://github.com/base76-research-lab/Nous/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://github.com/base76-research-lab/Nous/wiki"><img src="https://img.shields.io/badge/wiki-nous-blue" alt="Wiki"></a>
 </p>
 
 <p align="center">
-  <a href="#minimal-example">Minimal Example</a> · <a href="#the-architectural-inversion">Inversion</a> · <a href="#what-nous-is">What Nous Is</a> · <a href="#reference-evidence">Evidence</a> · <a href="#research">Research</a> · <a href="#roadmap">Roadmap</a> · <a href="#community">Community</a>
+  <a href="#the-architectural-inversion">Inversion</a> · <a href="#research-program">Research Program</a> · <a href="#reference-evidence">Evidence</a> · <a href="#research">Research</a> · <a href="#roadmap">Roadmap</a> · <a href="#integration-pattern">Integration</a>
 </p>
 
 ---
@@ -42,26 +40,27 @@ The model remains the expression system, the semantic surface, the larynx.
 
 ---
 
-## Minimal Example
+## Research Program
 
-```bash
-pip install nouse
-python - <<'PY'
-import nouse
+`Nous` should be read as a research program with a live implementation, not as a generic AI utility.
 
-brain = nouse.attach()
-result = brain.query("What does this project know about epistemic grounding?")
+It stands on four linked claims:
 
-print(result.context_block())
-print("confidence:", round(result.confidence, 2))
-PY
-```
+- language output is not identical with intelligence
+- a persistent epistemic substrate can supply what the output layer lacks
+- a different category of system requires different benchmarks and longitudinal metrics
+- these claims are testable because the repository contains a working substrate rather than only a paper argument
 
-`brain.query(...)` returns structured context rather than unstructured memory text. The point is not just recall, but an explicit epistemic frame: what is known, why it is known, and where confidence falls off.
+The fastest reading path is:
+
+- [The Larynx Problem](https://github.com/base76-research-lab/Nous/wiki/The-Larynx-Problem)
+- [Benchmark philosophy](https://github.com/base76-research-lab/Nous/wiki/Benchmark)
+- [Architecture](https://github.com/base76-research-lab/Nous/wiki/Architecture)
+- [Nous Strategic Doctrine](docs/NOUS_STRATEGIC_DOCTRINE.md)
 
 ---
 
-## Why This Category Is Different
+## Why Standard Benchmarks Do Not Apply
 
 Evaluating `Nous` with standard LLM benchmarks would be like measuring the sweetness of chocolate with a Scoville scale. The instrument is not merely inaccurate; it is measuring the wrong physical phenomenon entirely.
 
@@ -107,7 +106,7 @@ This is evidence for graph grounding. It is not, by itself, a general benchmark 
 
 ---
 
-## Core Properties
+## Architectural Properties
 
 | Capability | What it does |
 | --- | --- |
