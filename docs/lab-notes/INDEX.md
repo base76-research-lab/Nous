@@ -15,6 +15,7 @@ Dated research notes, strategic documents, and external communications for the N
 
 | Date | Note | Format |
 |------|------|--------|
+| 2026-04-13 | [Intrinsic Drive Engine](2026-04-13-intrinsic-drive-engine.md) | md |
 | 2026-04-13 | [A Note to Google DeepMind](2026-04-13-deepmind-note.md) | md + [pdf](2026-04-13-deepmind-note.pdf) |
 | 2026-04-13 | DeepMind note — social draft | [md](2026-04-13-deepmind-note-social.md) |
 | 2026-04-11 | Core package spec | [md](2026-04-11-core-package.md) |
