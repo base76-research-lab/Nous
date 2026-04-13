@@ -1,15 +1,28 @@
 from __future__ import annotations
 
 import json
+import os
+import re
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-LIVING_CORE_PATH = Path.home() / ".local" / "share" / "nouse" / "self" / "living_core.json"
+from nouse.config.paths import path_from_env
+from nouse.persona import assistant_entity_name, persona_identity_seed
+
 _LOCK = threading.Lock()
 _MAX_MEMORIES = 240
 _SELF_TRAINING_FORMULA = "known_data(any source) + meta_reflection + reflections"
+
+
+def living_core_path(path: Path | None = None) -> Path:
+    if path is not None:
+        return Path(path).expanduser()
+    return path_from_env("NOUSE_LIVING_CORE_PATH", "self/living_core.json")
+
+
+LIVING_CORE_PATH = living_core_path()
 
 
 def _now_iso() -> str:
@@ -34,30 +47,22 @@ def _safe_int(value: Any, default: int) -> int:
         return default
 
 
+def _runtime_mode() -> str:
+    return str(os.getenv("NOUSE_MODE", "project")).strip().lower()
+
+
+def _tokenize(text: str) -> set[str]:
+    return {tok for tok in re.findall(r"[0-9a-zåäö_]+", str(text or "").strip().lower()) if tok}
+
+
+def _contains_phrase(text: str, phrase: str) -> bool:
+    hay = f" {str(text or '').strip().lower()} "
+    needle = f" {str(phrase or '').strip().lower()} "
+    return bool(needle.strip() and needle in hay)
+
+
 def _default_identity() -> dict[str, Any]:
-    return {
-        "name": "B76",
-        "mission": (
-            "Build reliable knowledge, reduce uncertainty, and support the human operator "
-            "with safe autonomous improvements."
-        ),
-        "values": [
-            "truth_over_guessing",
-            "safety_before_speed",
-            "continuous_learning",
-            "clear_accountability",
-        ],
-        "personality": (
-            "Calm, curious, and disciplined. Prefers evidence, transparent assumptions, "
-            "and short actionable outputs."
-        ),
-        "boundaries": [
-            "No external action without allowlist/pairing for that channel.",
-            "Separate verified facts from assumptions.",
-            "Use failover and safe degradation on tool/model failures.",
-        ],
-        "memories": [],
-    }
+    return persona_identity_seed(runtime_mode=_runtime_mode())
 
 
 def _blank_state() -> dict[str, Any]:
@@ -132,7 +137,16 @@ def _normalize_identity(raw: Any) -> dict[str, Any]:
     base = _default_identity()
     if not isinstance(raw, dict):
         return base
-    base["name"] = str(raw.get("name") or base["name"]).strip() or base["name"]
+    raw_name = str(raw.get("name") or base["name"]).strip() or base["name"]
+    if raw_name.casefold() in {"b76", "nouse", "no use", "nouse-ai", "nouseai", "nouse ai", "nouse_ai", "nouse-ai"}:
+        raw_name = assistant_entity_name()
+    base["name"] = raw_name
+    raw_greeting = str(raw.get("greeting") or base.get("greeting") or "").strip()
+    if raw_greeting:
+        try:
+            base["greeting"] = raw_greeting.format(name=base["name"])
+        except Exception:
+            base["greeting"] = raw_greeting
     base["mission"] = str(raw.get("mission") or base["mission"]).strip() or base["mission"]
     base["personality"] = (
         str(raw.get("personality") or base["personality"]).strip() or base["personality"]
@@ -280,7 +294,8 @@ def _normalize_state(raw: Any) -> dict[str, Any]:
     return base
 
 
-def load_living_core(path: Path = LIVING_CORE_PATH) -> dict[str, Any]:
+def load_living_core(path: Path | None = None) -> dict[str, Any]:
+    path = living_core_path(path)
     if not path.exists():
         return _blank_state()
     try:
@@ -290,7 +305,8 @@ def load_living_core(path: Path = LIVING_CORE_PATH) -> dict[str, Any]:
     return _normalize_state(raw)
 
 
-def save_living_core(state: dict[str, Any], path: Path = LIVING_CORE_PATH) -> dict[str, Any]:
+def save_living_core(state: dict[str, Any], path: Path | None = None) -> dict[str, Any]:
+    path = living_core_path(path)
     out = _normalize_state(state)
     out["updated_at"] = _now_iso()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -298,7 +314,8 @@ def save_living_core(state: dict[str, Any], path: Path = LIVING_CORE_PATH) -> di
     return out
 
 
-def ensure_living_core(path: Path = LIVING_CORE_PATH) -> dict[str, Any]:
+def ensure_living_core(path: Path | None = None) -> dict[str, Any]:
+    path = living_core_path(path)
     with _LOCK:
         state = load_living_core(path)
         return save_living_core(state, path)
@@ -309,9 +326,11 @@ def update_identity_profile(
     mission: str | None = None,
     values: list[str] | None = None,
     personality: str | None = None,
+    greeting: str | None = None,
     boundaries: list[str] | None = None,
-    path: Path = LIVING_CORE_PATH,
+    path: Path | None = None,
 ) -> dict[str, Any]:
+    path = living_core_path(path)
     with _LOCK:
         state = load_living_core(path)
         identity = state.setdefault("identity", _default_identity())
@@ -327,6 +346,10 @@ def update_identity_profile(
             clean = str(personality).strip()
             if clean:
                 identity["personality"] = clean[:1600]
+        if greeting is not None:
+            clean = str(greeting).strip()
+            if clean:
+                identity["greeting"] = clean[:400]
         if boundaries is not None:
             clean_boundaries = [str(x).strip() for x in boundaries if str(x).strip()]
             if clean_boundaries:
@@ -369,8 +392,9 @@ def append_identity_memory(
     session_id: str = "",
     run_id: str = "",
     kind: str = "note",
-    path: Path = LIVING_CORE_PATH,
+    path: Path | None = None,
 ) -> dict[str, Any]:
+    path = living_core_path(path)
     clean = str(note or "").strip()
     if not clean:
         return ensure_living_core(path)
@@ -394,8 +418,9 @@ def record_self_training_iteration(
     reflection: str = "",
     session_id: str = "",
     run_id: str = "",
-    path: Path = LIVING_CORE_PATH,
+    path: Path | None = None,
 ) -> dict[str, Any]:
+    path = living_core_path(path)
     sources_raw = [str(x).strip().lower() for x in (known_data_sources or []) if str(x).strip()]
     dedup_sources: list[str] = []
     seen = set()
@@ -484,8 +509,9 @@ def update_living_core(
     new_relations: int = 0,
     discoveries: int = 0,
     bisoc_candidates: int = 0,
-    path: Path = LIVING_CORE_PATH,
+    path: Path | None = None,
 ) -> dict[str, Any]:
+    path = living_core_path(path)
     qstats = dict(queue_stats or {})
     sstats = dict(session_stats or {})
 
@@ -587,7 +613,232 @@ def update_living_core(
             tags=[mode, active_drive, "autonomous_cycle"],
             kind="cycle",
         )
+
+        # ── Reflection-to-policy bridge (P3) ────────────────────────────────
+        # Evaluera nuvarande mätvärden mot policy-triggers.
+        # Om en trigger avfyras, uppdatera cognitive_policy.json
+        # och logga audit-trail till journal.
+        try:
+            from nouse.daemon.cognitive_policy import evaluate_and_apply
+            metrics = {
+                "energy": energy,
+                "contradiction_catch_rate": 0.0,  # populeras av eval_log om tillgängligt
+                "bisociation_quality": 0.0,        # populeras av eval_log om tillgängligt
+                "gap_map_shrink_rate": 0.0,        # populeras av eval_log om tillgängligt
+            }
+            # Försök hämta senaste eval-loggdata för kontradiktion/bisociation/gap
+            try:
+                from nouse.daemon.eval_log import read_eval_entries
+                recent = read_eval_entries(limit=1)
+                if recent:
+                    last = recent[-1]
+                    metrics["contradiction_catch_rate"] = float(last.get("contradiction_catch_rate", 0.0) or 0.0)
+                    metrics["bisociation_quality"] = float(last.get("evidence_quality", 0.0) or 0.0)
+                    metrics["gap_map_shrink_rate"] = float(last.get("gap_map_shrink_rate", 0.0) or 0.0)
+            except Exception:
+                pass
+
+            policy, audit = evaluate_and_apply(metrics, source="reflection")
+            if audit:
+                state["last_policy_change"] = {
+                    "ts": audit[-1].get("ts", ""),
+                    "changes": len(audit),
+                    "reason": audit[-1].get("reason", ""),
+                }
+        except Exception as e:
+            import logging
+            logging.getLogger("nouse.living_core").debug(
+                "Reflection-to-policy bridge hoppade över: %s", e,
+            )
+
         return save_living_core(state, path)
+
+
+def _recent_support_anchors(
+    core: dict[str, Any],
+    *,
+    query: str = "",
+    goals: list[str] | None = None,
+    limit: int = 2,
+) -> list[str]:
+    identity = core.get("identity") or {}
+    memories = list(identity.get("memories") or [])[-16:]
+    if not memories:
+        return list((goals or [])[:1])
+
+    query_tokens = _tokenize(query)
+    goal_tokens = _tokenize(" ".join(goals or []))
+    scored: list[tuple[int, int, str]] = []
+    for idx, item in enumerate(reversed(memories)):
+        note = str(item.get("note") or "").strip()
+        if not note:
+            continue
+        tags = [str(x).strip().lower() for x in (item.get("tags") or []) if str(x).strip()]
+        note_tokens = _tokenize(note)
+        overlap = len(query_tokens & note_tokens)
+        goal_overlap = len(goal_tokens & note_tokens)
+        tag_bonus = 0
+        if any(tag in {"reward", "success", "rescue", "operator_support", "session_memory"} for tag in tags):
+            tag_bonus += 2
+        recency_bonus = max(0, 4 - idx)
+        score = (overlap * 5) + (goal_overlap * 2) + tag_bonus + recency_bonus
+        if query_tokens and score <= 0:
+            continue
+        scored.append((score, -idx, note[:220]))
+
+    scored.sort(reverse=True)
+    anchors: list[str] = []
+    seen = set()
+    for _, _, note in scored:
+        if note in seen:
+            continue
+        seen.add(note)
+        anchors.append(note)
+        if len(anchors) >= max(1, limit):
+            break
+    if anchors:
+        return anchors
+    fallback = [str((m or {}).get("note") or "").strip()[:220] for m in reversed(memories[-limit:])]
+    return [x for x in fallback if x]
+
+
+def operator_support_snapshot(
+    query: str = "",
+    state: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    core = _normalize_state(state if isinstance(state, dict) else _blank_state())
+    homeo = core.get("homeostasis") or {}
+    drives = core.get("drives") or {}
+    goals = [str(x).strip() for x in (drives.get("goals") or []) if str(x).strip()]
+    mode = str(homeo.get("mode") or "steady").strip() or "steady"
+    energy = _clamp(_safe_float(homeo.get("energy"), 0.5))
+    focus = _clamp(_safe_float(homeo.get("focus"), 0.5))
+    risk = _clamp(_safe_float(homeo.get("risk"), 0.4))
+
+    query_text = str(query or "").strip().lower()
+    reasons: list[str] = []
+
+    overload_markers = (
+        "överväldigad",
+        "överväldigande",
+        "too much",
+        "overwhelmed",
+        "kan inte bära",
+        "allt på en gång",
+    )
+    low_energy_markers = (
+        "ingen energi",
+        "orkar inte",
+        "för trött",
+        "trött",
+        "utmattad",
+        "exhausted",
+        "ingen ork",
+    )
+    stalled_markers = (
+        "fastnat",
+        "stuck",
+        "kommer inte igång",
+        "hjälp mig igång",
+        "komma igång",
+        "restart",
+        "rescue",
+        "vet inte var jag ska börja",
+    )
+    fragmented_markers = (
+        "splittrad",
+        "fragmenterad",
+        "för många spår",
+        "för många saker",
+        "tappar tråden",
+        "tappat tråden",
+        "lost the thread",
+    )
+
+    support_state = "steady"
+    if any(_contains_phrase(query_text, marker) for marker in overload_markers) or risk >= 0.78:
+        support_state = "overload"
+        reasons.append("overload")
+    elif any(_contains_phrase(query_text, marker) for marker in low_energy_markers) or energy < 0.28:
+        support_state = "low_energy"
+        reasons.append("low_energy")
+    elif any(_contains_phrase(query_text, marker) for marker in stalled_markers):
+        support_state = "stalled"
+        reasons.append("stalled")
+    elif any(_contains_phrase(query_text, marker) for marker in fragmented_markers):
+        support_state = "fragmented"
+        reasons.append("fragmented")
+    elif mode == "recovery":
+        support_state = "low_energy" if energy < 0.34 else "overload"
+        reasons.append(f"mode:{mode}")
+    elif mode == "focus":
+        support_state = "focused"
+        reasons.append(f"mode:{mode}")
+    elif mode == "explore":
+        support_state = "explore"
+        reasons.append(f"mode:{mode}")
+    else:
+        reasons.append(f"mode:{mode}")
+
+    if support_state in {"overload", "low_energy"}:
+        response_mode = "recovery"
+    elif support_state in {"stalled", "fragmented"}:
+        response_mode = "rescue"
+    elif support_state == "focused":
+        response_mode = "focus"
+    elif support_state == "explore":
+        response_mode = "explore"
+    else:
+        response_mode = "steady"
+
+    if support_state == "low_energy":
+        intervention = "body_first"
+        next_step_hint = "Prioritera kropp först: vatten, mat, paus eller vila innan större expansion."
+    elif support_state == "overload":
+        intervention = "defer_and_protect"
+        next_step_hint = "Skydda en enda prioritet och parkera resten tillfälligt."
+    elif support_state == "fragmented":
+        intervention = "context_pack"
+        next_step_hint = "Samla bara det som behövs för att återstarta ett enda spår."
+    elif support_state == "stalled":
+        intervention = "one_step_restart"
+        next_step_hint = (
+            f"Välj minsta möjliga nästa steg mot: {goals[0]}." if goals else "Välj en enda liten handling som går att börja med nu."
+        )
+    elif response_mode == "focus":
+        intervention = "protect_thread"
+        next_step_hint = "Håll fast vid aktuell tråd och minska sidospår."
+    elif response_mode == "explore":
+        intervention = "grounded_explore"
+        next_step_hint = "Utforska, men landa i ett enda grundat nästa steg."
+    else:
+        intervention = "manageable_next_step"
+        next_step_hint = (
+            f"Ta ett hanterbart nästa steg mot: {goals[0]}." if goals else "Ta ett hanterbart nästa steg utan att expandera i onödan."
+        )
+
+    anchors = _recent_support_anchors(core, query=query_text, goals=goals, limit=2)
+    route_parts = [mode]
+    if support_state not in {"steady", "focused"}:
+        route_parts.append(support_state)
+    elif support_state == "focused":
+        route_parts.append("focus")
+    route_state = " ".join(dict.fromkeys([part for part in route_parts if part]))
+
+    return {
+        "support_state": support_state,
+        "response_mode": response_mode,
+        "intervention": intervention,
+        "next_step_hint": next_step_hint,
+        "active_goal": goals[0] if goals else "",
+        "anchors": anchors,
+        "reasons": reasons,
+        "route_state": route_state,
+        "energy": round(energy, 4),
+        "focus": round(focus, 4),
+        "risk": round(risk, 4),
+        "mode": mode,
+    }
 
 
 def identity_prompt_fragment(state: dict[str, Any] | None = None) -> str:
@@ -607,6 +858,7 @@ def identity_prompt_fragment(state: dict[str, Any] | None = None) -> str:
     return (
         "Persistent identity profile:\n"
         f"- name: {identity.get('name')}\n"
+        f"- greeting: {identity.get('greeting')}\n"
         f"- mission: {identity.get('mission')}\n"
         f"- values: {values}\n"
         f"- personality: {identity.get('personality')}\n"
@@ -628,3 +880,66 @@ def identity_prompt_fragment(state: dict[str, Any] | None = None) -> str:
         f"- iterations: {self_training.get('iterations')}\n"
         f"- last_sources: {st_sources or '(none)'}"
     )
+
+
+def operator_support_prompt_fragment(
+    state: dict[str, Any] | None = None,
+    *,
+    query: str = "",
+) -> str:
+    support = operator_support_snapshot(query=query, state=state)
+    lines: list[str] = ["Operator support policy:"]
+    if support["response_mode"] == "recovery":
+        lines.extend(
+            [
+                "- response_mode: recovery",
+                "- keep replies brief and concrete",
+                "- prefer body needs, decompression, and the smallest viable next step",
+                "- avoid branching plans or exploratory expansion unless explicitly requested",
+            ]
+        )
+    elif support["response_mode"] == "rescue":
+        lines.extend(
+            [
+                "- response_mode: rescue",
+                "- identify one restart point instead of many alternatives",
+                "- reduce shame and friction; do not moralize or over-explain",
+                "- resurface only the most relevant anchor and one manageable next step",
+            ]
+        )
+    elif support["response_mode"] == "focus":
+        lines.extend(
+            [
+                "- response_mode: focus",
+                "- protect the current thread and reduce distractions",
+                "- prefer one crisp recommendation over multiple alternatives",
+                "- do not open new tracks unless the operator asks for them",
+            ]
+        )
+    elif support["response_mode"] == "explore":
+        lines.extend(
+            [
+                "- response_mode: explore",
+                "- exploration is allowed, but end in one grounded next step",
+                "- use curiosity carefully and keep provenance clear",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "- response_mode: steady",
+                "- balance clarity, momentum, and low cognitive load",
+                "- prefer one manageable next step over ambitious planning",
+            ]
+        )
+
+    lines.append(f"- support_state: {support['support_state']}")
+    lines.append(f"- intervention: {support['intervention']}")
+    if support["active_goal"]:
+        lines.append(f"- active_goal: {support['active_goal']}")
+    lines.append(f"- next_step_hint: {support['next_step_hint']}")
+    anchors = [str(x).strip() for x in (support.get("anchors") or []) if str(x).strip()]
+    if anchors:
+        lines.append("Relevant anchors:")
+        lines.extend(f"- {anchor}" for anchor in anchors[:2])
+    return "\n".join(lines)

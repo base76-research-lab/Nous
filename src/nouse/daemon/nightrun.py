@@ -598,6 +598,29 @@ class NightRunScheduler:
                     suggestion = generate_policy_suggestion(entries)
                     if suggestion:
                         _log.info("Evalving policy-förslag: %s", suggestion)
+                        # Applicera evalving-förslag via cognitive_policy
+                        try:
+                            from nouse.daemon.cognitive_policy import evaluate_and_apply
+                            eval_metrics = {
+                                "crystallization_rate": result.crystallization_rate,
+                                "evidence_quality": result.evidence_quality,
+                                "gap_map_shrink_rate": suggestion.get("gap_map_shrink_rate", 0.0),
+                                "energy": 0.5,  # default — living_core styr energy-trigger
+                            }
+                            # Mappa förslagsnycklar till metrics
+                            if "reason_crystallization" in suggestion:
+                                eval_metrics["crystallization_rate"] = -1.0  # tvinga trigger
+                            if "reason_evidence" in suggestion:
+                                eval_metrics["evidence_quality"] = -1.0
+                            if "reason_gap" in suggestion:
+                                eval_metrics["gap_map_shrink_rate"] = -1.0
+                            policy, audit = evaluate_and_apply(
+                                eval_metrics, source="evalving",
+                            )
+                            if audit:
+                                _log.info("Evalving policy applicerad: %s", audit)
+                        except Exception as ep:
+                            _log.warning("Evalving policy applicering misslyckades: %s", ep)
             except Exception as e:
                 _log.warning("Evalving loggning misslyckades: %s", e)
 
