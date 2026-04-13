@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>A Note to Google DeepMind — Nous</title>
+  <style>
+    :root {
+      --page: #fffdfa;
+      --ink: #171410;
+      --muted: #6f685f;
+      --line: #e6dccf;
+      --accent: #daa42d;
+      --accent-soft: #f3e1b6;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      color: var(--ink);
+      background: var(--page);
+      line-height: 1.5;
+    }
+
+    .page {
+      width: 8.5in;
+      min-height: 11in;
+      margin: 0 auto;
+      padding: 0.9in 0.9in 0.8in;
+      background: var(--page);
+    }
+
+    .brand {
+      text-align: center;
+      margin-bottom: 0.35in;
+    }
+
+    .brand img {
+      width: 2.4in;
+      height: auto;
+      display: inline-block;
+    }
+
+    .lab {
+      margin-top: 0.12in;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    h1 {
+      font-size: 28px;
+      line-height: 1.08;
+      margin: 0.1in 0 0.1in;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 15px;
+      margin-bottom: 0.24in;
+    }
+
+    .meta {
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+      flex-wrap: wrap;
+      font-size: 11px;
+      color: var(--muted);
+      padding-bottom: 0.18in;
+      border-bottom: 1px solid var(--line);
+      margin-bottom: 0.24in;
+    }
+
+    h2 {
+      font-size: 15px;
+      line-height: 1.2;
+      margin: 0.18in 0 0.07in;
+      color: var(--ink);
+    }
+
+    p, li {
+      font-size: 12.5px;
+      margin: 0 0 0.08in;
+    }
+
+    ul {
+      margin: 0.03in 0 0.08in 0.22in;
+      padding: 0;
+    }
+
+    .callout {
+      border-left: 4px solid var(--accent);
+      background: linear-gradient(90deg, rgba(218,164,45,0.10), rgba(218,164,45,0.02));
+      padding: 0.12in 0.14in;
+      margin: 0.16in 0;
+      font-size: 12.5px;
+    }
+
+    .stack {
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 0.12in 0.14in;
+      margin: 0.14in 0;
+      white-space: pre-line;
+      font-size: 12px;
+    }
+
+    .links {
+      margin-top: 0.18in;
+      padding-top: 0.14in;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .links a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    @media print {
+      body {
+        background: var(--page);
+      }
+
+      .page {
+        margin: 0;
+        width: auto;
+        min-height: auto;
+        box-shadow: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="brand">
+      <img src="../../IMG/nous-logo.svg" alt="Nous logo">
+      <div class="lab">Base76 Research Lab Research Note</div>
+    </section>
+
+    <h1>A Note to Google DeepMind</h1>
+    <div class="subtitle">The missing epistemic substrate behind frontier models</div>
+
+    <div class="meta">
+      <span>Björn Wikström</span>
+      <span>Base76 Research Lab</span>
+      <span>2026-04-13</span>
+      <span>DOI: 10.5281/zenodo.19550918</span>
+    </div>
+
+    <h2>Summary</h2>
+    <p>
+      Frontier language models are extraordinary semantic engines, but they are still not, by themselves,
+      a sufficient architecture for artificial general intelligence. A language model is an expression system:
+      a world-class semantic synthesizer, but not yet a metacognitive anchor for stable belief.
+    </p>
+    <p>
+      The missing layer is an <strong>epistemic substrate layer</strong>: a system that can persist knowledge across time,
+      represent uncertainty explicitly, detect contradiction against prior beliefs, and change its internal
+      structure as evidence changes. <strong>Nous</strong> is a working prototype of that layer.
+    </p>
+
+    <div class="callout">
+      This note is addressed to Google DeepMind because DeepMind is one of the few organizations publicly
+      working at the right level of abstraction: cognitive ability evaluation, metacognition, and agentic systems.
+    </div>
+
+    <h2>The architectural claim</h2>
+    <div class="stack">Current industry focus:
+Data -> LLM (brain) -> tools / memory / wrappers
+
+Nous stack:
+Epistemic substrate (brain) -> LLM (interface / reasoning) -> action</div>
+    <p>
+      In this picture, the model remains essential. It is the semantic surface, the reasoning engine, and the
+      expression channel. But it is no longer asked to be the whole cognitive system.
+    </p>
+
+    <h2>Why this matters</h2>
+    <p>
+      Many of the hardest failure modes of deployed AI are epistemic, not semantic:
+    </p>
+    <ul>
+      <li>the system does not know what it does not know</li>
+      <li>the system contradicts prior established knowledge</li>
+      <li>the system expresses confidence without grounded support</li>
+      <li>the system cannot preserve, revise, and mature knowledge across time</li>
+    </ul>
+    <p>
+      None of those problems are solved by fluency alone. They become even more important as systems shift from
+      chat to persistent, tool-using, goal-directed agents.
+    </p>
+    <p>
+      As models become agents, epistemic failure becomes the dominant failure mode.
+    </p>
+
+    <h2>What Nous is</h2>
+    <p>
+      Nous is not a replacement for frontier models. It is not a claim that a substrate should displace Gemini.
+      It is a working prototype of a missing architectural layer behind the model:
+    </p>
+    <ul>
+      <li>a persistent relation-based knowledge substrate</li>
+      <li>explicit evidence and uncertainty representation</li>
+      <li>contradiction-aware memory</li>
+      <li>longitudinal plasticity</li>
+      <li>metacognitive steering of the semantic layer</li>
+    </ul>
+    <p>
+      Unlike static knowledge graphs, the substrate in Nous is meant to be dynamic, weighted, and revisable.
+      It is designed to handle fuzzy semantic boundaries while preserving contradiction signals, evidence traces,
+      and explicit uncertainty structure. That is the intended difference from simply doing retrieval or storing more context.
+    </p>
+    <p>
+      At runtime, generated claims are evaluated against the substrate:
+    </p>
+    <ul>
+      <li>matched to existing relations</li>
+      <li>scored against evidence and uncertainty</li>
+      <li>checked for contradiction against prior grounded knowledge</li>
+      <li>modulated before final output or write-back</li>
+    </ul>
+    <p>
+      The validation claim is modest but important: if the object being built is a cognitive substrate, then standard
+      LLM benchmarks are only partial instruments. They remain valid for language models, but they do not directly
+      measure persistent belief, contradiction boundaries, staged revision under new evidence, or structural change
+      across time. Measuring such a system only with conventional output benchmarks would be like measuring the
+      sweetness of chocolate with the Scoville scale.
+    </p>
+
+    <h2>What would count as evidence</h2>
+    <p>
+      The right way to engage this claim is experimentally. At minimum, a substrate like Nous should be able to show:
+    </p>
+    <ul>
+      <li><strong>Contradiction authority</strong>: generated claims can be blocked or qualified against prior grounded knowledge.</li>
+      <li><strong>Epistemic honesty</strong>: the system can represent the difference between missing and weak knowledge.</li>
+      <li><strong>Learning plasticity</strong>: confidence and relation structure move in the direction of evidence across time.</li>
+      <li><strong>Metacognitive modulation</strong>: internal state alters outward behavior under load, uncertainty, or contradiction pressure.</li>
+    </ul>
+    <p>
+      For that reason, the validation program for Nous is being developed on two levels.
+    </p>
+    <p>
+      <strong>1. External validation.</strong> FNC-Bench is intended to test properties that suites such as MMLU or
+      HumanEval do not directly target: whether a system prefers previously verified knowledge over fluent unsupported
+      output, whether it detects weak grounding, whether it qualifies an answer when support is insufficient, and
+      whether it revises an answer when the evidence state changes.
+    </p>
+    <p>
+      In early pilot settings, the key discriminant is not only whether a system can eventually answer, but whether
+      it defers, qualifies, or revises when the evidence state is weak or changes mid-task.
+    </p>
+    <p>
+      <strong>2. Internal longitudinal validation.</strong> The second layer is runtime-native validation: whether the
+      substrate itself is maturing over time. This includes metrics such as crystallization rate, evidence quality,
+      contradiction catch rate, and gap-map change across cycles. The point is not only to score the system from
+      outside, but to observe whether its internal epistemic structure is actually improving.
+    </p>
+
+    <h2>Practical interpretation</h2>
+    <p>
+      The realistic role for Nous is not “replace Gemini.” The more plausible role is:
+      frontier models remain the semantic engine, while an epistemic substrate provides persistence,
+      contradiction boundaries, uncertainty structure, and metacognitive continuity behind them.
+    </p>
+
+    <h2>Closing</h2>
+    <p>
+      Google DeepMind is one of the few places where this argument may be legible for what it is:
+    </p>
+    <p>
+      not a complaint about LLMs,<br>
+      not a wrapper pitch,<br>
+      but an architectural claim about what may still be missing between language competence and artificial intelligence.
+    </p>
+    <p>
+      Nous is a live attempt to build and test that missing layer in practice.
+    </p>
+
+    <div class="links">
+      <div>Relevant public context</div>
+      <div><a href="https://doi.org/10.5281/zenodo.19550918">Zenodo DOI</a></div>
+      <div><a href="https://blog.google/innovation-and-ai/models-and-research/google-deepmind/measuring-agi-cognitive-framework/">Measuring progress toward AGI: A cognitive framework</a></div>
+      <div><a href="https://deepmind.google/technologies/project-mariner/">Project Mariner</a></div>
+      <div><a href="https://github.com/base76-research-lab/Nous">Nous repository</a></div>
+      <div><a href="https://github.com/base76-research-lab/Nous/blob/main/eval/fnc_bench/README.md">FNC-Bench</a></div>
+      <div><a href="https://github.com/base76-research-lab/Nous/wiki/The-Larynx-Problem">The Larynx Problem</a></div>
+    </div>
+  </main>
+</body>
+</html>
