@@ -566,6 +566,7 @@ class NightRunScheduler:
             try:
                 from nouse.daemon.eval_log import (
                     write_eval_entry, read_eval_entries, generate_policy_suggestion,
+                    feedback_summary,
                 )
                 stats = field.stats() if hasattr(field, "stats") else {}
                 cc_rate = (
@@ -590,6 +591,7 @@ class NightRunScheduler:
                         "duration": result.duration,
                         "evidence_promoted": result.evidence_promoted,
                         "evidence_demoted": result.evidence_demoted,
+                        "feedback": feedback_summary(),
                     },
                 )
                 # Trendanalys — generera policyförslag om mätvärden sjunker

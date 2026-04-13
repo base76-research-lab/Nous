@@ -13,6 +13,7 @@ import typer
 from rich.markdown import Markdown
 from rich.panel import Panel
 
+from nouse.cli.commands import relay as relay_mod
 from nouse.cli.commands import status as status_mod
 from nouse.cli.console import console
 
@@ -30,6 +31,8 @@ app = typer.Typer(
         "  nouse status\n"
     ),
 )
+
+app.add_typer(relay_mod.app, name="relay")
 
 
 def _version_callback(value: bool) -> None:
@@ -55,6 +58,9 @@ def main(
         is_eager=True,
     ),
 ) -> None:
+    from nouse.config.env import load_env_files
+
+    load_env_files(force=True)
     if ctx.invoked_subcommand is None and not version:
         typer.echo(ctx.get_help())
         raise typer.Exit(0)
@@ -383,6 +389,25 @@ def _project_runtime_env(scope_root: Path, *, watch_project_only: bool = True) -
     return env
 
 
+def _personal_runtime_env() -> dict[str, str]:
+    home = Path.home() / ".local" / "share" / "nouse" / "personal"
+    return {
+        "NOUSE_MODE": "personal",
+        "NOUSE_HOME": str(home),
+        "NOUSE_FIELD_DB": str(home / "field.sqlite"),
+        "NOUSE_MEMORY_DIR": str(home / "memory"),
+        "NOUSE_TRACE_DIR": str(home / "trace"),
+        "NOUSE_JOURNAL_DIR": str(home / "journal"),
+        "NOUSE_SESSION_STATE_PATH": str(home / "session_state.json"),
+        "NOUSE_CAPTURE_QUEUE_DIR": str(home / "capture_queue"),
+        "NOUSE_GRAPH_CENTER_PATH": str(home / "graph_center.json"),
+        "NOUSE_STATUS_FILE": str(home / "status.json"),
+        "NOUSE_SOURCE_THROTTLE_FILE": str(home / "source_throttle.json"),
+        "NOUSE_LIVING_CORE_PATH": str(home / "self" / "living_core.json"),
+        "NOUSE_DAEMON_BASE": "http://127.0.0.1:8765",
+    }
+
+
 def _ensure_runtime_dirs_from_env(env_map: dict[str, str]) -> None:
     file_keys = {
         "NOUSE_FIELD_DB",
@@ -464,7 +489,7 @@ RUN apt-get update \\
  && rm -rf /var/lib/apt/lists/*
 
 ARG NOUSE_INSTALL_REF=main
-RUN pip install --no-cache-dir "git+https://github.com/base76-research-lab/NoUse.git@${NOUSE_INSTALL_REF}"
+RUN pip install --no-cache-dir "git+https://github.com/base76-research-lab/Nous.git@${NOUSE_INSTALL_REF}"
 
 WORKDIR /workspace
 EXPOSE 8765
@@ -474,7 +499,7 @@ EXPOSE 8765
 def _project_readme_template(project_name: str, slug: str) -> str:
     return f"""# {project_name}
 
-NoUse project brain: `{slug}`
+Nous project brain: `{slug}`
 
 ## Start (local profile)
 
@@ -658,6 +683,81 @@ def _start_project_daemon_web(
     return False, last_err or "kunde inte starta lokal daemon"
 
 
+def _repo_root() -> Path:
+    return Path(__file__).resolve().parents[3]
+
+
+def _ingestd_manifest_path() -> Path:
+    return _repo_root() / "tools" / "nouse-ingestd" / "Cargo.toml"
+
+
+def _ingestd_binary_path(*, release: bool) -> Path:
+    profile = "release" if release else "debug"
+    return _repo_root() / "tools" / "nouse-ingestd" / "target" / profile / "nouse-ingestd"
+
+
+def _ingestd_commands(*, host: str, port: int, release: bool) -> list[list[str]]:
+    import shutil
+
+    commands: list[list[str]] = []
+    manifest = _ingestd_manifest_path()
+    if not manifest.exists():
+        return commands
+
+    binary_path = _ingestd_binary_path(release=release)
+    if binary_path.exists():
+        commands.append([str(binary_path), "--host", host, "--port", str(int(port))])
+
+    cargo_bin = shutil.which("cargo")
+    if cargo_bin:
+        cargo_cmd = [cargo_bin, "run", "--manifest-path", str(manifest)]
+        if release:
+            cargo_cmd.append("--release")
+        cargo_cmd.extend(["--", "--host", host, "--port", str(int(port))])
+        commands.append(cargo_cmd)
+
+    return commands
+
+
+def _start_ingestd_background(*, host: str, port: int, release: bool, env: dict[str, str]) -> tuple[bool, str]:
+    commands = _ingestd_commands(host=host, port=port, release=release)
+    if not commands:
+        return False, f"manifest saknas: {_ingestd_manifest_path()}"
+
+    last_err = ""
+    for cmd in commands:
+        try:
+            subprocess.Popen(
+                cmd,
+                cwd=str(_repo_root()),
+                env=env,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+                close_fds=True,
+            )
+            return True, ""
+        except Exception as exc:
+            last_err = str(exc)
+    return False, last_err or "kunde inte starta ingestd"
+
+
+def _run_ingestd_foreground(*, host: str, port: int, release: bool, env: dict[str, str]) -> int:
+    commands = _ingestd_commands(host=host, port=port, release=release)
+    if not commands:
+        return 1
+
+    for cmd in commands:
+        try:
+            return int(subprocess.call(cmd, cwd=str(_repo_root()), env=env))
+        except FileNotFoundError:
+            continue
+        except Exception:
+            continue
+    return 1
+
+
 def _run_project_chat(project_dir: Path, *, env: dict[str, str]) -> int:
     import shutil
     import sys
@@ -740,6 +840,7 @@ def init_cmd(
     ),
 ) -> None:
     from nouse.config.env import load_env_files
+    from nouse.self_layer import ensure_living_core
 
     selected_mode = str(mode or "project").strip().lower()
     target = Path(env_file).expanduser()
@@ -760,8 +861,7 @@ def init_cmd(
             raise typer.Exit(1)
         env_map = _project_runtime_env(scope_root, watch_project_only=watch_project_only)
     else:
-        # Personal-mode: sätt bara NOUSE_MODE och låt övriga paths följa defaults.
-        env_map = {"NOUSE_MODE": "personal"}
+        env_map = _personal_runtime_env()
 
     try:
         for key, value in env_map.items():
@@ -769,14 +869,17 @@ def init_cmd(
             os.environ[key] = value
         _ensure_runtime_dirs_from_env(env_map)
         load_env_files(force=True)
+        if selected_mode == "personal":
+            ensure_living_core()
     except Exception as exc:
         console.print(f"[red]Init misslyckades:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print(f"[green]NoUse init klar.[/green] mode={selected_mode} env={target}")
+    console.print(f"[green]Nous init klar.[/green] mode={selected_mode} env={target}")
     for key in (
         "NOUSE_HOME",
         "NOUSE_FIELD_DB",
+        "NOUSE_LIVING_CORE_PATH",
         "NOUSE_MEMORY_DIR",
         "NOUSE_DAEMON_BASE",
         "NOUSE_WATCH_PATHS",
@@ -788,6 +891,10 @@ def init_cmd(
     console.print(
         "[dim]Tips: starta om daemon med `nouse daemon web` i denna katalog för att använda profilen.[/dim]"
     )
+    if selected_mode == "personal":
+        console.print(
+            "[dim]Personal-läge: lokal profil, eget living core och operatorstöd är nu bootstrapat.[/dim]"
+        )
 
 
 @app.command(name="new")
@@ -941,7 +1048,7 @@ def new_cmd(
 
     console.print(
         Panel(
-            "[bold cyan]NoUse New Brain[/bold cyan]\n"
+            "[bold cyan]Nous New Brain[/bold cyan]\n"
             f"[green]Project:[/green] {project_dir}\n"
             f"[green]Mode:[/green] project (isolated)\n"
             f"[green]Profile:[/green] {resolved_profile}\n"
@@ -1041,7 +1148,7 @@ def _simple_key_plan_for_provider(provider: str) -> dict[str, Any]:
             "keys": ["ANTHROPIC_API_KEY"],
             "openai_base_url": "",
             "note": (
-                "Anthropic-nyckel sparad. NoUse-chatten kör idag via openai_compatible-transport, "
+                "Anthropic-nyckel sparad. Nous-chatten kör idag via openai_compatible-transport, "
                 "så anthropic kräver separat bridge för direkt användning i chat."
             ),
         }
@@ -1100,7 +1207,7 @@ def _normalize_model_choice_for_runtime(provider: str, model: str) -> tuple[str,
 
     if requested_provider_low == "codex":
         raise RuntimeError(
-            "Codex CLI är installerat, men denna NoUse-build använder ännu "
+            "Codex CLI är installerat, men denna Nous-build använder ännu "
             "openai_compatible-backend i chatten (inte native codex-cli bridge). "
             "Sätt NOUSE_OPENAI_API_KEY/OPENAI_API_KEY eller välj en ollama-modell "
             "(t.ex. 1, 2 eller 8)."
@@ -1519,14 +1626,20 @@ _CHAT_COMMANDS: list[dict[str, Any]] = [
     },
     {
         "group": "Superpowers",
-        "usage": "/skills",
+        "usage": "/skills | /tools",
         "desc": "Visa tillgängliga MCP/skill-verktyg och superpower-lägen.",
-        "keys": ["/skills", "/powers"],
+        "keys": ["/skills", "/powers", "/tools"],
     },
     {
         "group": "Superpowers",
-        "usage": "/mcp <jobb>",
-        "desc": "Kör en fråga i explicit MCP/tool-mode on-demand.",
+        "usage": "/skill [namn|off]",
+        "desc": "Pinna eller rensa en Nous-skill för kommande chat-frågor.",
+        "keys": ["/skill"],
+    },
+    {
+        "group": "Superpowers",
+        "usage": "/mcp <jobb|on|off>",
+        "desc": "Kör en fråga i explicit MCP/tool-mode eller slå på/av tool-mode för sessionen.",
         "keys": ["/mcp"],
     },
     {
@@ -1624,9 +1737,19 @@ def _render_chat_command_palette(query: str = "") -> None:
 
 
 def _render_superpower_skills_panel() -> None:
+    from nouse.capability import build_capability_graph
     from nouse.cli.chat import get_live_tools
     from nouse.mcp_gateway.gateway import is_mcp_tool
     from nouse.plugins.loader import is_plugin_tool
+
+    snapshot = build_capability_graph(probe_models=False)
+    planes = snapshot.get("planes") if isinstance(snapshot, dict) else {}
+    skill_plane = (planes.get("skill_plane") or {}) if isinstance(planes, dict) else {}
+    skill_names = [
+        str((row or {}).get("name") or "").strip()
+        for row in (skill_plane.get("skills") or [])
+        if str((row or {}).get("name") or "").strip()
+    ]
 
     tools = get_live_tools()
     names = sorted(
@@ -1650,7 +1773,10 @@ def _render_superpower_skills_panel() -> None:
 
     lines = [
         "[bold cyan]Skill & MCP Superpowers[/bold cyan]",
-        f"[dim]tools total={len(names)} · core={len(core_names)} · mcp={len(mcp_names)} · plugin={len(plugin_names)}[/dim]",
+        f"[dim]skills={len(skill_names)} · tools total={len(names)} · core={len(core_names)} · mcp={len(mcp_names)} · plugin={len(plugin_names)}[/dim]",
+        "",
+        f"[bold]Nous skills[/bold] [dim]({len(skill_names)})[/dim]",
+        f"[dim]{_preview(skill_names, limit=10)}[/dim]",
         "",
         f"[bold]MCP[/bold] [dim]({len(mcp_names)})[/dim]",
         f"[dim]{_preview(mcp_names)}[/dim]",
@@ -1659,11 +1785,39 @@ def _render_superpower_skills_panel() -> None:
         f"[dim]{_preview(kernel_names)}[/dim]",
         "",
         "[bold]Snabbkommandon[/bold]",
+        "[cyan]/skill <namn>[/cyan]  [dim]pinna en skill för nästa frågor[/dim]",
+        "[cyan]/skill <namn> <jobb>[/cyan]  [dim]engångskörning med explicit skill[/dim]",
+        "[cyan]/skill off[/cyan]  [dim]rensa pinad skill[/dim]",
+        "[cyan]/mcp on[/cyan]  [dim]håll tool-mode aktivt tills du stänger av[/dim]",
         "[cyan]/mcp <jobb>[/cyan]  [dim]explicit tool-mode on-demand[/dim]",
         "[cyan]/tri <jobb>[/cyan]  [dim]explicit triangulering[/dim]",
         "[cyan]/selfdevelop <plan>[/cyan]  [dim]self-update workflow (kan vara guarded)[/dim]",
     ]
     console.print(Panel("\n".join(lines), border_style="magenta"))
+
+
+def _render_chat_control_modes(*, pinned_skill: str = "", force_mcp_mode: bool = False) -> None:
+    status_skill = str(pinned_skill or "").strip() or "-"
+    status_mcp = "on" if force_mcp_mode else "off"
+    lines = [
+        "[bold cyan]Chat Control[/bold cyan]",
+        f"[dim]Pinned skill: {status_skill} · MCP mode: {status_mcp}[/dim]",
+        "",
+        "[bold]Usage[/bold]",
+        "[cyan]/skill[/cyan]  [dim]visa skills och kontrolläge[/dim]",
+        "[cyan]/skill <namn>[/cyan]  [dim]pinna en skill för kommande frågor[/dim]",
+        "[cyan]/skill <namn> <jobb>[/cyan]  [dim]engångskörning med explicit skill[/dim]",
+        "[cyan]/skill off[/cyan]  [dim]rensa pinad skill[/dim]",
+        "[cyan]/mcp on[/cyan]  [dim]pinna tool-mode för kommande frågor[/dim]",
+        "[cyan]/mcp off[/cyan]  [dim]stäng av pinnat tool-mode[/dim]",
+    ]
+    console.print(Panel("\n".join(lines), border_style="cyan"))
+
+
+def _resolve_chat_skill_name(raw_value: str) -> str:
+    from nouse.capability import resolve_skill_name
+
+    return str(resolve_skill_name(raw_value)).strip()
 
 
 def _read_chat_input_with_multiline() -> str:
@@ -1753,13 +1907,13 @@ def _chat_via_api(
         )
         fallback_note = (
             "\n[yellow]Obs: lokal modelltag med icke-ollama provider. "
-            "NoUse använder automatisk ollama-fallback.[/yellow]"
+            "Nous använder automatisk ollama-fallback.[/yellow]"
             if has_local_tag_mismatch
             else ""
         )
         policy_hint = (
             f"\n[dim]Agent policy: {provider} · {preview}[/dim]"
-            "\n[dim]Mode: terminal-chat med NoUse RoW (read/write) via agent-loopen.[/dim]"
+            "\n[dim]Mode: terminal-chat med Nous RoW (read/write) via agent-loopen.[/dim]"
             f"\n{_runtime_health_hint_line(workload='agent')}"
             f"{fallback_note}"
         )
@@ -1768,7 +1922,7 @@ def _chat_via_api(
 
     console.print(
         Panel(
-            "[bold cyan]NoUse Chat[/bold cyan]\n"
+            "[bold cyan]Nous Chat[/bold cyan]\n"
             "[dim]Skriv 'quit' eller 'exit' för att avsluta.[/dim]"
             "\n[dim]Skriv / för command palette (kommandon, listor och funktioner).[/dim]"
             '\n[dim]Multiline: skriv """ på egen rad för att starta/avsluta block.[/dim]'
@@ -1776,6 +1930,8 @@ def _chat_via_api(
             border_style="cyan",
         )
     )
+    pinned_skill = ""
+    force_mcp_mode = False
 
     while True:
         try:
@@ -1839,9 +1995,50 @@ def _chat_via_api(
             if _ensure_daemon_online():
                 console.print("[green]Daemon online.[/green]")
             continue
-        if raw_lower in {"/skills", "/powers"}:
+        if raw_lower in {"/skills", "/powers", "/tools"}:
             _render_superpower_skills_panel()
+            _render_chat_control_modes(
+                pinned_skill=pinned_skill,
+                force_mcp_mode=force_mcp_mode,
+            )
             continue
+        if raw_lower == "/skill":
+            _render_superpower_skills_panel()
+            _render_chat_control_modes(
+                pinned_skill=pinned_skill,
+                force_mcp_mode=force_mcp_mode,
+            )
+            continue
+        if raw_lower.startswith("/skill "):
+            argline = raw.split(" ", 1)[1].strip()
+            arg_lower = argline.lower()
+            if arg_lower in {"off", "clear", "none", "reset"}:
+                pinned_skill = ""
+                console.print("[green]Pinned skill avstängd.[/green]")
+                continue
+            if arg_lower in {"list", "show"}:
+                _render_superpower_skills_panel()
+                _render_chat_control_modes(
+                    pinned_skill=pinned_skill,
+                    force_mcp_mode=force_mcp_mode,
+                )
+                continue
+            token, _, prompt = argline.partition(" ")
+            resolved_skill = _resolve_chat_skill_name(token)
+            if not resolved_skill:
+                console.print(f"[yellow]Okänd skill:[/yellow] {token}")
+                _render_superpower_skills_panel()
+                _render_chat_control_modes(
+                    pinned_skill=pinned_skill,
+                    force_mcp_mode=force_mcp_mode,
+                )
+                continue
+            if not prompt.strip():
+                pinned_skill = resolved_skill
+                console.print(f"[green]Pinned skill:[/green] {resolved_skill}")
+                continue
+            raw = f"/skill {resolved_skill} {prompt.strip()}"
+            raw_lower = raw.lower()
         if raw_lower in {"/check", "/review"}:
             if not _ensure_daemon_online():
                 continue
@@ -2066,13 +2263,24 @@ def _chat_via_api(
             continue
         if raw_lower.startswith("/mcp "):
             prompt = raw.split(" ", 1)[1].strip()
+            if prompt.lower() in {"on", "off", "clear", "reset"}:
+                force_mcp_mode = prompt.lower() == "on"
+                console.print(
+                    f"[green]MCP mode:[/green] {'på' if force_mcp_mode else 'av'}"
+                )
+                continue
             if not prompt:
                 console.print("[yellow]Använd: /mcp <jobbtext>[/yellow]")
                 continue
             raw = f"/mcp {prompt}"
             raw_lower = raw.lower()
         elif raw_lower == "/mcp":
-            console.print("[yellow]Använd: /mcp <jobbtext>[/yellow]")
+            console.print(
+                "[yellow]Använd: /mcp <jobbtext> eller /mcp on|off[/yellow]"
+            )
+            console.print(
+                f"[dim]MCP mode är nu {'på' if force_mcp_mode else 'av'}.[/dim]"
+            )
             continue
         if raw_lower.startswith("/selfdevelop "):
             prompt = raw.split(" ", 1)[1].strip()
@@ -2087,7 +2295,7 @@ def _chat_via_api(
         if raw_lower in {"quit", "exit", "q"}:
             console.print("Hejdå")
             return
-        passthrough_prefixes = ("/tri ", "/mcp ", "/selfdevelop ")
+        passthrough_prefixes = ("/tri ", "/mcp ", "/selfdevelop ", "/skill ")
         if raw.startswith("/") and (not any(raw_lower.startswith(p) for p in passthrough_prefixes)):
             token = raw.split(" ", 1)[0]
             console.print(f"[yellow]Okänt slash-kommando:[/yellow] {token}")
@@ -2098,12 +2306,18 @@ def _chat_via_api(
             continue
 
         quick_model_pick_enabled = False
+        outbound_raw = raw
+        if not outbound_raw.startswith("/"):
+            if pinned_skill:
+                outbound_raw = f"/skill {pinned_skill} {outbound_raw}"
+            elif force_mcp_mode:
+                outbound_raw = f"/mcp {outbound_raw}"
         response = ""
         seen_trace: str | None = None
         seen_model: str | None = None
         graph_write_ops = 0
         try:
-            for item in client.stream_chat(raw, session_id=session_id):
+            for item in client.stream_chat(outbound_raw, session_id=session_id):
                 t = str(item.get("type", ""))
                 if not seen_trace and item.get("trace_id"):
                     seen_trace = str(item.get("trace_id"))
@@ -2149,7 +2363,7 @@ def _chat_via_api(
         if seen_model:
             console.print(f"[dim]model: {seen_model}[/dim]")
         if show_events and graph_write_ops:
-            console.print(f"[green]NoUse writes this turn:[/green] {graph_write_ops}")
+            console.print(f"[green]Nous writes this turn:[/green] {graph_write_ops}")
 
 
 @app.command(name="daemon")
@@ -2208,6 +2422,158 @@ def daemon_cmd(
             )
             raise typer.Exit(1)
         raise
+
+
+@app.command(name="ingestd")
+def ingestd_cmd(
+    action: str = typer.Argument("status", help="start | run | status"),
+    port: int = typer.Option(8766, "--port", "-p", help="Port for Rust ingest daemon."),
+    host: str = typer.Option("127.0.0.1", "--host", help="Listen host for Rust ingest daemon."),
+    release: bool = typer.Option(True, "--release/--debug", help="Use release build when available."),
+) -> None:
+    from nouse.config.env import load_env_files
+    import nouse.ingestd_client as ingestd_client
+
+    load_env_files(force=True)
+
+    act = str(action or "status").strip().lower()
+    if act not in {"start", "run", "status"}:
+        console.print("[red]Ogiltig action.[/red] Använd: start | run | status")
+        raise typer.Exit(1)
+
+    connect_host = "127.0.0.1" if str(host).strip() == "0.0.0.0" else str(host).strip()
+    health_url = f"http://{connect_host}:{int(port)}"
+
+    if act == "status":
+        if not ingestd_client.daemon_running(base=health_url):
+            console.print("[yellow]ingestd ej igång[/yellow]")
+            return
+        try:
+            payload = ingestd_client.get_health(base=health_url)
+            console.print(
+                "[green]ingestd online[/green] "
+                f"service={payload.get('service', 'nouse-ingestd')} "
+                f"version={payload.get('version', '?')}"
+            )
+        except Exception:
+            console.print("[green]ingestd online[/green]")
+        console.print(f"[dim]{health_url}[/dim]")
+        return
+
+    process_env = dict(os.environ)
+    process_env.setdefault("NOUSE_INGESTD_BASE", health_url)
+
+    if ingestd_client.daemon_running(base=health_url):
+        console.print("[yellow]ingestd verkar redan vara igång.[/yellow]")
+        console.print(f"[dim]{health_url}[/dim]")
+        return
+
+    if act == "run":
+        console.print(f"[green]Startar ingestd i foreground på {health_url}...[/green]")
+        rc = _run_ingestd_foreground(host=host, port=int(port), release=bool(release), env=process_env)
+        raise typer.Exit(rc)
+
+    ok, detail = _start_ingestd_background(
+        host=host,
+        port=int(port),
+        release=bool(release),
+        env=process_env,
+    )
+    if not ok:
+        console.print("[red]Kunde inte starta ingestd.[/red]")
+        if detail:
+            console.print(f"[dim]{detail}[/dim]")
+        raise typer.Exit(1)
+
+    console.print(f"[green]ingestd-start initierad.[/green] {health_url}")
+    console.print(f"[dim]Env: NOUSE_INGESTD_BASE={health_url}[/dim]")
+
+
+@app.command(name="snapshot")
+def snapshot_cmd(
+    action: str = typer.Argument("list", help="list | create | restore"),
+    snapshot: str = typer.Argument("", help="Snapshot-namn eller sökväg (vid restore)."),
+    tag: str = typer.Option("manual", "--tag", help="Tag vid create."),
+    limit: int = typer.Option(20, "--limit", help="Max antal snapshots vid list."),
+    create_backup: bool = typer.Option(
+        True,
+        "--backup/--no-backup",
+        help="Skapa pre-restore backup av live-db.",
+    ),
+) -> None:
+    import nouse.client as client
+    from nouse.field.surface import FieldSurface
+    from nouse.metacognition.snapshot import create_snapshot, list_snapshots, restore_snapshot
+
+    op = str(action or "list").strip().lower()
+    if op not in {"list", "create", "restore"}:
+        console.print("[red]Ogiltig action.[/red] Använd: list | create | restore")
+        raise typer.Exit(1)
+
+    if op == "list":
+        try:
+            if client.daemon_running():
+                payload = client.get_snapshot_list(limit=max(1, int(limit)))
+                rows = payload.get("snapshots") if isinstance(payload, dict) else []
+            else:
+                rows = list_snapshots(limit=max(1, int(limit)))
+        except Exception as exc:
+            console.print(f"[red]Snapshot-lista misslyckades:[/red] {exc}")
+            raise typer.Exit(1)
+        if not rows:
+            console.print("[yellow]Inga snapshots hittades.[/yellow]")
+            return
+        lines = ["[bold cyan]Snapshots[/bold cyan]"]
+        for row in rows[: max(1, int(limit))]:
+            if not isinstance(row, dict):
+                continue
+            name = str(row.get("name") or "").strip()
+            tag_value = str(row.get("tag") or "").strip()
+            ts = str(row.get("timestamp") or row.get("mtime") or "").strip()
+            size = int(row.get("size_bytes") or 0)
+            lines.append(
+                f"- [cyan]{name}[/cyan]"
+                + (f" [dim](tag={tag_value})[/dim]" if tag_value else "")
+                + (f" [dim]{ts}[/dim]" if ts else "")
+                + f" [dim]{size} B[/dim]"
+            )
+        console.print(Panel("\n".join(lines), border_style="cyan"))
+        return
+
+    if op == "create":
+        try:
+            field = FieldSurface(read_only=False)
+            snap_path = create_snapshot(field, tag=str(tag or "manual").strip() or "manual")
+            console.print(f"[green]Snapshot skapad:[/green] {snap_path}")
+        except Exception as exc:
+            console.print(f"[red]Snapshot create misslyckades:[/red] {exc}")
+            raise typer.Exit(1)
+        return
+
+    # restore
+    ref = str(snapshot or "").strip()
+    if not ref:
+        console.print("[yellow]Använd: nouse snapshot restore <snapshot_namn_eller_path>[/yellow]")
+        raise typer.Exit(1)
+    try:
+        if client.daemon_running():
+            out = client.post_snapshot_restore(snapshot=ref, create_backup=bool(create_backup))
+        else:
+            out = restore_snapshot(ref, create_backup=bool(create_backup))
+        if bool(out.get("ok", True)) or str(out.get("status") or "").lower() == "ok":
+            console.print("[green]Restore OK.[/green]")
+            if out.get("backup_path"):
+                console.print(f"[dim]backup:[/dim] {out.get('backup_path')}")
+            if out.get("restored_from"):
+                console.print(f"[dim]from:[/dim] {out.get('restored_from')}")
+            if out.get("live_sha256"):
+                console.print(f"[dim]sha256:[/dim] {out.get('live_sha256')}")
+            return
+        console.print(f"[red]Restore misslyckades:[/red] {out.get('error')}")
+        raise typer.Exit(1)
+    except Exception as exc:
+        console.print(f"[red]Restore-fel:[/red] {exc}")
+        raise typer.Exit(1)
 
 
 @app.command(name="chat")
@@ -2405,7 +2771,7 @@ def auth_cmd(
 
     console.print(
         Panel(
-            "[bold cyan]NoUse Auth[/bold cyan]\n"
+            "[bold cyan]Nous Auth[/bold cyan]\n"
             "[dim]Flow: terminal → web-login → record auth[/dim]\n"
             f"[dim]URL:[/dim] {auth_url}\n"
             "[dim]I webben: välj provider, klistra in API-nyckel, klicka 'Record auth key'.[/dim]",
@@ -2486,6 +2852,69 @@ def start_cmd(
     )
 
 
+@app.command(name="governance")
+def governance_cmd(
+    action: str = typer.Argument("list", help="list | show | apply"),
+    profile: str = typer.Argument("", help="Profilnamn: high_precision | conservative | exploratory | trusted_local"),
+    env_file: str = typer.Option(
+        "~/.env",
+        "--env-file",
+        help="Var profilens env-värden skrivs vid apply.",
+    ),
+) -> None:
+    from nouse.config.governance_profiles import (
+        list_governance_profiles,
+        resolve_governance_profile,
+    )
+
+    op = str(action or "list").strip().lower()
+    if op not in {"list", "show", "apply"}:
+        console.print("[red]Ogiltig action.[/red] Använd: list | show | apply")
+        raise typer.Exit(1)
+
+    rows = list_governance_profiles()
+    if op == "list":
+        lines = ["[bold cyan]Governance Profiles[/bold cyan]"]
+        for row in rows:
+            lines.append(f"- [cyan]{row.name}[/cyan]: {row.description}")
+        console.print(Panel("\n".join(lines), border_style="cyan"))
+        return
+
+    try:
+        chosen = resolve_governance_profile(profile)
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(1)
+
+    if op == "show":
+        lines = [
+            f"[bold cyan]Profile:[/bold cyan] {chosen.name}",
+            chosen.description,
+            "",
+            "[bold]Env overrides[/bold]",
+        ]
+        for key, value in chosen.env.items():
+            lines.append(f"- [cyan]{key}[/cyan]={value}")
+        console.print(Panel("\n".join(lines), border_style="cyan"))
+        return
+
+    target = Path(env_file).expanduser()
+    try:
+        for key, value in chosen.env.items():
+            _upsert_env_key(target, key, value)
+            os.environ[str(key)] = str(value)
+    except Exception as exc:
+        console.print(f"[red]Kunde inte applicera governance-profil:[/red] {exc}")
+        raise typer.Exit(1)
+
+    console.print(
+        f"[green]Governance-profil applicerad:[/green] {chosen.name} -> {target}"
+    )
+    console.print(
+        "[dim]Tips: starta om daemon/chat för att läsa nya trösklar från .env.[/dim]"
+    )
+
+
 @app.command(name="visualize")
 @app.command(name="viz")
 def visualize_cmd(
@@ -2514,7 +2943,7 @@ def visualize_cmd(
 
     console.print(
         Panel(
-            "[bold cyan]NoUse Visualize[/bold cyan]\n"
+            "[bold cyan]Nous Visualize[/bold cyan]\n"
             f"[green]URL:[/green] {url}\n"
             "[dim]Inkluderar graf, länkar, findings/claims och basis-data.[/dim]\n"
             "[dim]Tips: kör `nouse research --query \"...\" --annotate` för att fylla findings-panelen.[/dim]",
@@ -2667,6 +3096,7 @@ def learn_from_cmd(
 ) -> None:
     import httpx
     import nouse.client as client
+    import nouse.ingestd_client as ingestd_client
     from nouse.daemon.file_text import extract_text
     from nouse.daemon.sources import DEFAULT_INGEST_EXTENSIONS, iter_ingest_files
     from nouse.daemon.web_text import extract_text_from_url, is_url
@@ -2752,6 +3182,9 @@ def learn_from_cmd(
         console.print(
             "[yellow]Daemon ej nåbar. Extraherad text köas i capture_queue för senare ingest.[/yellow]"
         )
+    ingestd_up = bool(files) and ingestd_client.daemon_running()
+    if ingestd_up:
+        console.print("[dim]learn-from: ingestd online, använder Rust-extraktion för lokala filer.[/dim]")
 
     processed = 0
     skipped_short = 0
@@ -2817,13 +3250,53 @@ def learn_from_cmd(
             reason_hint=reason,
         )
 
-    for f in files:
-        text = extract_text(f)
-        _handle_payload(
-            text=text,
-            source_value=f"manual:{f}",
-            display=str(f),
-        )
+    file_items: list[tuple[str, str, str]] = []
+    if files and ingestd_up:
+        try:
+            extracted = ingestd_client.extract_local_sources(
+                sources=[str(f) for f in files],
+                max_files=file_limit,
+                min_chars=min_chars_safe,
+                extensions=active_extensions,
+            )
+            file_items = [
+                (
+                    str(item.get("text") or ""),
+                    str(item.get("source") or f"manual:{item.get('path') or ''}"),
+                    str(item.get("display") or item.get("path") or item.get("source") or "ingestd"),
+                )
+                for item in (extracted.get("items") or [])
+                if str(item.get("text") or "").strip()
+            ]
+            rust_errors = extracted.get("errors") or []
+            failed += len(rust_errors)
+            if debug_extract:
+                for row in rust_errors[:8]:
+                    if not isinstance(row, dict):
+                        continue
+                    console.print(
+                        f"[yellow]ingestd-fel:[/yellow] {row.get('path', '?')} · {row.get('error', 'okänt fel')}"
+                    )
+        except Exception as exc:
+            if debug_extract:
+                console.print(f"[yellow]ingestd fallback:[/yellow] {exc}")
+            file_items = []
+
+    if file_items:
+        for text, source_value, display in file_items:
+            _handle_payload(
+                text=text,
+                source_value=source_value,
+                display=display,
+            )
+    else:
+        for f in files:
+            text = extract_text(f)
+            _handle_payload(
+                text=text,
+                source_value=f"manual:{f}",
+                display=str(f),
+            )
 
     console.print(
         f"[green]learn-from klart.[/green] "
@@ -2879,7 +3352,7 @@ def research_cmd(
     learn: bool = typer.Option(
         True,
         "--learn/--no-learn",
-        help="Skriv tillbaka ny kunskap till NoUse vid query-escalation.",
+        help="Skriv tillbaka ny kunskap till Nous vid query-escalation.",
     ),
     threshold: float = typer.Option(
         0.5,
@@ -3053,6 +3526,209 @@ def research_cmd(
 
     if as_json:
         console.print_json(data=summary)
+
+
+@app.command(name="research-output")
+def research_output_cmd(
+    query: str = typer.Option(
+        "",
+        "--query",
+        "-q",
+        help="Filter för relationer, annotations och insights.",
+    ),
+    concept: list[str] = typer.Option(
+        [],
+        "--concept",
+        "-c",
+        help="Pinna ett eller flera koncept i exporten.",
+    ),
+    relation_limit: int = typer.Option(
+        40,
+        "--relations",
+        help="Max antal relationer i exporten.",
+    ),
+    annotation_limit: int = typer.Option(
+        20,
+        "--annotations",
+        help="Max antal annotations/concept summaries i exporten.",
+    ),
+    insight_limit: int = typer.Option(
+        15,
+        "--insights",
+        help="Max antal insights i exporten.",
+    ),
+    output_dir: str = typer.Option(
+        "exports",
+        "--out",
+        help="Målkatalog för markdown/json-export.",
+    ),
+    stem: str = typer.Option(
+        "",
+        "--stem",
+        help="Basnamn för outputfilerna.",
+    ),
+    as_json: bool = typer.Option(
+        False,
+        "--json",
+        help="Skriv även paketet till stdout som JSON.",
+    ),
+) -> None:
+    from nouse.field.surface import FieldSurface
+    from nouse.reports import build_research_output, render_research_output_markdown
+
+    safe_relations = max(1, min(int(relation_limit), 500))
+    safe_annotations = max(1, min(int(annotation_limit), 200))
+    safe_insights = max(1, min(int(insight_limit), 200))
+    query_clean = str(query or "").strip()
+    concepts = [str(item).strip() for item in (concept or []) if str(item).strip()]
+
+    field = FieldSurface(read_only=True)
+    bundle = build_research_output(
+        field,
+        query=query_clean,
+        concepts=concepts,
+        relation_limit=safe_relations,
+        annotation_limit=safe_annotations,
+        insight_limit=safe_insights,
+    )
+
+    out_dir = Path(output_dir).expanduser()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    safe_stem = str(stem or "").strip()
+    if not safe_stem:
+        slug_bits = []
+        if query_clean:
+            slug_bits.append(re.sub(r"[^a-z0-9]+", "-", query_clean.lower()).strip("-"))
+        elif concepts:
+            slug_bits.append(re.sub(r"[^a-z0-9]+", "-", concepts[0].lower()).strip("-"))
+        slug_bits.append(datetime.now().strftime("%Y%m%d-%H%M%S"))
+        safe_stem = "-".join(bit for bit in slug_bits if bit) or "research-output"
+
+    md_path = out_dir / f"{safe_stem}.md"
+    json_path = out_dir / f"{safe_stem}.json"
+    md_path.write_text(render_research_output_markdown(bundle), encoding="utf-8")
+    json_path.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    counts = bundle.get("counts") if isinstance(bundle.get("counts"), dict) else {}
+    console.print(
+        "[bold cyan]Research Output[/bold cyan] "
+        f"relations={int(counts.get('relations', 0) or 0)} "
+        f"annotations={int(counts.get('annotations', 0) or 0)} "
+        f"insights={int(counts.get('insights', 0) or 0)}"
+    )
+    console.print(f"[green]markdown:[/green] {md_path}")
+    console.print(f"[green]json:[/green] {json_path}")
+
+    if as_json:
+        console.print_json(data=bundle)
+
+
+@app.command(name="research-bank")
+def research_bank_cmd(
+    paper: list[str] = typer.Option(
+        [],
+        "--paper",
+        "-p",
+        help="Paper eller lokal fil som ska användas för ordbank.",
+    ),
+    tag: list[str] = typer.Option(
+        [],
+        "--tag",
+        "-t",
+        help="Manuell tag eller seed-term.",
+    ),
+    max_terms: int = typer.Option(
+        24,
+        "--max-terms",
+        help="Max antal ord/fraser i ordbanken.",
+    ),
+    max_queries: int = typer.Option(
+        8,
+        "--max-queries",
+        help="Max antal webbsökningar att generera.",
+    ),
+    results_per_query: int = typer.Option(
+        5,
+        "--results-per-query",
+        help="Max antal träffar per sökning.",
+    ),
+    provider: str = typer.Option(
+        "",
+        "--provider",
+        help="Valfri sökprovider, t.ex. brave eller serper.",
+    ),
+    articles: bool = typer.Option(
+        True,
+        "--articles/--no-articles",
+        help="Generera artikel/paper-sökningar.",
+    ),
+    data: bool = typer.Option(
+        True,
+        "--data/--no-data",
+        help="Generera dataset/data-sökningar.",
+    ),
+    output_dir: str = typer.Option(
+        "exports",
+        "--out",
+        help="Målkatalog för markdown/json-export.",
+    ),
+    stem: str = typer.Option(
+        "",
+        "--stem",
+        help="Basnamn för outputfilerna.",
+    ),
+    as_json: bool = typer.Option(
+        False,
+        "--json",
+        help="Skriv även paketet till stdout som JSON.",
+    ),
+) -> None:
+    from nouse.reports import build_research_bank, render_research_bank_markdown
+
+    papers = [str(item).strip() for item in (paper or []) if str(item).strip()]
+    tags = [str(item).strip() for item in (tag or []) if str(item).strip()]
+    if not papers and not tags:
+        console.print("[yellow]Ange minst ett --paper eller en --tag.[/yellow]")
+        raise typer.Exit(1)
+    if not articles and not data:
+        console.print("[yellow]Minst ett av --articles eller --data måste vara aktivt.[/yellow]")
+        raise typer.Exit(1)
+
+    bundle = build_research_bank(
+        paper_paths=papers,
+        tags=tags,
+        max_terms=max_terms,
+        max_queries=max_queries,
+        results_per_query=results_per_query,
+        provider=provider,
+        include_articles=bool(articles),
+        include_data=bool(data),
+    )
+
+    out_dir = Path(output_dir).expanduser()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    safe_stem = str(stem or "").strip()
+    if not safe_stem:
+        base = tags[0] if tags else Path(papers[0]).stem
+        safe_stem = f"{re.sub(r'[^a-z0-9]+', '-', base.lower()).strip('-') or 'research-bank'}-bank"
+
+    md_path = out_dir / f"{safe_stem}.md"
+    json_path = out_dir / f"{safe_stem}.json"
+    md_path.write_text(render_research_bank_markdown(bundle), encoding="utf-8")
+    json_path.write_text(json.dumps(bundle, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    counts = bundle.get("counts") if isinstance(bundle.get("counts"), dict) else {}
+    console.print(
+        "[bold cyan]Research Bank[/bold cyan] "
+        f"terms={int(counts.get('word_bank', 0) or 0)} "
+        f"queries={int(counts.get('queries', 0) or 0)} "
+        f"results={int(counts.get('results', 0) or 0)}"
+    )
+    console.print(f"[green]markdown:[/green] {md_path}")
+    console.print(f"[green]json:[/green] {json_path}")
+
+    if as_json:
+        console.print_json(data=bundle)
 
 
 @app.command(name="status")
@@ -3421,12 +4097,12 @@ def journal_cmd(
         return
 
     if not md_path and not events_path:
-        console.print("[yellow]Ingen NoUse journal hittades ännu.[/yellow]")
+        console.print("[yellow]Ingen Nous journal hittades ännu.[/yellow]")
         console.print("[dim]Starta daemonen och kör några cykler/chat-anrop först.[/dim]")
         return
 
     console.print(
-        f"[bold cyan]NoUse Journal[/bold cyan] "
+        f"[bold cyan]Nous Journal[/bold cyan] "
         f"[dim]md={str(md_path) if md_path else '-'} · events={str(events_path) if events_path else '-'}[/dim]"
     )
 
@@ -3568,6 +4244,420 @@ def mission_cmd(
     raise typer.Exit(1)
 
 
+@app.command(name="feedback")
+def feedback_cmd(
+    verdict: str = typer.Argument("good", help="good | bad — thumbs up eller down"),
+    comment: str = typer.Option("", "--comment", "-c", help="Valfri kommentar"),
+    as_json: bool = typer.Option(False, "--json", help="Skriv JSON"),
+    summary: bool = typer.Option(False, "--summary", "-s", help="Visa feedback-sammanfattning"),
+) -> None:
+    """Operatörs-feedback (thumbs up/down). Använd: nouse feedback good/bad"""
+    from nouse.daemon.eval_log import write_feedback, feedback_summary, read_feedback
+
+    v = str(verdict or "good").strip().lower()
+    if v not in ("good", "bad", "up", "down", "+", "-", "1", "0"):
+        console.print("[red]Ogiltig verdict.[/red] Använd: good | bad")
+        raise typer.Exit(1)
+
+    if summary:
+        s = feedback_summary()
+        if as_json:
+            console.print_json(data=s)
+        else:
+            console.print(f"[bold]Feedback-sammanfattning[/bold]")
+            console.print(f"  Total: {s['total']}  Good: {s['good']}  Bad: {s['bad']}")
+            console.print(f"  Ratio: {s['ratio']:.0%}  Recent: {s.get('recent_ratio', 0):.0%}  Trend: {s['trend']}")
+        return
+
+    # Hämta kontext om daemon är igång
+    cycle = 0
+    active_nodes: list[str] = []
+    model = ""
+    energy = 0.0
+    try:
+        import nouse.client as client
+        if client.daemon_running():
+            status = client.brain_status()
+            cycle = int(status.get("cycle", 0) or 0)
+            energy = float(status.get("homeostasis", {}).get("energy", 0) or 0)
+            # Hämta topp-5 aktiva noder
+            try:
+                top = client.brain_top_relations(limit=5)
+                active_nodes = [str(r.get("src", "")) for r in (top or []) if r.get("src")]
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    path = write_feedback(
+        v, comment=comment, cycle=cycle,
+        active_nodes=active_nodes, model=model, energy=energy,
+    )
+    label = "[green]THUMBS UP[/green]" if v in ("good", "up", "+", "1") else "[red]THUMBS DOWN[/red]"
+    console.print(f"{label} — loggat till {path.name}")
+    if comment:
+        console.print(f"  Kommentar: {comment[:80]}")
+    if as_json:
+        console.print_json(data={"verdict": v, "path": str(path)})
+
+
+@app.command(name="revenue")
+def revenue_cmd(
+    action: str = typer.Argument(
+        "status",
+        help=(
+            "init | prospect | scan | score | draft | outbox | "
+            "hitl-status | hitl-sync | approve | reject | sent | paid | kpi | run-daily | status"
+        ),
+    ),
+    root: str = typer.Option(".", "--root", help="Projektrot för revenue-filer."),
+    lead: list[str] = typer.Option(
+        [],
+        "--lead",
+        help='Leadrad: "Company|domain|contact|note" (kan anges flera gånger).',
+    ),
+    lead_file: str = typer.Option(
+        "",
+        "--lead-file",
+        help="Textfil med en leadrad per rad i format Company|domain|contact|note.",
+    ),
+    query: list[str] = typer.Option(
+        [],
+        "--query",
+        help="Web-query för prospect-läget (kan anges flera gånger).",
+    ),
+    max_results_per_query: int = typer.Option(
+        8,
+        "--max-results-per-query",
+        help="Max träffar per query i prospect.",
+    ),
+    segment: str = typer.Option("ai-research", "--segment", help="Segmentprofil för scoring."),
+    top: int = typer.Option(10, "--top", help="Max antal leads/drafts att processa."),
+    min_score: float = typer.Option(0.55, "--min-score", help="Min score för qualified/draft."),
+    ids: str = typer.Option("", "--ids", help="CSV med outbox-id (t.ex. 1,2,3). Tom = alla relevanta."),
+    amount: float = typer.Option(0.0, "--amount", help="Belopp SEK för action=paid."),
+    note: str = typer.Option("", "--note", help="Valfri note för action=paid."),
+    date: str = typer.Option("", "--date", help="Datum (YYYY-MM-DD) för action=kpi."),
+    as_json: bool = typer.Option(False, "--json", help="Skriv JSON-output."),
+) -> None:
+    from nouse.daemon.mission import save_mission
+    from nouse.revenue.loop import (
+        append_leads,
+        approve_outreach,
+        create_outreach_drafts,
+        ensure_revenue_scaffold,
+        hitl_status,
+        list_outbox,
+        log_paid_order,
+        mark_outreach_sent,
+        parse_lead_line,
+        prospect_leads_from_web,
+        reject_outreach,
+        revenue_kpi_summary,
+        revenue_paths,
+        sync_outbox_from_hitl,
+        score_leads,
+    )
+
+    act = str(action or "status").strip().lower()
+    project_root = Path(root).expanduser().resolve()
+
+    def _parse_ids_csv(raw: str) -> list[int]:
+        out: list[int] = []
+        for part in str(raw or "").split(","):
+            text = part.strip()
+            if not text:
+                continue
+            try:
+                value = int(text)
+            except ValueError:
+                continue
+            if value > 0:
+                out.append(value)
+        return out
+
+    if act == "init":
+        payload = ensure_revenue_scaffold(project_root)
+        local_mission_path = project_root / "mission" / "mission_runtime.json"
+        mission_payload = save_mission(
+            "Revenue Loop v1: första verifierbara intäkt inom 14 dagar",
+            north_star="Nous tjänar första egna pengar kontrollerat och mätbart",
+            focus_domains=["AI", "go-to-market", "sales", "customer_insight"],
+            kpis=[
+                "new_leads_count",
+                "qualified_leads_count",
+                "approved_outreach_count",
+                "paid_orders_count",
+                "revenue_sek",
+            ],
+            constraints=[
+                "no_autonomous_contract_signing",
+                "no_autonomous_payments",
+                "no_outbound_without_hitl_approval",
+            ],
+            path=local_mission_path,
+        )
+        payload["mission_applied"] = True
+        payload["mission_version"] = int(mission_payload.get("version", 0) or 0)
+        payload["mission_path"] = str(local_mission_path)
+        if as_json:
+            console.print_json(data=payload)
+            return
+        console.print("[green]Revenue scaffold init klar.[/green]")
+        for row in payload.get("created") or []:
+            console.print(f"[dim]created: {row}[/dim]")
+        return
+
+    if act == "scan":
+        ensure_revenue_scaffold(project_root)
+        parsed: list[dict[str, str]] = []
+        for raw in lead:
+            row = parse_lead_line(raw)
+            if row:
+                parsed.append(row)
+        if str(lead_file or "").strip():
+            file_path = Path(lead_file).expanduser()
+            if not file_path.exists():
+                console.print(f"[red]lead-file hittades inte:[/red] {file_path}")
+                raise typer.Exit(1)
+            for raw_line in file_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+                row = parse_lead_line(raw_line)
+                if row:
+                    parsed.append(row)
+        if not parsed:
+            console.print("[yellow]Inga giltiga leads. Ange --lead eller --lead-file.[/yellow]")
+            raise typer.Exit(1)
+        out = append_leads(project_root, parsed, source="revenue_scan")
+        if as_json:
+            console.print_json(data=out)
+            return
+        console.print(
+            f"[green]scan:[/green] added={int(out.get('added', 0) or 0)} total={int(out.get('total', 0) or 0)}"
+        )
+        return
+
+    if act == "prospect":
+        ensure_revenue_scaffold(project_root)
+        queries = [str(q or "").strip() for q in query if str(q or "").strip()]
+        if not queries:
+            queries = [
+                "AI consultancy Sweden",
+                "applied AI research lab",
+                "LLM governance consulting",
+            ]
+        out = prospect_leads_from_web(
+            project_root,
+            queries=queries,
+            max_results_per_query=max(1, min(int(max_results_per_query), 25)),
+        )
+        if as_json:
+            console.print_json(data=out)
+            return
+        console.print(
+            f"[green]prospect:[/green] prospected={int(out.get('prospected', 0) or 0)} "
+            f"added={int(out.get('added', 0) or 0)} total={int(out.get('total', 0) or 0)}"
+        )
+        return
+
+    if act == "score":
+        ensure_revenue_scaffold(project_root)
+        out = score_leads(
+            project_root,
+            segment=segment,
+            min_score=max(0.0, min(1.0, float(min_score))),
+            top=max(1, int(top)),
+        )
+        if as_json:
+            console.print_json(data=out)
+            return
+        console.print(
+            f"[green]score:[/green] scored={int(out.get('scored', 0) or 0)} "
+            f"qualified={int(out.get('qualified', 0) or 0)} segment={out.get('segment')}"
+        )
+        return
+
+    if act == "draft":
+        ensure_revenue_scaffold(project_root)
+        out = create_outreach_drafts(
+            project_root,
+            min_score=max(0.0, min(1.0, float(min_score))),
+            max_items=max(1, int(top)),
+        )
+        if as_json:
+            console.print_json(data=out)
+            return
+        console.print(
+            f"[green]draft:[/green] drafted={int(out.get('drafted', 0) or 0)} "
+            f"total_outbox={int(out.get('total_outbox', 0) or 0)}"
+        )
+        return
+
+    if act == "outbox":
+        ensure_revenue_scaffold(project_root)
+        rows = list_outbox(project_root, status="all", limit=max(1, int(top)))
+        if as_json:
+            console.print_json(data={"rows": rows})
+            return
+        if not rows:
+            console.print("[yellow]Outbox tom.[/yellow]")
+            return
+        console.print("[bold cyan]Revenue Outbox[/bold cyan]")
+        for row in rows:
+            console.print(
+                f"- id={int(row.get('id', 0) or 0)} status={row.get('status')} "
+                f"lead_id={int(row.get('lead_id', 0) or 0)} company={row.get('company')} "
+                f"hitl_id={int(row.get('hitl_interrupt_id', 0) or 0)} "
+                f"hitl={row.get('hitl_status')}"
+            )
+        return
+
+    if act == "hitl-status":
+        ensure_revenue_scaffold(project_root)
+        out = hitl_status(project_root)
+        if as_json:
+            console.print_json(data=out)
+            return
+        console.print(
+            f"[green]hitl:[/green] pending={int(out.get('pending', 0) or 0)} "
+            f"approved={int(out.get('approved', 0) or 0)} rejected={int(out.get('rejected', 0) or 0)}"
+        )
+        return
+
+    if act == "hitl-sync":
+        ensure_revenue_scaffold(project_root)
+        out = sync_outbox_from_hitl(project_root)
+        if as_json:
+            console.print_json(data=out)
+            return
+        console.print(
+            f"[green]hitl-sync:[/green] approved={int(out.get('changed_approved', 0) or 0)} "
+            f"rejected={int(out.get('changed_rejected', 0) or 0)}"
+        )
+        return
+
+    if act == "approve":
+        ensure_revenue_scaffold(project_root)
+        out = approve_outreach(project_root, ids=_parse_ids_csv(ids))
+        if as_json:
+            console.print_json(data=out)
+            return
+        console.print(
+            f"[green]approve:[/green] approved={int(out.get('changed_approved', out.get('changed', 0)) or 0)} "
+            f"rejected={int(out.get('changed_rejected', 0) or 0)}"
+        )
+        return
+
+    if act == "reject":
+        ensure_revenue_scaffold(project_root)
+        out = reject_outreach(project_root, ids=_parse_ids_csv(ids), note=note)
+        if as_json:
+            console.print_json(data=out)
+            return
+        console.print(
+            f"[green]reject:[/green] approved={int(out.get('changed_approved', 0) or 0)} "
+            f"rejected={int(out.get('changed_rejected', 0) or 0)}"
+        )
+        return
+
+    if act == "sent":
+        ensure_revenue_scaffold(project_root)
+        sync_outbox_from_hitl(project_root)
+        out = mark_outreach_sent(project_root, ids=_parse_ids_csv(ids))
+        if as_json:
+            console.print_json(data=out)
+            return
+        console.print(f"[green]sent:[/green] changed={int(out.get('changed', 0) or 0)}")
+        return
+
+    if act == "paid":
+        ensure_revenue_scaffold(project_root)
+        if float(amount) <= 0.0:
+            console.print("[red]Ange --amount > 0 för action=paid.[/red]")
+            raise typer.Exit(1)
+        out = log_paid_order(project_root, amount_sek=float(amount), note=note)
+        if as_json:
+            console.print_json(data=out)
+            return
+        console.print(f"[green]paid:[/green] amount_sek={float(out.get('amount_sek', 0.0) or 0.0):.2f}")
+        return
+
+    if act == "run-daily":
+        ensure_revenue_scaffold(project_root)
+        summary: dict[str, Any] = {"ok": True}
+        if lead or str(lead_file or "").strip():
+            parsed: list[dict[str, str]] = []
+            for raw in lead:
+                row = parse_lead_line(raw)
+                if row:
+                    parsed.append(row)
+            if str(lead_file or "").strip():
+                file_path = Path(lead_file).expanduser()
+                if file_path.exists():
+                    for raw_line in file_path.read_text(encoding="utf-8", errors="ignore").splitlines():
+                        row = parse_lead_line(raw_line)
+                        if row:
+                            parsed.append(row)
+            if parsed:
+                summary["scan"] = append_leads(project_root, parsed, source="revenue_daily_scan")
+        if query:
+            summary["prospect"] = prospect_leads_from_web(
+                project_root,
+                queries=[str(q).strip() for q in query if str(q).strip()],
+                max_results_per_query=max(1, min(int(max_results_per_query), 25)),
+            )
+        summary["score"] = score_leads(
+            project_root,
+            segment=segment,
+            min_score=max(0.0, min(1.0, float(min_score))),
+            top=max(1, int(top)),
+        )
+        summary["draft"] = create_outreach_drafts(
+            project_root,
+            min_score=max(0.0, min(1.0, float(min_score))),
+            max_items=max(1, int(top)),
+        )
+        summary["hitl_sync"] = sync_outbox_from_hitl(project_root)
+        summary["kpi"] = revenue_kpi_summary(project_root, date_key=(date.strip() or None))
+        if as_json:
+            console.print_json(data=summary)
+            return
+        console.print(
+            f"[green]run-daily:[/green] "
+            f"qualified={int((summary.get('score') or {}).get('qualified', 0) or 0)} "
+            f"drafted={int((summary.get('draft') or {}).get('drafted', 0) or 0)} "
+            f"approved_outreach={int((summary.get('kpi') or {}).get('approved_outreach_count', 0) or 0)}"
+        )
+        return
+
+    if act in {"kpi", "status"}:
+        ensure_revenue_scaffold(project_root)
+        summary = revenue_kpi_summary(project_root, date_key=(date.strip() or None))
+        if as_json:
+            console.print_json(data=summary)
+            return
+        console.print(
+            Panel(
+                "[bold cyan]Revenue KPI[/bold cyan]\n"
+                f"date={summary.get('date')}\n"
+                f"new_leads={summary.get('new_leads_count', 0)} "
+                f"qualified={summary.get('qualified_leads_count', 0)} "
+                f"approved_outreach={summary.get('approved_outreach_count', 0)}\n"
+                f"paid_orders={summary.get('paid_orders_count', 0)} "
+                f"revenue_sek={float(summary.get('revenue_sek', 0.0) or 0.0):.2f}\n"
+                f"[dim]root={revenue_paths(project_root)['root']}[/dim]",
+                border_style="cyan",
+            )
+        )
+        return
+
+    console.print(
+        "[red]Ogiltig action.[/red] "
+        "Använd: init | prospect | scan | score | draft | outbox | hitl-status | hitl-sync | "
+        "approve | reject | sent | paid | kpi | run-daily | status"
+    )
+    raise typer.Exit(1)
+
+
 @app.command(name="trace-probe")
 def trace_probe_cmd(
     set_path: str = typer.Option(
@@ -3653,6 +4743,11 @@ def extract_insights_cmd(
     min_evidence: float = typer.Option(0.52, "--min-evidence", help="Min evidensnivå för kandidater"),
     bridges: bool = typer.Option(True, "--bridges/--no-bridges", help="Inkludera domänbro-insikter"),
     save: bool = typer.Option(True, "--save/--no-save", help="Spara kandidater till insights.jsonl"),
+    plasticity_feedback: bool = typer.Option(
+        False,
+        "--plasticity-feedback/--no-plasticity-feedback",
+        help="Applicera första plasticitetsfeedback på stödkanter från insight-gaten",
+    ),
     promote: bool = typer.Option(False, "--promote", help="Promovera starka kandidater till concept knowledge"),
     promote_min_score: float = typer.Option(0.74, "--promote-min-score", help="Min score för promotion"),
     max_promotions: int = typer.Option(8, "--max-promotions", help="Max antal promotions per körning"),
@@ -3660,6 +4755,7 @@ def extract_insights_cmd(
 ) -> None:
     from nouse.field.surface import FieldSurface
     from nouse.insights import (
+        apply_insight_plasticity,
         extract_insight_candidates,
         promote_insight_candidates,
         save_insight_candidates,
@@ -3671,7 +4767,7 @@ def extract_insights_cmd(
     safe_promote_min = max(0.0, min(1.0, float(promote_min_score)))
     safe_max_promotions = max(1, min(int(max_promotions), 200))
 
-    field = FieldSurface(read_only=(not promote))
+    field = FieldSurface(read_only=(not (promote or plasticity_feedback)))
     result = extract_insight_candidates(
         field,
         limit=safe_limit,
@@ -3685,7 +4781,9 @@ def extract_insights_cmd(
         f"rows={int(result.get('total_relation_rows', 0) or 0)} "
         f"selected={int(result.get('selected_count', 0) or 0)} "
         f"(relation={int(result.get('relation_candidates', 0) or 0)}, "
-        f"bridge={int(result.get('bridge_candidates', 0) or 0)})"
+        f"bridge={int(result.get('bridge_candidates', 0) or 0)}, "
+        f"gate_pass={int(result.get('gate_passed', 0) or 0)}, "
+        f"gate_review={int(result.get('gate_review', 0) or 0)})"
     )
 
     candidates = result.get("candidates") or []
@@ -3705,6 +4803,15 @@ def extract_insights_cmd(
         c_sup = float(comp.get("support", 0.0) or 0.0)
         c_nov = float(comp.get("novelty", 0.0) or 0.0)
         c_act = float(comp.get("actionability", 0.0) or 0.0)
+        gate = item.get("insight_gate") if isinstance(item.get("insight_gate"), dict) else {}
+        gate_status = str(gate.get("status") or "unknown")
+        gate_overall = float(gate.get("overall", 0.0) or 0.0)
+        gate_comp = gate.get("components") if isinstance(gate.get("components"), dict) else {}
+        g_ground = float(gate_comp.get("grounding", 0.0) or 0.0)
+        g_expl = float(gate_comp.get("explanation", 0.0) or 0.0)
+        g_gain = float(gate_comp.get("epistemic_gain", 0.0) or 0.0)
+        g_contra = float(gate_comp.get("contradiction_resilience", 0.0) or 0.0)
+        g_cons = float(gate_comp.get("consequence", 0.0) or 0.0)
         console.print(
             f"{idx}. [yellow]{tier}[/yellow] score={score:.2f} ev={ev:.2f} "
             f"support={support} [dim]{kind}[/dim]"
@@ -3717,6 +4824,34 @@ def extract_insights_cmd(
             f"components(ev={c_ev:.2f}, sup={c_sup:.2f}, nov={c_nov:.2f}, act={c_act:.2f})"
             "[/dim]"
         )
+        console.print(
+            "   [dim]"
+            f"gate: status={gate_status} overall={gate_overall:.2f} "
+            f"(ground={g_ground:.2f}, expl={g_expl:.2f}, gain={g_gain:.2f}, "
+            f"contra={g_contra:.2f}, cons={g_cons:.2f})"
+            "[/dim]"
+        )
+        understanding = item.get("understanding") if isinstance(item.get("understanding"), dict) else {}
+        why_it_matters = str(understanding.get("why_it_matters") or "").strip()
+        bridge_reason = str(understanding.get("bridge_reason") or "").strip()
+        if why_it_matters:
+            console.print(f"   [dim]understanding: {why_it_matters}[/dim]")
+        if kind == "relation_pattern":
+            src_node = understanding.get("source_node") if isinstance(understanding.get("source_node"), dict) else {}
+            tgt_node = understanding.get("target_node") if isinstance(understanding.get("target_node"), dict) else {}
+            src_summary = str(src_node.get("summary") or "").strip()
+            tgt_summary = str(tgt_node.get("summary") or "").strip()
+            if src_summary:
+                console.print(f"   [dim]src: {src_summary[:180]}[/dim]")
+            if tgt_summary:
+                console.print(f"   [dim]tgt: {tgt_summary[:180]}[/dim]")
+        elif kind == "domain_bridge":
+            anchor_node = understanding.get("anchor_node") if isinstance(understanding.get("anchor_node"), dict) else {}
+            anchor_summary = str(anchor_node.get("summary") or "").strip()
+            if anchor_summary:
+                console.print(f"   [dim]anchor: {anchor_summary[:180]}[/dim]")
+        if bridge_reason:
+            console.print(f"   [dim]why: {bridge_reason[:220]}[/dim]")
 
     save_result: dict[str, Any] | None = None
     if save:
@@ -3724,6 +4859,27 @@ def extract_insights_cmd(
         console.print(
             f"[dim]sparat: {save_result.get('path')} "
             f"(written={int(save_result.get('written', 0) or 0)})[/dim]"
+        )
+
+    plasticity_result: dict[str, Any] | None = None
+    if plasticity_feedback:
+        plasticity_result = apply_insight_plasticity(
+            field,
+            candidates,
+            max_items=safe_top_k,
+        )
+        by_status = plasticity_result.get("by_status") if isinstance(plasticity_result.get("by_status"), dict) else {}
+        console.print(
+            "[dim]"
+            "plasticity: "
+            f"considered={int(plasticity_result.get('considered', 0) or 0)} "
+            f"edges={int(plasticity_result.get('edges_touched', 0) or 0)} "
+            f"reinforced={int(plasticity_result.get('reinforced', 0) or 0)} "
+            f"weakened={int(plasticity_result.get('weakened', 0) or 0)} "
+            f"status(pass={int(by_status.get('pass', 0) or 0)}, "
+            f"review={int(by_status.get('review', 0) or 0)}, "
+            f"reject={int(by_status.get('reject', 0) or 0)})"
+            "[/dim]"
         )
 
     promote_result: dict[str, Any] | None = None
@@ -3743,9 +4899,136 @@ def extract_insights_cmd(
         payload = {
             **result,
             "save_result": save_result,
+            "plasticity_result": plasticity_result,
             "promote_result": promote_result,
         }
         console.print_json(data=payload)
+
+
+@app.command(name="capability-graph")
+def capability_graph_cmd(
+    route: str = typer.Option("", "--route", help="Intent eller uppgift att route:a genom capability graph"),
+    state: str = typer.Option("", "--state", help="Operator state, t.ex. stalled, overload, low_energy"),
+    needs_web: bool = typer.Option(False, "--needs-web", help="Markera att färsk webbinformation behövs"),
+    needs_files: bool = typer.Option(False, "--needs-files", help="Markera att lokala filer/systemytor behövs"),
+    needs_memory_write: bool = typer.Option(False, "--needs-memory-write", help="Markera att resultatet bör kunna skrivas till minne"),
+    needs_action: bool = typer.Option(False, "--needs-action", help="Markera att agentisk handling behövs"),
+    probe_models: bool = typer.Option(False, "--probe-models", help="Proba tillgängliga model providers live"),
+    save: bool = typer.Option(True, "--save/--no-save", help="Spara snapshot till capability_graph.json"),
+    write_to_field: bool = typer.Option(False, "--write-to-field", help="Indexera planes och bryggor i Nous-fältet"),
+    as_json: bool = typer.Option(False, "--json", help="Skriv full JSON-output"),
+) -> None:
+    from nouse.capability import (
+        build_capability_graph,
+        index_capability_graph,
+        recommend_capability_route,
+        save_capability_graph,
+    )
+    from nouse.field.surface import FieldSurface
+
+    snapshot = build_capability_graph(probe_models=bool(probe_models))
+    counts = snapshot.get("counts") if isinstance(snapshot.get("counts"), dict) else {}
+    planes = snapshot.get("planes") if isinstance(snapshot.get("planes"), dict) else {}
+
+    save_result: dict[str, Any] | None = None
+    if save:
+        save_result = save_capability_graph(snapshot)
+
+    field_result: dict[str, Any] | None = None
+    if write_to_field:
+        field = FieldSurface()
+        field_result = index_capability_graph(field, snapshot)
+
+    route_result: dict[str, Any] | None = None
+    if str(route or "").strip():
+        route_result = recommend_capability_route(
+            route,
+            state=state,
+            needs_web=bool(needs_web),
+            needs_files=bool(needs_files),
+            needs_memory_write=bool(needs_memory_write),
+            needs_action=bool(needs_action),
+            probe_models=bool(probe_models),
+        )
+
+    if as_json:
+        payload = {
+            "snapshot": snapshot,
+            "save_result": save_result,
+            "field_result": field_result,
+            "route_result": route_result,
+        }
+        console.print_json(data=payload)
+        return
+
+    console.print(
+        f"[bold cyan]Capability Graph[/bold cyan] "
+        f"planes={int(counts.get('planes', 0) or 0)} "
+        f"bridges={int(counts.get('bridges', 0) or 0)} "
+        f"tools={int(counts.get('tools', 0) or 0)} "
+        f"skills={int(counts.get('skills', 0) or 0)} "
+        f"providers={int(counts.get('providers', 0) or 0)} "
+        f"models={int(counts.get('models', 0) or 0)}"
+    )
+    model_plane = (planes.get("opencode_model_plane") or {}) if isinstance(planes, dict) else {}
+    tool_plane = (planes.get("mcp_plane") or {}) if isinstance(planes, dict) else {}
+    skill_plane = (planes.get("skill_plane") or {}) if isinstance(planes, dict) else {}
+
+    workload_rows = list(model_plane.get("workloads") or [])
+    if workload_rows:
+        preview = ", ".join(
+            f"{row.get('name')}->{row.get('provider')}"
+            for row in workload_rows[:6]
+        )
+        console.print(f"[dim]model plane:[/dim] {preview}")
+
+    tool_rows = list(tool_plane.get("tools") or [])
+    if tool_rows:
+        preview = ", ".join(str(row.get("name") or "") for row in tool_rows[:8])
+        console.print(f"[dim]mcp/tool plane:[/dim] {preview}")
+
+    skill_rows = list(skill_plane.get("skills") or [])
+    if skill_rows:
+        preview = ", ".join(str(row.get("name") or "") for row in skill_rows[:6])
+        console.print(f"[dim]skill plane:[/dim] {preview}")
+
+    if save_result:
+        console.print(f"[dim]sparat:[/dim] {save_result.get('path')}")
+    if field_result:
+        console.print(
+            "[dim]"
+            f"indexed_to_field: anchor={field_result.get('anchor')} "
+            f"nodes={int(field_result.get('nodes_touched', 0) or 0)} "
+            f"relations={int(field_result.get('relations_touched', 0) or 0)}"
+            "[/dim]"
+        )
+
+    if route_result:
+        chosen_skill = route_result.get("chosen_skill") if isinstance(route_result.get("chosen_skill"), dict) else {}
+        workload = route_result.get("workload") if isinstance(route_result.get("workload"), dict) else {}
+        governance = route_result.get("governance") if isinstance(route_result.get("governance"), dict) else {}
+        top_candidates = route_result.get("top_skill_candidates") if isinstance(route_result.get("top_skill_candidates"), list) else []
+        tool_preview = ", ".join(str(x) for x in (chosen_skill.get("tools") or [])[:8]) or "-"
+        candidate_preview = ", ".join(
+            f"{row.get('name')}:{float(row.get('score', 0.0) or 0.0):.2f}"
+            for row in top_candidates[:3]
+        )
+        console.print("")
+        console.print(f"[bold]Route[/bold] {route}")
+        console.print(
+            f"[green]skill:[/green] {chosen_skill.get('name', '-')} "
+            f"(score={float(route_result.get('skill_score', 0.0) or 0.0):.2f})"
+        )
+        console.print(f"[dim]reasons:[/dim] {', '.join(route_result.get('skill_reasons') or [])}")
+        console.print(
+            f"[dim]workload:[/dim] {workload.get('name', '-')} "
+            f"provider={workload.get('provider', '-')} "
+            f"candidates={', '.join(workload.get('candidates') or []) or '-'}"
+        )
+        console.print(f"[dim]tools:[/dim] {tool_preview}")
+        console.print(f"[dim]governance:[/dim] {governance.get('name', '-')}")
+        if candidate_preview:
+            console.print(f"[dim]top skill candidates:[/dim] {candidate_preview}")
 
 
 @app.command(name="memory-audit")

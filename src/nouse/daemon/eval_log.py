@@ -187,3 +187,98 @@ def generate_policy_suggestion(
     suggestions["ts"] = datetime.now(timezone.utc).isoformat()
     suggestions["source"] = "eval_log_auto"
     return suggestions
+
+
+# ── Operatörs-feedback (P5.3) ──────────────────────────────────────────────────
+
+FEEDBACK_PATH = path_from_env("NOUSE_FEEDBACK_LOG", "feedback_log.jsonl")
+
+
+def write_feedback(
+    verdict: str,
+    *,
+    comment: str = "",
+    cycle: int = 0,
+    active_nodes: list[str] | None = None,
+    model: str = "",
+    energy: float = 0.0,
+) -> Path:
+    """
+    Skriv operatörs-feedback (thumbs up/down) till feedback_log.jsonl.
+
+    Args:
+        verdict: "good" eller "bad"
+        comment: Valfri fritextkommentar
+        cycle: Aktuell daemon-cykel (om känd)
+        active_nodes: Aktiva grafnoder vid tillfället
+        model: Aktiv LLM-modell
+        energy: Nuvarande energy-state
+    """
+    FEEDBACK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    entry = {
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "verdict": "good" if verdict.strip().lower() in ("good", "up", "+", "1") else "bad",
+        "comment": comment.strip()[:500] if comment else "",
+        "cycle": int(cycle),
+        "active_nodes": (active_nodes or [])[:10],
+        "model": str(model or ""),
+        "energy": float(energy or 0.0),
+    }
+    with FEEDBACK_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(entry, ensure_ascii=False, sort_keys=True) + "\n")
+    _log.info("Feedback: verdict=%s cycle=%d model=%s", entry["verdict"], cycle, model)
+    return FEEDBACK_PATH
+
+
+def read_feedback(limit: int = 50) -> list[dict[str, Any]]:
+    """Läs de senaste N feedback-poster."""
+    if not FEEDBACK_PATH.exists():
+        return []
+    try:
+        lines = FEEDBACK_PATH.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except Exception:
+        return []
+    entries = []
+    for line in reversed(lines):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entry = json.loads(line)
+            if isinstance(entry, dict):
+                entries.append(entry)
+        except json.JSONDecodeError:
+            continue
+        if len(entries) >= limit:
+            break
+    return list(reversed(entries))
+
+
+def feedback_summary(limit: int = 50) -> dict[str, Any]:
+    """Sammanfatta feedback: antal good/bad, trend."""
+    entries = read_feedback(limit=limit)
+    if not entries:
+        return {"total": 0, "good": 0, "bad": 0, "ratio": 0.0, "trend": "no_data"}
+    good = sum(1 for e in entries if e.get("verdict") == "good")
+    bad = sum(1 for e in entries if e.get("verdict") == "bad")
+    total = good + bad
+    ratio = round(good / total, 3) if total > 0 else 0.0
+    # Trend: compare last 5 vs previous 5
+    recent = entries[-5:] if len(entries) >= 5 else entries
+    recent_good = sum(1 for e in recent if e.get("verdict") == "good")
+    recent_total = len(recent)
+    recent_ratio = round(recent_good / recent_total, 3) if recent_total > 0 else 0.0
+    trend = "stable"
+    if ratio > 0.0:
+        if recent_ratio > ratio + 0.1:
+            trend = "improving"
+        elif recent_ratio < ratio - 0.1:
+            trend = "declining"
+    return {
+        "total": total,
+        "good": good,
+        "bad": bad,
+        "ratio": ratio,
+        "recent_ratio": recent_ratio,
+        "trend": trend,
+    }
