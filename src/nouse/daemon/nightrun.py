@@ -430,7 +430,7 @@ async def run_night_consolidation(
             result.axioms_committed += n_matured
 
         # Kör nedbrytningsburst om det finns tid kvar
-        remaining_min = (config.max_runtime_minutes * 60 - (time.monotonic() - t0)) / 60
+        remaining_min = (max_minutes * 60 - (time.monotonic() - t0)) / 60
         if remaining_min > 3:
             n_new = await run_decomposition_burst(field, limbic_state)
             if n_new > 0:
@@ -652,6 +652,13 @@ class NightRunScheduler:
                     if (result.contradiction_caught + result.contradiction_acted_on) > 0
                     else 0.0
                 )
+                # Hämta goal metrics för eval_log
+                gm = {}
+                try:
+                    from nouse.daemon.goal_registry import goal_metrics as _gm
+                    gm = _gm()
+                except Exception:
+                    pass
                 write_eval_entry(
                     cycle=int(self.status.total_consolidated),
                     crystallization_rate=result.crystallization_rate,
@@ -663,9 +670,9 @@ class NightRunScheduler:
                     graph_concepts=stats.get("concepts", 0),
                     graph_relations=stats.get("relations", 0),
                     goals_active=result.goals_active,
-                    goals_satisfied_total=0,  # cumulative — hämtas från goal_metrics
-                    goal_satisfaction_rate=0.0,
-                    goal_progress_mean=0.0,
+                    goals_satisfied_total=gm.get("goals_satisfied_total", 0),
+                    goal_satisfaction_rate=gm.get("goal_satisfaction_rate", 0.0),
+                    goal_progress_mean=gm.get("goal_progress_mean", 0.0),
                     extra={
                         "consolidated": result.consolidated,
                         "discarded": result.discarded,
