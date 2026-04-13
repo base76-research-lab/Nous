@@ -145,6 +145,32 @@ async def run_curiosity_burst(
     target_domain: str
     sample_concepts: list[str]
 
+    # D3: Goal-directed curiosity — om aktiva mål finns, prioritera dessa
+    goal_context: str = ""
+    if not task:
+        try:
+            from nouse.daemon.goal_registry import active_goals, KIND_CONTRADICTION_RESOLVE, KIND_DOMAIN_EXPAND
+            goals = active_goals()
+            # Välj högst prioriterade mål som är relevanta för curiosity
+            for g in goals[:3]:
+                if g.kind in (KIND_CONTRADICTION_RESOLVE, KIND_DOMAIN_EXPAND):
+                    if g.target_domain:
+                        task = {
+                            "domain": g.target_domain,
+                            "concepts": g.target_concepts[:4],
+                            "rationale": g.title,
+                            "query": f"Undersök: {g.title}",
+                            "id": g.id,
+                        }
+                        goal_context = f"\n[Drive-mål] {g.title} (prioritet={g.priority:.2f})"
+                        log.info(
+                            f"Curiosity goal-directed: mål {g.id} kind={g.kind} "
+                            f"domain={g.target_domain} prio={g.priority:.2f}"
+                        )
+                        break
+        except Exception as e:
+            log.debug("Goal-directed curiosity lookup misslyckades (non-fatal): %s", e)
+
     if task:
         target_domain = str(task.get("domain") or "okänd")
         sample_concepts = [str(c) for c in (task.get("concepts") or [])][:4]
@@ -166,7 +192,8 @@ async def run_curiosity_burst(
             f"Du har fått ett explicit kunskapsgap i domänen '{target_domain}'.\n"
             f"Koncept i fokus: {', '.join(sample_concepts)}.\n"
             f"Gap-rational: {queue_rationale or 'saknas'}.\n"
-            f"Forskningsfråga: {queue_query}\n\n"
+            f"Forskningsfråga: {queue_query}\n"
+            f"{goal_context}\n\n"
             "Använd verktyg (web_search, fetch_url, list_local_mounts, "
             "find_local_files, search_local_text, read_local_file) för att samla evidens. "
             "Skriv sedan en minirapport med:\n"

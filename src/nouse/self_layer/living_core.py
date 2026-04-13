@@ -489,6 +489,27 @@ def _drive_goals(active: str) -> list[str]:
     return list(mapping.get(active, mapping["maintenance"]))
 
 
+def _goal_driven_goals(active: str) -> list[str]:
+    """
+    D5: Goal-driven goals — lägg till topp-3 aktiva mål i drivens goals-lista.
+    Används som komplement till _drive_goals() för att injicera mål i living_core.
+    """
+    try:
+        from nouse.daemon.goal_registry import active_goals
+        goals = active_goals()
+        if not goals:
+            return []
+        # Ta topp-3 prioriterade mål och formatera som goal-strängar
+        goal_strings: list[str] = []
+        for g in goals[:3]:
+            title = g.title[:80]
+            progress_pct = int(g.progress * 100)
+            goal_strings.append(f"[Drive] {title} (progress={progress_pct}%)")
+        return goal_strings
+    except Exception:
+        return []
+
+
 def _homeostasis_mode(energy: float, focus: float, risk: float) -> tuple[str, str]:
     if risk >= 0.72 or energy < 0.28:
         return ("recovery", "slow down, clear backlog, and lower operational risk")
@@ -590,10 +611,14 @@ def update_living_core(
             "strategy": strategy,
             "updated_at": _now_iso(),
         }
+        # D5: Goal-driven goals — lägg till aktiva mål i drives
+        goal_driven = _goal_driven_goals(active_drive)
+        combined_goals = goals + goal_driven
+
         state["drives"] = {
             "active": active_drive,
             "scores": {k: round(v, 4) for k, v in scores.items()},
-            "goals": goals,
+            "goals": combined_goals,
             "updated_at": _now_iso(),
         }
         state["last_reflection"] = {

@@ -137,6 +137,9 @@ class ConsolidationResult:
     evidence_quality: float = 0.0       # medel-ev på kristalliserade kanter
     evidence_promoted: int = 0         # kanter promovisade i evidens
     evidence_demoted: int = 0          # kanter demoverade i evidens
+    goals_active: int = 0              # D6: aktiva mål efter goal cycle
+    goals_satisfied: int = 0           # D6: mål som uppnåtts denna cykel
+    goals_new: int = 0                 # D6: nya mål genererade denna cykel
     duration:        float = 0.0
 
 
@@ -471,6 +474,79 @@ async def run_night_consolidation(
     except Exception as e:
         _log.warning("NightRun evidence pass misslyckades: %s", e)
 
+    # ── Steg 14: Goal cycle (Intrinsic Drive Engine) ────────────────────────────
+    try:
+        from nouse.daemon.goal_registry import (
+            active_goals, expire_stale_goals, evaluate_satisfaction,
+            satisfy_goals, goal_metrics, rewrite_goals,
+        )
+        from nouse.daemon.goal_generator import generate_goals
+
+        cycle_num = result.cycle if hasattr(result, 'cycle') else 0
+        # Använd brain.stats() för att få cycle
+        try:
+            cycle_num = field.cycle if hasattr(field, 'cycle') else 0
+        except Exception:
+            pass
+
+        # 14a: Expire stale goals
+        expired = expire_stale_goals(cycle_num)
+        _log.info("NightRun [14a] Expired %d stale goals", expired)
+
+        # 14b: Evaluate satisfaction of active goals
+        eval_entries = None
+        try:
+            from nouse.daemon.eval_log import read_eval_entries
+            eval_entries = read_eval_entries(limit=5)
+        except Exception:
+            pass
+
+        goals_before = active_goals()
+        satisfied_ids: list[str] = []
+        for goal in goals_before:
+            new_status = evaluate_satisfaction(goal, field, cycle_num, eval_entries=eval_entries)
+            if new_status == "satisfied":
+                satisfied_ids.append(goal.id)
+                _log.info("NightRun [14b] Goal %s SATISFIED: %s", goal.id, goal.title[:60])
+            elif new_status == "expired":
+                # Redan hanterat av expire_stale_goals
+                pass
+
+        if satisfied_ids:
+            n_satisfied = satisfy_goals(satisfied_ids, cycle=cycle_num)
+            result.goals_satisfied = n_satisfied
+            _log.info("NightRun [14b] Satisfied %d goals", n_satisfied)
+
+        # 14c: Generate new goals from graph topology
+        new_goals = generate_goals(
+            field, cycle_num,
+            eval_entries=eval_entries,
+            max_total=10,
+        )
+        result.goals_new = len(new_goals)
+        _log.info("NightRun [14c] Generated %d new goals", len(new_goals))
+
+        # 14d: Apply goal weights to graph nodes
+        all_active = active_goals()
+        result.goals_active = len(all_active)
+        if hasattr(field, 'apply_goal_weights'):
+            updated = field.apply_goal_weights(all_active)
+            _log.info("NightRun [14d] Updated %d node goal_weights", updated)
+
+        # 14e: Log goal metrics to eval_log
+        try:
+            gm = goal_metrics()
+            _log.info(
+                "NightRun [14e] Goal metrics: active=%d satisfied=%d rate=%.2f progress_mean=%.2f",
+                gm["goals_active"], gm["goals_satisfied_total"],
+                gm["goal_satisfaction_rate"], gm["goal_progress_mean"],
+            )
+        except Exception:
+            pass
+
+    except Exception as e:
+        _log.warning("NightRun goal cycle misslyckades (non-fatal): %s", e)
+
     result.duration = round(time.monotonic() - t0, 2)
     _log.info(
         "NightRun klar: konsoliderat=%d kasserat=%d bisociationer=%d pruning=%d "
@@ -478,7 +554,8 @@ async def run_night_consolidation(
         "reviews_promoted=%d reviews_discarded=%d "
         "ghost_q=%d +rels=%d new_topics=%d "
         "contradictions=%d(acted=%d,sev=%.2f) "
-        "crystallization=%.1f%% ev_quality=%.3f ev_promoted=%d ev_demoted=%d (%.1fs)",
+        "crystallization=%.1f%% ev_quality=%.3f ev_promoted=%d ev_demoted=%d "
+        "goals_active=%d goals_new=%d goals_satisfied=%d (%.1fs)",
         result.consolidated, result.discarded,
         result.bisociations, result.pruned, result.enriched,
         result.axioms_committed, result.axioms_flagged,
@@ -488,6 +565,7 @@ async def run_night_consolidation(
         result.contradiction_severity_mean,
         result.crystallization_rate * 100, result.evidence_quality,
         result.evidence_promoted, result.evidence_demoted,
+        result.goals_active, result.goals_new, result.goals_satisfied,
         result.duration,
     )
     return result
@@ -584,6 +662,10 @@ class NightRunScheduler:
                     contradiction_acted_on=result.contradiction_acted_on,
                     graph_concepts=stats.get("concepts", 0),
                     graph_relations=stats.get("relations", 0),
+                    goals_active=result.goals_active,
+                    goals_satisfied_total=0,  # cumulative — hämtas från goal_metrics
+                    goal_satisfaction_rate=0.0,
+                    goal_progress_mean=0.0,
                     extra={
                         "consolidated": result.consolidated,
                         "discarded": result.discarded,
@@ -591,6 +673,8 @@ class NightRunScheduler:
                         "duration": result.duration,
                         "evidence_promoted": result.evidence_promoted,
                         "evidence_demoted": result.evidence_demoted,
+                        "goals_new": result.goals_new,
+                        "goals_satisfied": result.goals_satisfied,
                         "feedback": feedback_summary(),
                     },
                 )
@@ -603,11 +687,25 @@ class NightRunScheduler:
                         # Applicera evalving-förslag via cognitive_policy
                         try:
                             from nouse.daemon.cognitive_policy import evaluate_and_apply
+                            # D6: inkludera goal-mätvärden för policy-triggers
+                            goals_active_n = result.goals_active
+                            goals_sat_total = 0
+                            goals_sat_rate = 0.0
+                            try:
+                                from nouse.daemon.goal_registry import goal_metrics as _gm
+                                _gm_data = _gm()
+                                goals_active_n = _gm_data.get("goals_active", goals_active_n)
+                                goals_sat_total = _gm_data.get("goals_satisfied_total", 0)
+                                goals_sat_rate = _gm_data.get("goal_satisfaction_rate", 0.0)
+                            except Exception:
+                                pass
                             eval_metrics = {
                                 "crystallization_rate": result.crystallization_rate,
                                 "evidence_quality": result.evidence_quality,
                                 "gap_map_shrink_rate": suggestion.get("gap_map_shrink_rate", 0.0),
                                 "energy": 0.5,  # default — living_core styr energy-trigger
+                                "goals_active": float(goals_active_n),
+                                "goal_satisfaction_rate": float(goals_sat_rate),
                             }
                             # Mappa förslagsnycklar till metrics
                             if "reason_crystallization" in suggestion:

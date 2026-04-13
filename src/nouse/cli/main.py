@@ -4301,6 +4301,134 @@ def feedback_cmd(
         console.print_json(data={"verdict": v, "path": str(path)})
 
 
+@app.command(name="goal")
+def goal_cmd(
+    action: str = typer.Argument("list", help="list | add | status | metrics"),
+    title: str = typer.Option("", "--title", "-t", help="Måltitel (för add)"),
+    kind: str = typer.Option("operator_mission", "--kind", "-k", help="Goal kind"),
+    concepts: str = typer.Option("", "--concepts", "-c", help="Komma-separerade koncept"),
+    domain: str = typer.Option("", "--domain", "-d", help="Domän"),
+    goal_id: str = typer.Option("", "--id", help="Mål-ID (för status)"),
+    as_json: bool = typer.Option(False, "--json", help="Skriv JSON"),
+) -> None:
+    """Hantera Intrinsic Drive-mål. Använd: nouse goal list/add/status/metrics"""
+    from nouse.daemon.goal_registry import (
+        active_goals, create_goal, goal_by_id, goal_metrics,
+        load_goals, satisfy_goals, KIND_OPERATOR_MISSION,
+    )
+
+    action = (action or "list").strip().lower()
+
+    if action == "metrics":
+        m = goal_metrics()
+        if as_json:
+            console.print_json(data=m)
+        else:
+            console.print("[bold]Goal Metrics[/bold]")
+            console.print(f"  Total: {m['goals_total']}  Active: {m['goals_active']}  Satisfied: {m['goals_satisfied_total']}")
+            console.print(f"  Satisfaction rate: {m['goal_satisfaction_rate']:.0%}  Progress mean: {m['goal_progress_mean']:.0%}")
+            if m['goals_by_kind']:
+                console.print("  By kind:")
+                for kind, count in m['goals_by_kind'].items():
+                    console.print(f"    {kind}: {count}")
+        return
+
+    if action == "add":
+        if not title:
+            console.print("[red]Använd --title för att ange måltitel[/red]")
+            raise typer.Exit(1)
+        concept_list = [c.strip() for c in concepts.split(",") if c.strip()] if concepts else []
+        from nouse.daemon.nightrun import NightRunConfig
+        config = NightRunConfig.load()
+        # Använd nuvarande cykel om daemon är igång
+        cycle = 0
+        try:
+            import nouse.client as client
+            if client.daemon_running():
+                status = client.brain_status()
+                cycle = int(status.get("cycle", 0) or 0)
+        except Exception:
+            pass
+        goal = create_goal(
+            title=title,
+            kind=kind,
+            target_concepts=concept_list,
+            target_domain=domain,
+            source="operator",
+            created_cycle=cycle,
+        )
+        if as_json:
+            from dataclasses import asdict
+            console.print_json(data=asdict(goal))
+        else:
+            console.print(f"[green]Mål skapat:[/green] {goal.id}")
+            console.print(f"  Titel: {goal.title}")
+            console.print(f"  Kind: {goal.kind}  Prioritet: {goal.priority:.2f}")
+            console.print(f"  Koncept: {', '.join(goal.target_concepts) or '(inga)'}")
+            if domain:
+                console.print(f"  Domän: {domain}")
+        return
+
+    if action == "status":
+        if not goal_id:
+            # Visa alla aktiva
+            goals = active_goals()
+            if not goals:
+                console.print("[dim]Inga aktiva mål.[/dim]")
+                return
+            for g in goals:
+                console.print(f"[bold]{g.id}[/bold] {g.title[:60]}")
+                console.print(f"  kind={g.kind} prio={g.priority:.2f} progress={g.progress:.0%} cycle={g.created_cycle}")
+            return
+        g = goal_by_id(goal_id)
+        if g is None:
+            console.print(f"[red]Mål {goal_id} hittades inte[/red]")
+            raise typer.Exit(1)
+        if as_json:
+            from dataclasses import asdict
+            console.print_json(data=asdict(g))
+        else:
+            console.print(f"[bold]Mål {g.id}[/bold]")
+            console.print(f"  Titel: {g.title}")
+            console.print(f"  Kind: {g.kind}  Status: {g.status}")
+            console.print(f"  Prioritet: {g.priority:.2f}  Progress: {g.progress:.0%}")
+            console.print(f"  Koncept: {', '.join(g.target_concepts) or '(inga)'}")
+            console.print(f"  Domän: {g.target_domain or '-'}")
+            console.print(f"  Skapat: cycle {g.created_cycle}  Uppdaterat: cycle {g.updated_cycle}")
+            console.print(f"  Deadline: {g.deadline_cycle or 'ingen'}")
+            if g.satisfaction_criteria:
+                console.print(f"  Kriterier: {g.satisfaction_criteria}")
+        return
+
+    if action in ("satisfy", "close", "done"):
+        if not goal_id:
+            console.print("[red]Använd --id för att ange mål-ID[/red]")
+            raise typer.Exit(1)
+        n = satisfy_goals([goal_id], cycle=0)
+        if n > 0:
+            console.print(f"[green]Mål {goal_id} markerat som uppnått[/green]")
+        else:
+            console.print(f"[yellow]Mål {goal_id} hittades inte eller redan stängt[/yellow]")
+        return
+
+    # Default: list
+    goals = active_goals()
+    if not goals:
+        console.print("[dim]Inga aktiva mål.[/dim]")
+        return
+    if as_json:
+        from dataclasses import asdict
+        console.print_json(data=[asdict(g) for g in goals])
+    else:
+        console.print(f"[bold]Aktiva mål ({len(goals)})[/bold]")
+        for g in goals:
+            bar = "█" * int(g.progress * 10) + "░" * (10 - int(g.progress * 10))
+            console.print(
+                f"  {g.id[:8]}  {g.kind[:20]:<20} {bar} {g.progress:.0%}  "
+                f"prio={g.priority:.2f}  {g.title[:40]}"
+            )
+
+
 @app.command(name="revenue")
 def revenue_cmd(
     action: str = typer.Argument(

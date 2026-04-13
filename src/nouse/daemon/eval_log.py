@@ -41,6 +41,10 @@ def write_eval_entry(
     contradiction_acted_on: int = 0,
     graph_concepts: int = 0,
     graph_relations: int = 0,
+    goals_active: int = 0,
+    goals_satisfied_total: int = 0,
+    goal_satisfaction_rate: float = 0.0,
+    goal_progress_mean: float = 0.0,
     extra: dict[str, Any] | None = None,
 ) -> Path:
     """
@@ -61,6 +65,10 @@ def write_eval_entry(
         "contradiction_acted_on": int(contradiction_acted_on),
         "graph_concepts": int(graph_concepts),
         "graph_relations": int(graph_relations),
+        "goals_active": int(goals_active),
+        "goals_satisfied_total": int(goals_satisfied_total),
+        "goal_satisfaction_rate": float(goal_satisfaction_rate),
+        "goal_progress_mean": float(goal_progress_mean),
     }
     if extra:
         entry.update(extra)
@@ -70,9 +78,11 @@ def write_eval_entry(
 
     _log.info(
         "Eval entry: cycle=%d crystallization=%.1f%% evidence_quality=%.3f "
-        "contradiction_catch_rate=%.3f gap_shrink=%.3f",
+        "contradiction_catch_rate=%.3f gap_shrink=%.3f "
+        "goals_active=%d goal_satisfaction_rate=%.3f",
         cycle, crystallization_rate * 100, evidence_quality,
         contradiction_catch_rate, gap_map_shrink_rate,
+        goals_active, goal_satisfaction_rate,
     )
     return EVAL_LOG_PATH
 

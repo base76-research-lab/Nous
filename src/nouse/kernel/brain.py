@@ -480,6 +480,27 @@ class Brain:
             )
         return brain
 
+    def apply_goal_weights(self, goals: list[Any]) -> int:
+        """
+        D3: Uppdatera goal_weight på noder baserat på aktiva mål.
+
+        Varje aktivt måls target_concepts får goal_weight = max(existerande, mål-prioritet).
+        Returnerar antal uppdaterade noder.
+        """
+        updated = 0
+        for goal in goals:
+            if getattr(goal, "status", "") != "active":
+                continue
+            priority = float(getattr(goal, "priority", 0.5))
+            for concept in getattr(goal, "target_concepts", []):
+                node = self.nodes.get(concept)
+                if node is not None:
+                    new_gw = max(float(node.goal_weight), priority)
+                    if new_gw != float(node.goal_weight):
+                        node.goal_weight = _clamp(new_gw, 0.0, 1.0)
+                        updated += 1
+        return updated
+
     def save(self, path: str | Path) -> Path:
         out_path = Path(path)
         out_path.parent.mkdir(parents=True, exist_ok=True)

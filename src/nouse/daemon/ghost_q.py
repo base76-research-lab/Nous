@@ -106,21 +106,55 @@ def find_weak_nodes(field, limit: int = 9) -> list[str]:
     """
     Hitta noder med låg evidens — kandidater för Ghost Q fördjupning.
     Returnerar lista med koncept-namn.
+
+    D3: Om aktiva mål finns, prioriteras goal-directed noder (70%)
+    med 30% vanlig weak-node-selektion (behåller utforskande).
     """
+    # D3: Goal-directed topics
+    goal_topics: list[str] = []
+    try:
+        from nouse.daemon.goal_registry import goals_by_kind, KIND_EVIDENCE_GAP
+        goal_goals = goals_by_kind(KIND_EVIDENCE_GAP)
+        for g in goal_goals[:limit]:
+            for concept in g.target_concepts:
+                if concept and concept not in goal_topics:
+                    goal_topics.append(concept)
+    except Exception:
+        pass
+
+    # Vanlig weak-node-selektion
+    regular_topics: list[str] = []
+    regular_topics: list[str] = []
     try:
         rows = field.find_weak_concepts(
             threshold=GHOST_Q_WEAK_THRESHOLD / 0.25 + 1.0,
             max_rels=3,
             limit=limit,
         )
-        return [str(r["name"]) for r in rows if r.get("name")]
+        regular_topics = [str(r["name"]) for r in rows if r.get("name")]
     except Exception as e:
         _log.debug("find_weak_nodes fallback: %s", e)
         try:
             rows = field.find_weak_concepts(threshold=1.2, limit=limit)
-            return [str(r["name"]) for r in rows if r.get("name")]
+            regular_topics = [str(r["name"]) for r in rows if r.get("name")]
         except Exception:
-            return []
+            pass
+
+    # D3: Blanda goal-directed + regular
+    if goal_topics:
+        goal_quota = max(1, int(limit * 0.7))
+        regular_quota = limit - goal_quota
+        combined = goal_topics[:goal_quota]
+        # Lägg till regular som inte redan finns i goal_topics
+        for t in regular_topics:
+            if t not in combined:
+                combined.append(t)
+            if len(combined) >= limit:
+                break
+        _log.info("Ghost Q topics: %d goal-directed + %d regular", min(len(goal_topics), goal_quota), len(combined) - min(len(goal_topics), goal_quota))
+        return combined
+
+    return regular_topics
 
 
 def find_dangling_edges(field, limit: int = 1) -> list[str]:

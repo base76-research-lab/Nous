@@ -115,6 +115,22 @@ TRIGGER_RULES: list[dict[str, Any]] = [
         "value": "high",
         "reason": "gap_map_shrink_rate < 0 → prioritera kunskapsgap",
     },
+    {
+        "metric": "goal_satisfaction_rate",
+        "condition": "below",
+        "threshold": 0.20,
+        "param": "curiosity_priority",
+        "value": "high",
+        "reason": "goal_satisfaction_rate < 0.2 → prioritera kunskapsgap",
+    },
+    {
+        "metric": "goals_active",
+        "condition": "above",
+        "threshold": 15,
+        "param": "extraction_threshold",
+        "delta": +0.05,
+        "reason": "too many active goals → var mer selektiv med nya mål",
+    },
 ]
 
 
