@@ -1339,6 +1339,37 @@ async def brain_loop(
                         except Exception as perc_err:
                             log.warning(f"  Percolation-analys fel (non-fatal): {perc_err}")
 
+                    # ── 8b2: Autonomic homeostasis (every 6th cycle) ─────────────
+                    # Reads brain atlas region distribution and auto-seeds
+                    # underrepresented regions (<5%). Mirrors biological homeostasis.
+                    if cycle % 6 == 0:
+                        try:
+                            from nouse.daemon.homeostasis import run_homeostasis_check
+                            h_results = await run_homeostasis_check(field, cycle)
+                            seeded = {r: v for r, v in h_results.items()
+                                      if v.get("action") == "seeded"}
+                            overrep = {r: v for r, v in h_results.items()
+                                       if v.get("action") == "overrepresented"}
+                            if seeded:
+                                total_added = sum(
+                                    v.get("predefined_added", 0) + v.get("llm_generated", 0)
+                                    for v in seeded.values()
+                                )
+                                log.info(
+                                    f"  Homeostas: {len(seeded)} regioner seedade "
+                                    f"+{total_added} koncept "
+                                    f"({', '.join(seeded.keys())})"
+                                )
+                            if overrep:
+                                log.warning(
+                                    f"  Homeostas: {len(overrep)} överrepresenterade regioner: "
+                                    + ", ".join(
+                                        f"{r}={v['pct']:.0%}" for r, v in overrep.items()
+                                    )
+                                )
+                        except Exception as h_err:
+                            log.debug(f"  Homeostasis check (non-fatal): {h_err}")
+
                     # ── 8c: D3 Meta-cognitive self-knowledge ────────────────────
                     # Nous reports what it understands about its own gaps.
                     try:
@@ -1783,6 +1814,8 @@ async def brain_loop(
                 log.warning(f"  Queue status misslyckades: {e}")
 
             try:
+                # Cerebellum: get procedural stats for empowerment signal
+                procedural_stats = memory_store.get_procedural_stats()
                 living_state = update_living_core(
                     cycle=cycle,
                     limbic=limbic_state,
@@ -1792,6 +1825,7 @@ async def brain_loop(
                     new_relations=new_rel,
                     discoveries=len(found),
                     bisoc_candidates=len(candidates),
+                    procedural_stats=procedural_stats,
                 )
             except Exception as e:
                 living_state = {}
