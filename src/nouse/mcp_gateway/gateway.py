@@ -846,23 +846,39 @@ def _kernel_memory() -> MemoryStore:
     return MemoryStore()
 
 
-def _kernel_policy_allows_guarded_write(approval_token: str | None = None) -> bool:
+def _kernel_policy_allows_guarded_write(
+    approval_token: str | None = None,
+    *,
+    allow_env_override: bool = True,
+) -> bool:
     env_allow = (os.getenv("NOUSE_KERNEL_ALLOW_GUARDED_WRITES") or "").strip().lower()
-    if env_allow in {"1", "true", "yes", "on"}:
+    if allow_env_override and env_allow in {"1", "true", "yes", "on"}:
         return True
     expected = (os.getenv("NOUSE_KERNEL_APPROVAL_TOKEN") or "").strip()
     token = (approval_token or "").strip()
     return bool(expected and token and token == expected)
 
 
-def _kernel_guard_or_block(operation: str, approval_token: str | None = None) -> dict[str, Any] | None:
-    if _kernel_policy_allows_guarded_write(approval_token):
+def _kernel_guard_or_block(
+    operation: str,
+    approval_token: str | None = None,
+    *,
+    allow_env_override: bool = True,
+) -> dict[str, Any] | None:
+    if _kernel_policy_allows_guarded_write(
+        approval_token,
+        allow_env_override=allow_env_override,
+    ):
         return None
     return {
         "error": "guarded_write_blocked",
         "operation": operation,
         "policy": {
-            "requires": ["NOUSE_KERNEL_ALLOW_GUARDED_WRITES=1 or valid approval_token"],
+            "requires": [
+                "NOUSE_KERNEL_ALLOW_GUARDED_WRITES=1 or valid approval_token"
+                if allow_env_override
+                else "valid approval_token"
+            ],
             "hint": "Set env var for controlled runtime or pass approval_token configured in NOUSE_KERNEL_APPROVAL_TOKEN.",
         },
         "ts": _now_iso(),
@@ -1115,7 +1131,11 @@ def kernel_update_policy(change_request: str, *, approval_token: str | None = No
 
 
 def kernel_execute_self_update(plan: str, *, approval_token: str | None = None) -> dict[str, Any]:
-    blocked = _kernel_guard_or_block("kernel_execute_self_update", approval_token)
+    blocked = _kernel_guard_or_block(
+        "kernel_execute_self_update",
+        approval_token,
+        allow_env_override=False,
+    )
     if blocked is not None:
         return blocked
     payload = f"Self-update request: {plan}"

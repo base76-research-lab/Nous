@@ -19,6 +19,18 @@ _SELF_TRAINING_FORMULA = "known_data(any source) + meta_reflection + reflections
 def living_core_path(path: Path | None = None) -> Path:
     if path is not None:
         return Path(path).expanduser()
+    explicit_path = str(os.getenv("NOUSE_LIVING_CORE_PATH", "")).strip()
+    home_root = str(os.getenv("NOUSE_HOME", "")).strip()
+    if explicit_path:
+        resolved = Path(explicit_path).expanduser()
+        if not home_root:
+            return resolved
+        home_path = Path(home_root).expanduser()
+        if str(resolved).startswith(str(home_path)):
+            return resolved
+        # If NOUSE_HOME is explicitly set and points elsewhere, prioritize NOUSE_HOME
+        # to keep path resolution deterministic across runtime/profile overrides.
+        return home_path / "self" / "living_core.json"
     return path_from_env("NOUSE_LIVING_CORE_PATH", "self/living_core.json")
 
 
@@ -530,6 +542,7 @@ def update_living_core(
     new_relations: int = 0,
     discoveries: int = 0,
     bisoc_candidates: int = 0,
+    procedural_stats: dict[str, Any] | None = None,
     path: Path | None = None,
 ) -> dict[str, Any]:
     path = living_core_path(path)
@@ -572,8 +585,26 @@ def update_living_core(
     learning_signal = min(1.0, max(0, int(new_relations)) / 20.0)
     dysregulation = min(1.0, abs(arousal - 0.6) / 0.6)
 
+    # Cerebellum Problem: empowerment signal from procedural memory
+    # Default 0.5 if no procedural stats available
+    empowerment = 0.5
+    if procedural_stats and isinstance(procedural_stats, dict):
+        cross_domain_eff = float(procedural_stats.get("cross_domain_effectiveness", 0.5) or 0.5)
+        # Map effectiveness [0,1] to empowerment [0.2, 0.8] with boost for activity
+        pattern_count = int(procedural_stats.get("pattern_count", 0) or 0)
+        activity_boost = min(0.2, pattern_count / 1000)  # Small boost for active learning
+        empowerment = _clamp((0.3 + 0.5 * cross_domain_eff) + activity_boost, 0.0, 1.0)
+
+    # Cerebellum-augmented curiosity: includes empowerment signal
+    # Old: 0.45·λ + 0.35·discovery + 0.20·(1-risk)
+    # New: 0.35·λ + 0.25·discovery + 0.15·(1-risk) + 0.25·empowerment
     scores = {
-        "curiosity": _clamp((0.45 * lam) + (0.35 * discovery_signal) + (0.20 * (1.0 - risk))),
+        "curiosity": _clamp(
+            (0.35 * lam)
+            + (0.25 * discovery_signal)
+            + (0.15 * (1.0 - risk))
+            + (0.25 * empowerment)
+        ),
         "maintenance": _clamp((0.50 * risk) + (0.30 * (1.0 - energy)) + (0.20 * queue_pressure)),
         "improvement": _clamp((0.40 * (1.0 - performance)) + (0.35 * learning_signal) + (0.25 * queue_pressure)),
         "recovery": _clamp((0.55 * (1.0 - energy)) + (0.25 * dysregulation) + (0.20 * risk)),

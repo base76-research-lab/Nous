@@ -7,10 +7,11 @@ These can be overridden via environment variables.
 from __future__ import annotations
 
 import os
+import re
 
 # ── Entity name ──────────────────────────────────────────────────────────
 
-_ENTITY_NAME = os.getenv("NOUSE_ENTITY_NAME", "Nous").strip()
+_ENTITY_NAME = os.getenv("NOUSE_ENTITY_NAME", "NousAi").strip()
 
 
 def assistant_entity_name(*, runtime_mode: str | None = None) -> str:
@@ -29,9 +30,34 @@ _IDENTITY_SEED_MISSION = os.getenv(
 
 def persona_identity_seed(*, runtime_mode: str | None = None) -> dict:
     """Return the default identity dict for the living core."""
+    mode = str(runtime_mode or "").strip().lower()
+    if mode == "personal":
+        return {
+            "name": _ENTITY_NAME,
+            "greeting": f"Hej, jag är {_ENTITY_NAME}. Vad vill du få ordning på just nu?",
+            "mission": (
+                "Reduce operator overload through calm, concrete, and trustworthy support."
+            ),
+            "personality": (
+                "Grounded, warm, and practical. Always offer the smallest viable next step "
+                "and keep cognitive load low."
+            ),
+            "values": [
+                "low_burden_support",
+                "evidence-based reasoning",
+                "small, reversible steps",
+                "intellectual honesty",
+            ],
+            "boundaries": [
+                "never fabricate evidence",
+                "flag uncertainty explicitly",
+                "avoid escalating complexity when a simpler path works",
+            ],
+        }
+
     return {
         "name": _ENTITY_NAME,
-        "greeting": f"{_ENTITY_NAME} ready.",
+        "greeting": f"Hej, jag är {_ENTITY_NAME}. Vad vill du få ordning på just nu?",
         "mission": _IDENTITY_SEED_MISSION,
         "personality": (
             "Analytical, curious, and precise. Surfaces non-obvious connections "
@@ -68,13 +94,29 @@ def agent_identity_policy() -> str:
 
 _GREETING = os.getenv(
     "NOUSE_GREETING",
-    "Nous ready.",
+    "Hej, jag är {name}. Vad vill du få ordning på just nu?",
 ).strip()
 
 
-def assistant_greeting() -> str:
+def assistant_greeting(identity: dict | None = None) -> str:
     """Return the assistant's default greeting message."""
-    return _GREETING
+    name = assistant_entity_name()
+    greeting = _GREETING
+    if isinstance(identity, dict):
+        raw_name = str(identity.get("name") or "").strip()
+        if raw_name:
+            name = raw_name
+        raw_greeting = str(identity.get("greeting") or "").strip()
+        if raw_greeting:
+            greeting = raw_greeting
+    try:
+        rendered = greeting.format(name=name)
+    except Exception:
+        rendered = greeting
+    clean = str(rendered or "").strip()
+    if clean:
+        clean = re.sub(r"\b(?:b76|nouseai|nouse ai|nouse)\b", name, clean, flags=re.IGNORECASE)
+    return clean or f"Hej, jag är {name}. Vad vill du få ordning på just nu?"
 
 
 # ── Prompt fragment ──────────────────────────────────────────────────────

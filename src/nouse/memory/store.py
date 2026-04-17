@@ -288,13 +288,34 @@ class MemoryStore:
             type_counts[t] = int(type_counts.get(t, 0)) + 1
 
         patterns = list(procedural.get("recent_patterns") or [])
+
+        # Extract domain pairs from relations for Cerebellum empowerment tracking
+        domain_pairs: set[tuple[str, str]] = set()
+        for r in rels:
+            src_domain = str(r.get("domain_src") or "okänd")
+            tgt_domain = str(r.get("domain_tgt") or "okänd")
+            pair = (min(src_domain, tgt_domain), max(src_domain, tgt_domain))
+            domain_pairs.add(pair)
+
+        # Check for external confirmation (evidence_score >= 0.65 or assumption_flag=False)
+        externally_confirmed = any(
+            _safe_float(r.get("evidence_score"), 0.5) >= 0.65 and not bool(r.get("assumption_flag"))
+            for r in rels
+        ) if rels else False
+
+        # Primary domain pair (or single domain if no relations)
+        primary_pair = next(iter(domain_pairs)) if domain_pairs else (episode["domain_hint"], episode["domain_hint"])
+
         patterns.append(
             {
                 "ts": ts,
                 "source": src,
-                "domain_hint": episode["domain_hint"],
+                "domain_hint": primary_pair[0],
+                "domain_hint_B": primary_pair[1],
                 "relation_count": len(rels),
                 "relation_types": rel_types,
+                "externally_confirmed": externally_confirmed,
+                "domain_pairs_count": len(domain_pairs),
             }
         )
         if len(patterns) > 200:
@@ -523,6 +544,139 @@ class MemoryStore:
             "dialogue_facts": len(dialogue_facts),
             "touched_episode_ids": touched_episodes,
         }
+
+    def get_procedural_stats(self) -> dict[str, Any]:
+        """
+        Return actionable procedural statistics for Cerebellum empowerment signal.
+        """
+        procedural = self._load_procedural()
+        patterns = list(procedural.get("recent_patterns") or [])
+
+        # Compute effectiveness per domain pair
+        pair_stats: dict[tuple[str, str], dict[str, Any]] = {}
+        for p in patterns:
+            d_a = str(p.get("domain_hint") or "okänd")
+            d_b = str(p.get("domain_hint_B") or d_a)
+            pair_key = (min(d_a, d_b), max(d_a, d_b))
+
+            if pair_key not in pair_stats:
+                pair_stats[pair_key] = {"attempts": 0, "successes": 0, "last_ts": ""}
+
+            pair_stats[pair_key]["attempts"] += 1
+            if p.get("externally_confirmed", False):
+                pair_stats[pair_key]["successes"] += 1
+            if str(p.get("ts") or "") > pair_stats[pair_key]["last_ts"]:
+                pair_stats[pair_key]["last_ts"] = str(p.get("ts") or "")
+
+        # Convert tuple keys to string for JSON serialization
+        pair_stats_serializable = {
+            f"{k[0]}||{k[1]}": v for k, v in pair_stats.items()
+        }
+
+        # Compute cross-domain effectiveness (different domains in pair)
+        cross_domain_attempts = 0
+        cross_domain_successes = 0
+        for (d_a, d_b), stats in pair_stats.items():
+            if d_a != d_b:
+                cross_domain_attempts += stats["attempts"]
+                cross_domain_successes += stats["successes"]
+
+        cross_domain_effectiveness = (
+            cross_domain_successes / max(1, cross_domain_attempts)
+        )
+
+        return {
+            "source_counts": dict(procedural.get("source_counts") or {}),
+            "relation_type_counts": dict(procedural.get("relation_type_counts") or {}),
+            "recent_patterns": patterns,
+            "pair_effectiveness": pair_stats_serializable,
+            "cross_domain_effectiveness": round(cross_domain_effectiveness, 4),
+            "cross_domain_attempts": cross_domain_attempts,
+            "cross_domain_successes": cross_domain_successes,
+            "pattern_count": len(patterns),
+            "updated": _now_iso(),
+        }
+
+    def empowerment_signal(
+        self,
+        domain_A: str,
+        domain_B: str,
+        relation_type: str | None = None,
+    ) -> float:
+        """
+        Compute empowerment signal for exploring domain_A ↔ domain_B.
+        Tracks (domain_A, domain_B) pairs, not single domains.
+
+        Formula: effectiveness × recency_weight × cross_domain_bonus × rigidity_penalty
+
+        Returns float in [0.0, 1.0] where higher = more empowered to explore.
+        """
+        procedural = self._load_procedural()
+        patterns = list(procedural.get("recent_patterns") or [])
+
+        # Order-independent pair key
+        d_a_norm = str(domain_A or "okänd").strip()
+        d_b_norm = str(domain_B or "okänd").strip()
+        pair_key = (min(d_a_norm, d_b_norm), max(d_a_norm, d_b_norm))
+
+        # Filter patterns matching this domain pair
+        pair_patterns: list[dict[str, Any]] = []
+        for p in patterns:
+            p_a = str(p.get("domain_hint") or "okänd")
+            p_b = str(p.get("domain_hint_B") or p_a)
+            p_pair = (min(p_a, p_b), max(p_a, p_b))
+            if p_pair == pair_key:
+                pair_patterns.append(p)
+
+        # Prior: unexplored pair = moderate empowerment (curiosity bonus)
+        if not pair_patterns:
+            return 0.4
+
+        # Calculate effectiveness
+        successes = [p for p in pair_patterns if p.get("externally_confirmed", False)]
+        attempts = len(pair_patterns)
+
+        if attempts == 0:
+            return 0.4
+
+        effectiveness = len(successes) / attempts
+
+        # Recency weight: newer successes = stronger signal
+        def _recency_weight(success_list: list[dict[str, Any]]) -> float:
+            if not success_list:
+                return 0.5  # Neutral if no confirmed successes yet
+            # Use most recent success timestamp
+            most_recent = max(
+                str(p.get("ts") or "1970-01-01T00:00:00") for p in success_list
+            )
+            try:
+                from datetime import datetime
+                recent_dt = datetime.fromisoformat(most_recent.replace("Z", "+00:00"))
+                now_dt = datetime.now(timezone.utc)
+                age_hours = (now_dt - recent_dt).total_seconds() / 3600
+                # Decay: 1.0 at age 0, ~0.5 at 24h, ~0.25 at 48h
+                import math
+                return 1.0 / (1.0 + math.log1p(max(0, age_hours)))
+            except Exception:
+                return 0.5
+
+        recency_weight = _recency_weight(successes)
+
+        # Cross-domain bonus: bisociation premium
+        cross_domain_bonus = 1.3 if d_a_norm != d_b_norm else 1.0
+
+        # Rigidity penalty: approaching k_sweet reduces empowerment
+        # (simplified: reduce signal if many attempts already)
+        if attempts > 20:
+            rigidity_penalty = 0.7
+        elif attempts > 10:
+            rigidity_penalty = 0.85
+        else:
+            rigidity_penalty = 1.0
+
+        # Calculate final empowerment signal
+        raw = effectiveness * recency_weight * cross_domain_bonus * rigidity_penalty
+        return float(max(0.0, min(1.0, raw)))
 
     def audit(self, *, limit: int = 20) -> dict[str, Any]:
         episodes = self._load_episodes()

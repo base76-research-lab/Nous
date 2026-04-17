@@ -16,7 +16,13 @@ from typing import Any
 from nouse.config.paths import path_from_env
 
 
+JOURNAL_DIR: Path | None = path_from_env("NOUSE_JOURNAL_DIR", "journal")
+
+
 def journal_dir() -> Path:
+    override = JOURNAL_DIR
+    if isinstance(override, Path):
+        return override.expanduser()
     return path_from_env("NOUSE_JOURNAL_DIR", "journal")
 
 
