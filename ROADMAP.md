@@ -83,10 +83,11 @@ Created `src/nouse/persona.py` stub with sensible defaults:
 
 - [ ] Fas 0: System ready — `pytest tests/` passes clean
   - blocker: persona import errors, 8 collection errors
-- [ ] Fas 1: Intellectual priority — Larynx Problem on Zenodo (DOI)
-  - sub: also Academia.edu + PhilPapers
-  - sub: sister paper (Creative Free Energy / F_bisoc)
-  - sub: GitHub README presentation
+- [x] Fas 1: Intellectual priority — Larynx Problem published
+  - ✅ Zenodo: https://zenodo.org/records/19413234
+  - ✅ PhilPapers: https://philpapers.org/rec/WIKTLP
+  - sub: sister paper (Creative Free Energy / F_bisoc) — pending
+  - sub: GitHub README presentation — pending
 - [ ] Fas 2: Empirical validation — TruthfulQA benchmark
   - 8B without Nous: ~46% | 8B with Nous: ~96% (small test set, not universal)
   - need: lm-eval integration, proper benchmark run

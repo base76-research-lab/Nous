@@ -45,7 +45,13 @@ Allt annat (ESA, konferens, HuggingFace) är amplifiering. Dessa tre är grunden
 
 **Mål:** Sätt ett datum på arXiv. Det är allt som krävs för prioritet.
 
-### 1a. Publicera "The Larynx Problem" via Zenodo + Academia.edu + PhilPapers
+### 1a. ✅ Publicera "The Larynx Problem" via Zenodo + PhilPapers
+
+**KLART (2026-04-18)**
+- Zenodo: https://zenodo.org/records/19413234
+- PhilPapers: https://philpapers.org/rec/WIKTLP
+
+### 1a-original. Publicera "The Larynx Problem" via Zenodo + Academia.edu + PhilPapers
 
 **Zenodo (prioritet + DOI):**
 - Ladda upp PDF på zenodo.org → New Upload → Publication type: Preprint
@@ -183,7 +189,7 @@ Om TruthfulQA-resultaten är starka:
 | Fas | Kriterium | Indikator på att gå vidare |
 |-----|-----------|---------------------------|
 | 0 | Systemet fungerar | `pytest tests/` passerar |
-| 1 | Intellektuell prioritet | arXiv submission ID |
+| 1 | Intellektuell prioritet | ✅ Zenodo DOI + PhilPapers (2026-04-18) |
 | 2 | Empirisk validering | MC1 +5pp, eller 8B > 70B baseline |
 | 3 | Institutionell närvaro | ESA draft + HF Space live |
 | 4 | Frontier-radar | 1+ inbound från researcher/company |
