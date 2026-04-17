@@ -1,13 +1,19 @@
 # Nous ROADMAP
 
 > Single source of truth for project state. Next LLM session: read THIS file + latest handoff, then start working.
-> Updated: 2026-04-15
+> Updated: 2026-04-17
 
 ---
 
 ## Current Focus
 
-**Brain atlas + sensorimotor loop + sweet spot calibration — targeting balanced topology**
+**Conductor-arkitektur: Claude = dirigent, Ollama/Paperclip = workers**
+
+Homeostasis implementerad (auto-seeds underrepresenterade hjärnregioner varje 6:e cykel).
+Paperclip installerat som orchestration-lager — CTO + ResearchScientist kör nu via Ollama
+(kimi-k2.5:cloud, 0 Claude-tokens). CEO kör Haiku.
+FNC-Bench GDP physics-dataset genererat (20 frågor via dispatch.py).
+Nästa: Nous goal_registry → Paperclip issues bridge, LPI-protokoll, daemon-omstart.
 
 Daemon kör fulla kognitiva cykler med D3 goal-directed execution. Brain atlas avslöjar "slagsida": 88% av koncept i Parietal+Brainstem, <1% i Frontal/Hippocampus/Amygdala. Sweet spot calibration visar alla 200 nervbanor har k=1 mot k_min=8.6. Kamera (Occipital Lobe) + llava:7b fungerar. Speech-modul (Temporal+Frontal) byggd men TTS/STT inte aktiverad.
 
@@ -63,7 +69,7 @@ Created `src/nouse/persona.py` stub with sensible defaults:
   - [x] D3.2 goal-directed curiosity (initiative.py) — D3 primary path with percolation awareness
   - [x] D3.3 goal_weight dynamics (brain.py) — apply + decay_goal_weights per cycle
   - [ ] D3.4 NightRun integration — generate_from_percolation in nightrun
-- [ ] D4 Satisfaction & Feedback — close the goal loop
+  - [x] D3.5 Cerebellum bridge — empowerment_signal from procedural layer → curiosity scoring (2026-04-16)
 - [ ] D4 Satisfaction & Feedback — close the goal loop
   - [ ] D4.1 evaluate_satisfaction() in goal_registry.py
   - [ ] D4.2 CLI: `nouse goal add/list/status`
@@ -147,6 +153,12 @@ F_bisoc = prediction_error + lam * complexity_blend; threshold=0.45
 | 2026-04-14 | Added Stop hooks: handoff reminder + git push check |
 | 2026-04-15 | Percolation module: domain density monitoring, bridge domains, targeted ingestion tasks |
 | 2026-04-15 | Fixed bisociation detection: priority_domains param + KuzuDB 1-hop path fix + bridge_bisociation_search() |
+| 2026-04-16 | Seed command (`nouse seed`): bootstrap underrepresenterade brain regions med LLM-genererad kunskap, source=llm_bootstrap |
+| 2026-04-16 | Reasoning benchmark: nous 31.6% cross_domain vs 15.8% bare — dubbelt så hög bisociation accuracy |
+| 2026-04-16 | Brain topology: Swedish underscore-domains (metakognition_och_syntes, logik_och_beslut, etc.) |
+| 2026-04-16 | Substack workflow: Markdown → HTML render → copy/paste (semi-automatiserad) |
+| 2026-04-16 | Nous.wiki cloned, daemon restart 08:02:55 (Apr 16) |
+| 2026-04-16 | Cerebellum Problem drafted: procedural memory som missing substrate för kreativ empowerment; empowerment_signal saknas i Nous; implementering skissad |
 | 2026-04-15 | D3 goal-directed execution: identify_loose_nodes(), generate_from_percolation(), goal-directed curiosity primary path, goal_weight decay, meta-cognitive logging |
 | 2026-04-15 | Fixed D3 goal_weights: added apply_goal_weights() + decay_goal_weights() to FieldSurface (was silently skipped — only existed on Brain) |
 | 2026-04-15 | Research sweep: Sartori's Bidirectional Coherence Paradox validates Larynx Problem; Kim's SCL mirrors Nous; zero recent AI bisociation papers |
