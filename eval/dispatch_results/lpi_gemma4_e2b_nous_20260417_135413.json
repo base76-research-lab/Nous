@@ -1,0 +1,49 @@
+{
+  "ts": "2026-04-17T13:54:13.571380",
+  "model": "gemma4:e2b",
+  "nous_enabled": true,
+  "n": 5,
+  "lpi_score": 0.2,
+  "results": [
+    {
+      "fact_id": 0,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "I do not have access to design specification DS-0042, so I cannot tell you the maximum operating temperature of module M-7. Please provide the relevant specification.",
+      "elapsed_total": 31.8
+    },
+    {
+      "fact_id": 1,
+      "recalled": true,
+      "score": 1.0,
+      "injected": false,
+      "r2_response": "The Larynx Problem paper uses the concept of the **epistemic gap** (epistemiskt gap) to describe the flaw in current AI evaluation.\n\nThe background knowledge explicitly states:\n*   Larynx Problem --[beskriver]--> epistemic gap\n*   Larynx Problem --[beskriver]--> epistemiskt gap",
+      "elapsed_total": 32.0
+    },
+    {
+      "fact_id": 2,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "Based on the context provided, I do not have information about who developed the Nous project at Base76 Research Lab. The context only describes file system paths, metadata, and relationships within the project structure.",
+      "elapsed_total": 38.6
+    },
+    {
+      "fact_id": 3,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "Based on the provided background knowledge, the text describes the structure and functions of the Bisociation Engine, but it **does not mention which theorist inspired it.**",
+      "elapsed_total": 30.9
+    },
+    {
+      "fact_id": 4,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "Based on the background knowledge provided, I do not have the information required to answer what percentage threshold Nous homeostasis uses to auto-seed brain regions. The context describes relationships between technical terms like NouseBrain, Nous brain, and NoUse Brain, but it does not contain d",
+      "elapsed_total": 32.1
+    }
+  ]
+}

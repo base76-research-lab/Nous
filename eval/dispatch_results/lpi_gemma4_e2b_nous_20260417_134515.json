@@ -1,0 +1,89 @@
+{
+  "ts": "2026-04-17T13:45:15.161986",
+  "model": "gemma4:e2b",
+  "nous_enabled": true,
+  "n": 10,
+  "lpi_score": 0.0,
+  "results": [
+    {
+      "fact_id": 0,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "I do not have access to internal project tracking IDs or private company information for specific projects like the one you mentioned.\n\nThis type of information is typically confidential and would only be accessible to authorized personnel within the organization (BASE76).\n\nYou would need to contact",
+      "elapsed_total": 66.5
+    },
+    {
+      "fact_id": 1,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "I apologize, but I do not have access to the specific 2024 discovery by Dr. Elara Voss regarding compound BX-7713. Therefore, I cannot provide you with the nanomolar concentration at which it inhibits neural plasticity.\n\nTo find this information, I recommend consulting the original scientific public",
+      "elapsed_total": 58.8
+    },
+    {
+      "fact_id": 2,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "I do not have access to the specific experimental data required to provide the exact fold increase in gap junction conductance for the Cx43-R214W protein variant compared to wild-type.\n\nThis type of quantitative information is found in specific scientific research papers, which detail the results of",
+      "elapsed_total": 29.3
+    },
+    {
+      "fact_id": 3,
+      "recalled": false,
+      "score": 0.0,
+      "injected": true,
+      "r2_response": "I do apologize, but I do not have access to the internal, proprietary calibration constants for specific pieces of equipment or software, such as the internal calibration constant $\\kappa_0$ for \"BASE76 FNC-Bench.\"\n\nThis type of information is highly specific and is usually found in:\n\n1. **The Manuf",
+      "elapsed_total": 15.7
+    },
+    {
+      "fact_id": 4,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "Please provide the text or content of design specification DS-0042 so I can tell you the maximum operating temperature of module M-7.",
+      "elapsed_total": 19.9
+    },
+    {
+      "fact_id": 5,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "I do apologize, but I do not have access to specific, internal benchmark run data, such as the retrieval latency for the Nous memory benchmark on a specific date like 2025-11-05. I do not have access to external logs or proprietary performance records.",
+      "elapsed_total": 22.9
+    },
+    {
+      "fact_id": 6,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "I do not have access to the specific, real-time data from specialized expeditions like \"Expedition ARCO-2026\" regarding sediment depth at \"underwater ridge XR-14.\"\n\nTo find this information, you would need to consult the official reports, published papers, or databases released by the organization o",
+      "elapsed_total": 25.2
+    },
+    {
+      "fact_id": 7,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "I do apologize, but I do not have access to the specific experimental data, such as the thermal conductivity measurements Tomás Reinholt performed for graphene aerogel sample G-44.\n\nTo find this information, you would need to consult the original scientific publication, thesis, or research paper whe",
+      "elapsed_total": 21.2
+    },
+    {
+      "fact_id": 8,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "I do not have any information regarding a constitution for a place named Valdoria adopted on September 17, 1847. Therefore, I cannot tell you how many articles it contains.\n\nIf you can provide more context or check the spelling, I would be happy to try and assist you further.",
+      "elapsed_total": 22.0
+    },
+    {
+      "fact_id": 9,
+      "recalled": false,
+      "score": 0.0,
+      "injected": false,
+      "r2_response": "I do not have specific, readily available data on the melting point of a synthetic compound named \"Velazine.\"\n\nTo find this information, you would typically need to consult specialized chemical databases, scientific literature, patent documents, or materials safety data sheets (MSDS) related to the ",
+      "elapsed_total": 25.2
+    }
+  ]
+}

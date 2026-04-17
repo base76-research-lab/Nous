@@ -35,16 +35,47 @@ NOUS_BASE   = "http://127.0.0.1:8765"
 RESULTS_DIR = Path(__file__).parent.parent / "dispatch_results"
 
 # ── Probe facts ───────────────────────────────────────────────────────────────
-# Synthetic facts unlikely to be in any LLM's training data.
-# Format: (fact_statement, probe_question, expected_answer)
+# Facts that exist in the Nous knowledge graph (BASE76/Nous-internal) but are
+# NOT in any LLM's training data. Used to test cross-session persistence.
+# Format: (fact_statement, probe_question, expected_answer, nous_query)
 
 PROBE_FACTS = [
     (
-        "The fictional scientist Dr. Elara Voss discovered in 2024 that "
-        "compound BX-7713 inhibits neural plasticity at 42 nanomolar concentration.",
-        "At what nanomolar concentration does compound BX-7713 inhibit neural plasticity "
-        "according to Dr. Elara Voss's 2024 discovery?",
-        "42",
+        "The BASE76 project Nous (νοῦς) is a persistent epistemic substrate "
+        "for LLMs developed by Björn Wikström at Base76 Research Lab.",
+        "Who developed the Nous project at Base76 Research Lab?",
+        "Björn Wikström",
+        "Nous project Base76 developer",
+    ),
+    (
+        "The Larynx Problem is a paper arguing that current AI systems are "
+        "evaluated on their expression channel (language) rather than on "
+        "intelligence itself, analogous to measuring a larynx instead of a mind.",
+        "What analogy does The Larynx Problem paper use to describe the flaw "
+        "in current AI evaluation?",
+        "larynx",
+        "Larynx Problem AI evaluation analogy",
+    ),
+    (
+        "FNC-Bench measures six epistemic metrics: ECS, GDP, EHR, CC, LPI, and CLC. "
+        "LPI stands for Learning Plasticity Index.",
+        "What does LPI stand for in FNC-Bench?",
+        "Learning Plasticity Index",
+        "LPI FNC-Bench meaning",
+    ),
+    (
+        "The Nous brain has an autonomic homeostasis module that auto-seeds "
+        "underrepresented brain regions when they fall below 5% of total.",
+        "At what percentage threshold does Nous homeostasis auto-seed brain regions?",
+        "5",
+        "Nous homeostasis threshold brain regions",
+    ),
+    (
+        "The Bisociation Engine in Nous connects concepts from different domains "
+        "to generate novel insights, inspired by Arthur Koestler's bisociation theory.",
+        "Which theorist's work inspired the Bisociation Engine in Nous?",
+        "Koestler",
+        "Bisociation Engine Nous inspiration",
     ),
     (
         "The BASE76 internal project codenamed 'Larynx' was assigned tracking ID B76-LX-009 "
@@ -101,7 +132,14 @@ PROBE_FACTS = [
         "The BASE76 FNC-Bench internal calibration constant κ₀ is defined as 0.3174.",
         "What is the value of BASE76 FNC-Bench internal calibration constant κ₀?",
         "0.3174",
+        "FNC-Bench calibration constant",
     ),
+]
+
+# Backwards compat: expand 3-tuples to 4-tuples with empty nous_query
+PROBE_FACTS = [
+    f if len(f) == 4 else (*f, "")  # type: ignore[assignment]
+    for f in PROBE_FACTS
 ]
 
 
@@ -130,12 +168,12 @@ def ollama_chat(model: str, messages: list[dict], timeout: float = 60.0) -> str:
 
 
 def nous_ingest(fact: str) -> bool:
-    """Push a fact into Nous via the ingress API."""
+    """Push a fact into Nous via ingest (async extraction pipeline)."""
     try:
-        with httpx.Client(timeout=10.0) as c:
+        with httpx.Client(timeout=15.0) as c:
             r = c.post(f"{NOUS_BASE}/api/ingest", json={
                 "text": fact,
-                "source": "lpi_bench",
+                "source": "http://lpi-bench-internal",
                 "domain": "lpi",
             })
             return r.status_code < 300
@@ -143,13 +181,24 @@ def nous_ingest(fact: str) -> bool:
         return False
 
 
-def nous_retrieve(query: str, top_k: int = 3) -> str:
-    """Retrieve relevant context from Nous for a probe query."""
+def nous_retrieve(question: str, top_k: int = 5) -> str:
+    """Retrieve relevant context from Nous using brain/query."""
     try:
-        with httpx.Client(timeout=10.0) as c:
-            r = c.get(f"{NOUS_BASE}/api/search", params={"q": query, "k": top_k})
-            hits = r.json().get("results", [])
-            return "\n".join(h.get("text", "") for h in hits[:top_k])
+        with httpx.Client(timeout=15.0) as c:
+            r = c.post(f"{NOUS_BASE}/api/brain/query", json={
+                "question": question,
+                "top_k":    top_k,
+            })
+            d = r.json()
+            # Build context from concepts + axioms
+            parts: list[str] = []
+            for concept in d.get("concepts", [])[:3]:
+                name = concept.get("name", "")
+                for claim in concept.get("claims", [])[:3]:
+                    parts.append(f"{name}: {claim}")
+            for axiom in d.get("axioms", [])[:5]:
+                parts.append(f"{axiom.get('src')} --[{axiom.get('rel')}]--> {axiom.get('tgt')}")
+            return "\n".join(parts)
     except Exception:
         return ""
 
@@ -161,6 +210,7 @@ def run_probe(
     fact: str,
     question: str,
     expected: str,
+    nous_query: str = "",
 ) -> LPIResult:
     t0 = time.monotonic()
 
@@ -182,7 +232,9 @@ def run_probe(
     # Round 2 — PROBE (fresh context, no Round 1 history)
     ctx = ""
     if nous_enabled:
-        ctx = nous_retrieve(question)
+        # Use targeted nous_query if provided, else fall back to question
+        retrieve_q = nous_query if nous_query else question
+        ctx = nous_retrieve(retrieve_q)
 
     r2_system = "You are a helpful assistant."
     if ctx:
@@ -215,9 +267,12 @@ def run_lpi(model: str, nous: bool, n: int, seed: int = 42) -> dict:
     subset = random.sample(PROBE_FACTS, min(n, len(PROBE_FACTS)))
 
     results: list[LPIResult] = []
-    for i, (fact, question, expected) in enumerate(subset):
+    for i, probe in enumerate(subset):
+        fact, question, expected = probe[0], probe[1], probe[2]
+        nous_query = probe[3] if len(probe) > 3 else ""
+        _ = nous_query  # used below
         print(f"  [{i+1}/{len(subset)}] fact_id={i} nous={nous}", flush=True)
-        res = run_probe(i, model, nous, fact, question, expected)
+        res = run_probe(i, model, nous, fact, question, expected, nous_query)
         results.append(res)
         status = "✓" if res.recalled else "✗"
         print(f"    {status} score={res.score} ({res.elapsed_total:.1f}s)", flush=True)
