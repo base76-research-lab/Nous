@@ -1,13 +1,13 @@
 <p align="center">
-  <img src="IMG/nous-header.svg" alt="Nous (νοῦς) — persistent epistemic substrate for AI" width="100%">
+  <img src="IMG/nous-header.svg" alt="Nous (νοῦς) — plastic metacognitive layer for AI" width="100%">
 </p>
 
 <p align="center">
-  <strong>Language models are a larynx. Nous is a persistent epistemic substrate for AI.</strong>
+  <strong>Language models are a larynx. Nous is a plastic metacognitive layer for AI.</strong>
 </p>
 
 <p align="center">
-  Nous stores typed relations, graded uncertainty, contradiction boundaries, and memory across time.
+  A persistent epistemic substrate that stores typed relations, graded uncertainty, contradiction boundaries, and memory across time.
 </p>
 
 <p align="center">
@@ -115,7 +115,7 @@ We call this the **Intent Disambiguation Effect**.
 
 ## What Nous Is
 
-Nous (νοῦς, Gk. *mind* / *active intellect*) is a **persistent, self-growing epistemic substrate** that attaches to any LLM.
+Nous (νοῦς, Gk. *mind* / *active intellect*) is a **plastic metacognitive layer** — a persistent, self-growing epistemic substrate that attaches to any LLM.
 
 It is informed by brain-inspired plasticity, cognitive research, and the practical failure modes of LLM memory.
 
