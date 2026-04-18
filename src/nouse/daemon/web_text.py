@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -243,18 +244,32 @@ def _parse_vtt_text(raw: str) -> str:
 
 
 def _extract_youtube_text_via_ytdlp(url: str, vid: str) -> tuple[str, str]:
-    if not shutil.which("yt-dlp"):
+    # shutil.which respekterar aktuellt PATH — om nouse kör under en annan Python-version
+    # (t.ex. 3.13) kanske yt-dlp bara finns i pyenv-shims eller en annan venv.
+    # Direkta sökvägar prioriteras framför pyenv-shims (shims misslyckas om aktiv
+    # Python-version inte har yt-dlp installerat).
+    _YTDLP_CANDIDATES = [
+        os.path.expanduser("~/.pyenv/versions/3.11.11/bin/yt-dlp"),
+        os.path.expanduser("~/.local/bin/yt-dlp"),
+        "/usr/local/bin/yt-dlp",
+        "/usr/bin/yt-dlp",
+    ]
+    ytdlp = next((p for p in _YTDLP_CANDIDATES if os.path.isfile(p)), None)
+    # Sista utväg: låt PATH avgöra (funkar om shim matchar aktiv Python-version)
+    if not ytdlp:
+        ytdlp = shutil.which("yt-dlp")
+    if not ytdlp:
         return "", "yt_dlp_missing"
 
     with tempfile.TemporaryDirectory(prefix="b76_yt_") as td:
         out_tmpl = str(Path(td) / "%(id)s.%(ext)s")
         cmd = [
-            "yt-dlp",
+            ytdlp,
             "--skip-download",
             "--write-auto-sub",
             "--write-sub",
             "--sub-langs",
-            "en,sv,en.*,sv.*",
+            "en,en-orig,en-US",
             "--sub-format",
             "vtt",
             "--no-abort-on-error",
@@ -268,7 +283,7 @@ def _extract_youtube_text_via_ytdlp(url: str, vid: str) -> tuple[str, str]:
                 cmd,
                 check=False,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,
                 timeout=90,
             )
         except Exception:

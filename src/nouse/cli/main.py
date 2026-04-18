@@ -3099,7 +3099,10 @@ def learn_from_cmd(
 ) -> None:
     import httpx
     import nouse.client as client
-    import nouse.ingestd_client as ingestd_client
+    try:
+        import nouse.ingestd_client as ingestd_client
+    except ModuleNotFoundError:
+        ingestd_client = None  # type: ignore[assignment]
     from nouse.daemon.file_text import extract_text
     from nouse.daemon.sources import DEFAULT_INGEST_EXTENSIONS, iter_ingest_files
     from nouse.daemon.web_text import extract_text_from_url, is_url
@@ -3185,7 +3188,7 @@ def learn_from_cmd(
         console.print(
             "[yellow]Daemon ej nåbar. Extraherad text köas i capture_queue för senare ingest.[/yellow]"
         )
-    ingestd_up = bool(files) and ingestd_client.daemon_running()
+    ingestd_up = bool(files) and ingestd_client is not None and ingestd_client.daemon_running()
     if ingestd_up:
         console.print("[dim]learn-from: ingestd online, använder Rust-extraktion för lokala filer.[/dim]")
 
