@@ -1,17 +1,35 @@
-# Nous — Persistent Epistemic Substrate with Biological Intelligence
+# Nous — Plastic Metacognitive Layer for Any LLM
 
 ## One-Line Pitch
-**Nous is a self-organizing epistemic substrate that learns, consolidates, forgets, and discovers connections no one told it to look for.**
+**Nous is a plastic metacognitive layer that gives any LLM a brain and persistent memory — the more input it receives, the richer its topology, the better its understanding.**
 
 ---
 
 ## What Is Nous?
 
-Nous is a **persistent epistemic substrate** for AI agents and humans. Unlike vector databases (RAG) that just retrieve documents, Nous **actively processes, consolidates, and connects knowledge** using mechanisms borrowed from neuroscience: Hebbian plasticity, spike-timing-dependent plasticity (STDP), limbic neuromodulation, topological data analysis (TDA), and recursive epistemic decomposition.
+Nous is not RAG. Nous is not a graph database. Nous is not a smarter prompt.
 
-**The core insight:** LLMs are the larynx (language wrapper). Nous is the brain (structured memory + reasoning substrate). Together they form a **bisociation engine** — a system that discovers creative cross-domain connections that neither component could find alone.
+Nous is a **plastic metacognitive layer** — a persistent epistemic substrate that attaches to any LLM and provides what LLMs structurally lack: the ability to know what they know, with what confidence, and what they do not know.
 
-**Key differentiator:** Nous doesn't just store facts. It **grows neural pathways between them**, strengthens frequently-used connections, prunes weak ones, and autonomously discovers that quantum coherence in photosynthesis is structurally isomorphic to error correction in distributed systems — without anyone telling it to look.
+**The Larynx Problem:** LLMs are stateless formal systems. They process symbol strings without epistemic commitment. They cannot distinguish what they know from what they hallucinate. Scaling makes them more fluent — not more grounded.
+
+**The architecture:**
+
+```
+question → LLM → answer_v1
+answer_v1 + question → Nous.metacognition → epistemic_signal
+question + answer_v1 + epistemic_signal → LLM → answer_final
+```
+
+Pass 1 — LLM thinks freely, full parametric knowledge, no pollution.  
+Pass 2 — Nous evaluates epistemic status: which claims are supported? contradicted? uncertain? what bisociative connections exist that the LLM missed?  
+Pass 3 — LLM refines with epistemic grounding: corrects hallucinations, expresses calibrated uncertainty, extends with genuine cross-domain connections.
+
+**The scaling property:** The more input Nous receives, the richer the topology — the better the metacognition. Not because the database grows, but because topological richness enables bisociation. More nodes across more diverse domains create structural bridges between previously unconnected knowledge. The health metric is bisociation readiness, not concept count.
+
+**Model-agnostic:** Nous attaches to any LLM. The contract never changes. GPT-5 today, LLaMA-6 tomorrow.
+
+**The core insight:** LLMs are the larynx (language production). Nous is the brain (epistemic substrate). Together: a bisociation engine capable of discovering connections that neither component could find alone.
 
 ---
 
@@ -521,20 +539,21 @@ Pre-populate graph with universal primitives by running decomposition on top hub
 
 ---
 
-## What Makes Nous Different from RAG?
+## What Makes Nous Different?
 
-| Feature | Traditional RAG | Nous |
-|---------|----------------|-------|
-| Storage | Flat vector chunks | Typed knowledge graph with evidence scoring |
-| Learning | None — static embeddings | Hebbian plasticity + STDP + limbic modulation |
-| Discovery | Cosine similarity only | TDA bisociation (topological, not semantic) |
-| Consolidation | None | 11-phase NightRun (sleep analog) |
-| Pruning | None | Noradrenaline-guided compaction |
-| Self-improvement | None | Recursive decomposition → universal primitives |
-| Cross-domain | None | Automatic bridge synthesis between disconnected domains |
-| Autonomy | Query-response only | 18-step autonomous brain loop |
-| Emotion | None | 3-signal limbic system (dopamine, noradrenaline, acetylcholine) |
-| Metacognition | None | Snapshots, self-modification, emergent property detection |
+| | Traditional RAG | Vector DB | Nous |
+|---|---|---|---|
+| **Role** | Knowledge retrieval | Similarity search | Metacognitive layer |
+| **Architecture** | Inject context into prompt | Embed + cosine rank | LLM → Nous → LLM |
+| **Storage** | Flat vector chunks | Embeddings | Typed graph, evidence-scored |
+| **Learning** | None — static | None — static | Hebbian plasticity + STDP + limbic |
+| **Discovery** | Semantic similarity | Semantic similarity | TDA bisociation (topological) |
+| **Consolidation** | None | None | 11-phase NightRun (sleep analog) |
+| **Epistemic signal** | None | None | Contradiction, evidence, uncertainty, bisociation |
+| **Scaling property** | More docs → more retrieval hits | More vectors → more matches | More input → richer topology → better metacognition |
+| **Autonomy** | Query-response | Query-response | 18-step autonomous brain loop |
+| **Cross-domain** | None | None | Automatic bridge synthesis |
+| **Metacognition** | None | None | Knows what it knows, with what confidence |
 
 ---
 
@@ -542,9 +561,17 @@ Pre-populate graph with universal primitives by running decomposition on top hub
 
 > "LLM(Larynx) + Nous(Brain) = Bisociation Engine"
 
-Nous embodies the principle that intelligence isn't about having the right answer — it's about having the right **connections**. By continuously building, strengthening, pruning, and bridging knowledge paths, Nous creates a substrate where creative insights emerge from structure, not from brute-force retrieval.
+LLMs are stateless. They know but do not remember. They answer but do not believe. They produce but cannot distinguish what they know from what they guess.
 
-The system is designed around Arthur Koestler's concept of **bisociation**: the creative act of connecting two previously unrelated frames of reference. Nous automates this through topological analysis — finding domains that are structurally similar but semantically distant, then using LLMs to synthesize the bridge.
+Nous is the missing layer. Not retrieval — **metacognition**. The capacity to evaluate one's own epistemic state: what is known with high confidence, what is contradicted, what is thin, and what unexpected connections exist across domains that no one made explicit.
+
+Intelligence is not about having the right answer. It is about knowing the epistemic status of your answer — and having the structural memory to improve it.
+
+Nous grows plastically with every input. Not because it stores more facts, but because a richer topology enables richer bisociation. The brain does not get smarter by adding more neurons — it gets smarter by forming better connections between them.
+
+The system is built around Arthur Koestler's concept of **bisociation**: the creative act of connecting two previously unrelated frames of reference. Nous automates this through topological analysis — finding domains that are structurally similar but semantically distant, then using the metacognitive pass to surface the bridge to the LLM.
+
+> Nous is not a memory system. It is what makes memory *mean something*.
 
 ---
 
