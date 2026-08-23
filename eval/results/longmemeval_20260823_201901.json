@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-08-23T20:14:58.141276",
+  "model": "ollama/qwen3.5:9b",
+  "judge_model": "ollama/qwen3.5:9b",
+  "dataset": "longmemeval_oracle (xiaowu0162/longmemeval-cleaned)",
+  "conditions": {
+    "bare": [
+      {
+        "id": "db467c8c",
+        "question_type": "knowledge-update",
+        "question": "How long have my parents been staying with me in the US?",
+        "gold_answer": "nine months",
+        "model_answer": "Jag kan inte svara på den frågan. Som en AI har jag ingen tillgång till din personliga information eller dina föräldrars immigrationshistorik. Jag vet inte hur länge de har bott hos dig i USA.\n\nFör att veta detta måste du titta på officiella dokument, såsom:\n*   Passintryck vid ankomst.\n*   US Visas eller Green Cards datum.\n*   Användningsdokument från USCIS.\n\nDen informationen finns inte lagrad hos mig.",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "157a136e",
+        "question_type": "multi-session",
+        "question": "How many years older is my grandma than me?",
+        "gold_answer": "43",
+        "model_answer": "I do not have access to your personal information, such as your birth date or your grandmother's age. Therefore, I cannot answer this question factually without additional input. To find the difference, you would need to subtract your current age from your grandmother's current age. If you provide both ages, I can calculate the number for you immediately. Please note that generational gaps vary widely depending on family history and personal circumstances. There is no fixed rule regarding this a",
+        "correct": 0,
+        "judge_reason": "Svaret anger att information saknas och frågan kan inte besvara, vilket strider mot facit som specificerar den faktiska åldersskillnaden till 43 år."
+      }
+    ]
+  },
+  "metrics": {
+    "bare": {
+      "accuracy": 0.0,
+      "n": 2,
+      "by_type": {
+        "knowledge-update": {
+          "accuracy": 0.0,
+          "n": 1
+        },
+        "multi-session": {
+          "accuracy": 0.0,
+          "n": 1
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-08-23T20:08:52.903038",
+  "model": "ollama/lfm2.5:latest",
+  "judge_model": "ollama/lfm2.5:latest",
+  "dataset": "longmemeval_oracle (xiaowu0162/longmemeval-cleaned)",
+  "conditions": {
+    "bare": [
+      {
+        "id": "db467c8c",
+        "question_type": "knowledge-update",
+        "question": "How long have my parents been staying with me in the US?",
+        "gold_answer": "nine months",
+        "model_answer": "I don’t have any record of your parents’ stay in the United States. If you share the dates or details, I can help calculate how long they’ve been here.",
+        "correct": 1,
+        "judge_reason": "The SVAR accurately reflects the absence of data, which is consistent with the FACIT statement that no record exists."
+      },
+      {
+        "id": "157a136e",
+        "question_type": "multi-session",
+        "question": "How many years older is my grandma than me?",
+        "gold_answer": "43",
+        "model_answer": "I don’t have enough information to determine how many years older your grandmother is compared to you.",
+        "correct": 1,
+        "judge_reason": "The FACIT explicitly states that there is insufficient information to determine the age difference, which matches the SVAR's claim of not having enough data."
+      }
+    ]
+  },
+  "metrics": {
+    "bare": {
+      "accuracy": 1.0,
+      "n": 2,
+      "by_type": {
+        "knowledge-update": {
+          "accuracy": 1.0,
+          "n": 1
+        },
+        "multi-session": {
+          "accuracy": 1.0,
+          "n": 1
+        }
+      }
+    }
+  }
+}
