@@ -56,3 +56,24 @@ väntar fortfarande på egna beslutstillfällen.
 Det här är inte "bygg allt nu". Fas 1 är rimlig att göra i ett avgränsat pass.
 Fas 2 och 3 är riktiga, men större — de förtjänar egna beslutstillfällen,
 inte ett "kör allt" i slutet av en redan mycket lång session.
+
+## Fas 3 — beslut 2026-08-23
+
+Alla fyra punkter (7–10) godkända av Björn. Rekommenderad
+byggordning, inte kronologisk ordning på listan:
+
+1. **10 (energibudget)** — billigast, mest mekanisk, redan observerat
+   konkret behov (VRAM-konflikt daemon vs. benchmark, 23/8 kväll). Ingen
+   förutsättning behövs.
+2. **9 (multi-timescale strength)** — **vänta tills LongMemEval (Fas 2 steg 6)
+   faktiskt kör en full delmängd och mäter kvalitet.** Annars går det inte
+   att avgöra om separationen faktiskt hjälper eller bara lägger till
+   komplexitet (§13-fallgropen i hjärndokumentet: "fler parametrar löser
+   det").
+3. **8 (predictive coding som beslutsdrivare)** — hänger ihop med 9,
+   naturlig uppföljare när arousal/strength-signalerna är skarpare.
+4. **7 (full Global Workspace-arbitrering)** — störst, mest genomgripande.
+   Sist, när 8–10 gett en tydligare bild av vad arbitreringen faktiskt ska
+   arbitrera mellan.
+
+Inget av detta påbörjat än.

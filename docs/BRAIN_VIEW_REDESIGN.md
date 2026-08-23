@@ -60,5 +60,22 @@ Dopamine speglar redan verklig belöningssignal (1.0 = stadig framgång).
       stället för ett generiskt hippocampus-pulse. Kvarstår: samma koppling
       för `bisoc_candidates` (kandidater innan de blir riktiga synapser —
       loggas idag bara i journalen, emittas aldrig som SSE-event).
-- [ ] Lager 4 (TDA-baserad positionering)
-- [ ] Lager 5 (tankeström-panel)
+- [x] Lager 4 (TDA-baserad positionering) — klart 2026-08-23:
+      `region_tda_positions()` (`field/brain_topology.py`) kör klassisk MDS
+      på regioners koncept-centroid-avstånd, ny `/api/brain_regions/
+      tda_positions`, `brain_view.js` hämtar och slår om innan regionerna
+      byggs, tyst fallback till hårdkodade positioner vid otillräcklig
+      täckning. Blockerades först av en tyst bugg: standard-embed-modellen
+      (`nomic-embed-text-v2-moe`) var inte installerad (404 mot Ollama),
+      så `domain_tda_profile()` föll alltid tillbaka till topologiska
+      pseudo-vektorer i stället för semantiska embeddings — ingen centroid
+      någonsin beräknad. Fixat via `NOUSE_EMBED_MODEL=nomic-embed-text:latest`
+      i daemonens systemd-tjänst (det som faktiskt är `ollama pull`:at).
+      Detta blockerade även semantisk bisociation, inte bara Brain View —
+      2493 embeddings beräknade inom sekunder efter omstart. Verifierat
+      live mot skarpa grafen: full täckning (11/11 regioner).
+- [x] Lager 5 (tankeström-panel) — klart 2026-08-23:
+      `living_core.last_reflection.thought` exponerad i heartbeat-SSE:t
+      (`/api/events`), visas som en enkel rad i UI:t (`#thought-stream`).
+
+## Status: alla fem lager klara (2026-08-23)
