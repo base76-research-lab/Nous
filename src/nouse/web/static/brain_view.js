@@ -41,6 +41,9 @@
   let pulseEffects = [];
   let animFrame;
   let clock;
+  let nervePathCurves = [];   // {curve, particleGroup} — resande signaler
+  let energyParticles = [];   // {mesh, curveIdx, t, speed}
+  let isDragging = false;     // pausar auto-rotation medan man drar
 
   // ── Three.js setup ────────────────────────────────────────────────
 
@@ -243,24 +246,20 @@
       ['corpus_callosum', 'temporal_right'],
     ];
 
+    nervePathCurves = [];
+
     for (const [a, b] of pathways) {
       const ra = REGIONS[a];
       const rb = REGIONS[b];
       if (!ra || !rb) continue;
 
-      const points = [];
       const [ax, ay, az] = ra.pos;
       const [bx, by, bz] = rb.pos;
-
-      // Curved path (slight arc)
-      const mid = [(ax + bx) / 2, (ay + by) / 2 + 8, (az + bz) / 2];
-      for (let t = 0; t <= 20; t++) {
-        const f = t / 20;
-        const x = ax * (1 - f) * (1 - f) + mid[0] * 2 * f * (1 - f) + bx * f * f;
-        const y = ay * (1 - f) * (1 - f) + mid[1] * 2 * f * (1 - f) + by * f * f;
-        const z = az * (1 - f) * (1 - f) + mid[2] * 2 * f * (1 - f) + bz * f * f;
-        points.push(new THREE.Vector3(x, y, z));
-      }
+      const mid = new THREE.Vector3((ax + bx) / 2, (ay + by) / 2 + 8, (az + bz) / 2);
+      const curve = new THREE.QuadraticBezierCurve3(
+        new THREE.Vector3(ax, ay, az), mid, new THREE.Vector3(bx, by, bz)
+      );
+      const points = curve.getPoints(20);
 
       const pathGeo = new THREE.BufferGeometry().setFromPoints(points);
       const pathMat = new THREE.LineBasicMaterial({
@@ -269,7 +268,31 @@
         opacity: 0.12,
       });
       brainGroup.add(new THREE.Line(pathGeo, pathMat));
+
+      // Spara kurvan så en signal (energipartikel) kan färdas längs den
+      // kontinuerligt — det är det som gör att grafen känns levande i
+      // stället för en frusen illustration.
+      nervePathCurves.push({ curve, colorA: new THREE.Color(ra.color), colorB: new THREE.Color(rb.color) });
     }
+
+    // Ambienta signaler: några partiklar som alltid glider längs slumpade
+    // banor, oavsett verklig aktivitet — ren atmosfär, inte ett mätvärde
+    // (jämför stjärnfältet i Concept Atlas-vyn).
+    const ambientCount = Math.min(10, nervePathCurves.length * 2);
+    for (let i = 0; i < ambientCount; i++) {
+      spawnEnergyParticle(Math.floor(Math.random() * nervePathCurves.length), 0.4 + Math.random() * 0.5);
+    }
+  }
+
+  function spawnEnergyParticle(curveIdx, speed) {
+    const path = nervePathCurves[curveIdx];
+    if (!path) return;
+    const geo = new THREE.SphereGeometry(1.3, 8, 8);
+    const color = Math.random() < 0.5 ? path.colorA : path.colorB;
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.85 });
+    const mesh = new THREE.Mesh(geo, mat);
+    brainGroup.add(mesh);
+    energyParticles.push({ mesh, curveIdx, t: Math.random(), speed: speed || 0.5 });
   }
 
   // ── Heat data ───────────────────────────────────────────────────
@@ -422,8 +445,26 @@
       }
     }
 
-    // Subtle brain rotation
-    brainGroup.rotation.y = Math.sin(time * 0.1) * 0.05;
+    // Kontinuerlig, långsam svävning — ett levande objekt i rymden,
+    // inte en fryst illustration. Pausas medan användaren själv drar.
+    if (!isDragging) {
+      brainGroup.rotation.y = time * 0.045;
+      brainGroup.rotation.x = Math.sin(time * 0.07) * 0.06;
+    }
+
+    // Energipartiklar — signaler som färdas mellan regioner längs
+    // nervbanorna. Det här är fMRI-känslan: synlig, riktad rörelse
+    // mellan fält, inte bara statiska linjer.
+    for (const p of energyParticles) {
+      const path = nervePathCurves[p.curveIdx];
+      if (!path) continue;
+      p.t += dt * p.speed * 0.3;
+      if (p.t > 1) p.t -= 1;
+      const pos = path.curve.getPoint(p.t);
+      p.mesh.position.copy(pos);
+      const pulse = 0.7 + 0.3 * Math.sin(time * 4 + p.curveIdx);
+      p.mesh.material.opacity = 0.5 + 0.35 * pulse;
+    }
 
     renderer.render(scene, camera);
   }
@@ -431,7 +472,7 @@
   // ── Simple orbit controls ───────────────────────────────────────
 
   function setupOrbit(container) {
-    let isDragging = false;
+    // isDragging är modulnivå (delad med auto-rotation i animate())
     let prevX = 0, prevY = 0;
     let rotX = 0, rotY = 0;
 
@@ -506,8 +547,21 @@
     source.addEventListener('synapse_formed', (e) => {
       try {
         const data = JSON.parse(e.data);
-        // Synapse = hippocampus
-        pulseRegion('hippocampus');
+        // En synaps är en verklig strukturell isomorfi mellan två domäner
+        // (axon_growth_cone.py) — Koestlers bisociation, inte bara en
+        // pulsering. Blixtra mellan de faktiska regionerna i stället för
+        // ett generiskt hippocampus-pulse. Lager 3, docs/BRAIN_VIEW_REDESIGN.md.
+        if (data.domain_src && data.domain_tgt) {
+          const ra = classifyDomainSimple(data.domain_src);
+          const rb = classifyDomainSimple(data.domain_tgt);
+          if (ra !== rb) {
+            bisociationFlash(ra, rb);
+          } else {
+            pulseRegion(ra);
+          }
+        } else {
+          pulseRegion('hippocampus');
+        }
       } catch (err) {}
     });
   }

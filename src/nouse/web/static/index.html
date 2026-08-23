@@ -8,27 +8,31 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
+      /* 2026-2030 redesign: dark glass, not parchment. Kept the same
+         variable names so every existing panel/rule picks this up
+         automatically — see docs/BRAIN_VIEW_REDESIGN.md. */
       --font-ui: 'IBM Plex Sans', 'Aptos', 'Segoe UI', sans-serif;
-      --font-display: 'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif JP', Georgia, serif;
+      --font-display: 'IBM Plex Sans', 'Aptos', 'Segoe UI', sans-serif;
       --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
-      --scene-night: #120d18;
-      --scene-indigo: #20284f;
-      --scene-plum: #422537;
-      --scene-sun: #d88d3f;
-      --paper-main: rgba(244, 233, 214, 0.94);
-      --paper-strong: rgba(249, 241, 228, 0.98);
-      --paper-edge: rgba(255, 252, 244, 0.45);
-      --ink-main: #1c1517;
-      --ink-soft: #5a474a;
-      --ink-faint: #8b7678;
-      --accent-vermilion: #c9523c;
-      --accent-indigo: #334671;
-      --accent-gold: #d29c33;
-      --accent-plum: #7a4966;
-      --accent-jade: #43796d;
-      --accent-moss: #5d7b46;
-      --panel-border: rgba(49, 34, 32, 0.42);
-      --panel-line: rgba(60, 42, 38, 0.14);
+      --scene-night: #0a0b12;
+      --scene-indigo: #141a33;
+      --scene-plum: #1c1230;
+      --scene-sun: #5ee0ff;
+      --paper-main: rgba(16, 18, 28, 0.56);
+      --paper-strong: rgba(20, 23, 36, 0.72);
+      --paper-edge: rgba(255, 255, 255, 0.08);
+      --ink-main: #eef1f8;
+      --ink-soft: #a7b0c9;
+      --ink-faint: #6d7590;
+      --accent-vermilion: #ff5c72;
+      --accent-indigo: #5ee0ff;
+      --accent-gold: #ffcf5c;
+      --accent-plum: #a78bfa;
+      --accent-jade: #34e2b5;
+      --accent-moss: #7ee08a;
+      --panel-border: rgba(255, 255, 255, 0.12);
+      --panel-line: rgba(255, 255, 255, 0.06);
+      --panel-blur: 22px;
       --text-main: var(--ink-main);
       --text-soft: var(--ink-soft);
       --text-faint: var(--ink-faint);
@@ -76,20 +80,19 @@
     }
 
     #graph-container { position: fixed; inset: 0; }
-    #city-container  { position: fixed; inset: 0; display: none; }
     #brain-container { position: fixed; inset: 0; display: none; background: #120d18; }
 
     /* ── HUD Panels ─────────────────────────────────────────── */
     .hud {
       position: fixed;
       z-index: 100;
-      background:
-        linear-gradient(180deg, rgba(255, 252, 247, 0.15), transparent 18%),
-        var(--paper-main);
+      background: var(--paper-main);
+      backdrop-filter: blur(var(--panel-blur)) saturate(140%);
+      -webkit-backdrop-filter: blur(var(--panel-blur)) saturate(140%);
       border: 1px solid var(--panel-border);
-      border-radius: 18px 6px 18px 6px;
+      border-radius: 14px;
       box-shadow:
-        0 18px 38px rgba(9, 7, 10, 0.34),
+        0 18px 38px rgba(0, 0, 0, 0.45),
         inset 0 0 0 1px var(--paper-edge);
       padding: 12px 14px;
       font-size: 12px;
@@ -102,8 +105,8 @@
       position: absolute;
       inset: 0;
       background:
-        linear-gradient(135deg, rgba(201, 82, 60, 0.08), transparent 34%),
-        radial-gradient(circle at 100% 0, rgba(210, 156, 51, 0.1), transparent 28%);
+        linear-gradient(135deg, rgba(94, 224, 255, 0.06), transparent 34%),
+        radial-gradient(circle at 100% 0, rgba(167, 139, 250, 0.08), transparent 28%);
       pointer-events: none;
       z-index: -1;
     }
@@ -111,6 +114,19 @@
     #hud-stats {
       top: 14px; left: 14px;
       min-width: 200px;
+    }
+
+    /* Sekundära paneler — dolda som standard, ingen anledning att
+       konkurrera med scenen förrän man aktivt vill använda dem.
+       Toggla med "☰ Tools"-knappen (toggleTools() i JS). */
+    #hud-domains, #hud-controls, #hud-models, #hud-chat-control {
+      display: none;
+    }
+    body.tools-open #hud-domains,
+    body.tools-open #hud-controls,
+    body.tools-open #hud-models,
+    body.tools-open #hud-chat-control {
+      display: block;
     }
 
     #hud-domains {
@@ -170,7 +186,7 @@
 
     #insights-toggle:hover {
       background: var(--paper-strong);
-      border-color: rgba(201, 82, 60, 0.55);
+      border-color: rgba(255, 92, 114, 0.55);
       transform: translateX(-50%) translateY(-1px);
     }
 
@@ -201,7 +217,7 @@
     #finding-flash.is-active {
       opacity: 0.94;
       background:
-        linear-gradient(135deg, rgba(201, 82, 60, 0.12), transparent 40%),
+        linear-gradient(135deg, rgba(255, 92, 114, 0.16), transparent 40%),
         rgba(18, 13, 24, 0.94);
       border-color: rgba(210, 156, 51, 0.34);
       transform: translateX(-50%) translateY(-2px);
@@ -480,14 +496,14 @@
     }
     .ctrl-input:focus {
       outline: none;
-      border-color: rgba(201, 82, 60, 0.55);
-      box-shadow: 0 0 0 3px rgba(201, 82, 60, 0.12);
+      border-color: rgba(255, 92, 114, 0.55);
+      box-shadow: 0 0 0 3px rgba(255, 92, 114, 0.16);
     }
 
     .ctrl-btn {
       width: 100%;
-      background: linear-gradient(180deg, rgba(255, 249, 241, 0.96), rgba(237, 221, 198, 0.96));
-      border: 1px solid rgba(61, 39, 36, 0.28);
+      background: linear-gradient(180deg, rgba(20, 22, 34, 0.85), rgba(30, 34, 50, 0.9));
+      border: 1px solid rgba(255, 255, 255, 0.14);
       border-radius: 10px 4px 10px 4px;
       color: var(--ink-main);
       padding: 5px 8px;
@@ -501,7 +517,7 @@
     }
     .ctrl-btn:hover {
       background: linear-gradient(180deg, rgba(255, 251, 245, 1), rgba(243, 227, 206, 1));
-      border-color: rgba(201, 82, 60, 0.46);
+      border-color: rgba(255, 92, 114, 0.46);
       transform: translateY(-1px);
       box-shadow: 0 8px 18px rgba(31, 20, 22, 0.14);
     }
@@ -589,7 +605,7 @@
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(69, 47, 45, 0.28); border-radius: 2px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(201, 82, 60, 0.44); }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 92, 114, 0.44); }
 
     /* Close button */
     .close-btn {
@@ -616,10 +632,10 @@
     .view-btn:hover {
       background: linear-gradient(180deg, rgba(255, 250, 242, 0.96), rgba(242, 222, 198, 0.96));
       color: var(--ink-main);
-      border-color: rgba(201, 82, 60, 0.46);
+      border-color: rgba(255, 92, 114, 0.46);
     }
     .view-btn.active {
-      background: linear-gradient(180deg, rgba(212, 156, 51, 0.92), rgba(201, 82, 60, 0.92));
+      background: linear-gradient(180deg, rgba(212, 156, 51, 0.92), rgba(255, 92, 114, 0.92));
       border-color: rgba(255, 242, 224, 0.48);
       color: #fff7ed;
       font-weight: bold;
@@ -660,14 +676,11 @@
   <button class="view-btn"        id="btn-ripple"   onclick="setView('ripple')">◎ Ripple Pulse</button>
   <button class="view-btn"        id="btn-path"     onclick="setView('path')">⟿ Thread Path</button>
   <button class="view-btn"        id="btn-brain"    onclick="setView('brain')">🧠 Brain View</button>
-  <button class="view-btn"        id="btn-city"     onclick="setView('city')">⛩ City Story</button>
+  <button class="view-btn" id="btn-tools" onclick="toggleTools()" style="margin-left:auto">☰ Tools</button>
 </div>
 
 <!-- Graph container -->
 <div id="graph-container"></div>
-
-<!-- City view container -->
-<div id="city-container"></div>
 
 <!-- Brain view container -->
 <div id="brain-container"></div>
@@ -867,18 +880,30 @@
 
 <!-- 3D Force Graph via CDN -->
 <script src="https://unpkg.com/three@0.155.0/build/three.min.js"></script>
-<script src="https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js"></script>
-<script src="/static/city.js"></script>
-<script src="/static/brain_view.js"></script>
+<script src="https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js"></script><script src="/static/brain_view.js"></script>
 
 <script>
 'use strict';
 
 // ── Domänfärgpalett ────────────────────────────────────────────
+// 2026-2030-palett: vivid, hög mättnad, konsekvent ljushet — inte de
+// dova jordtonerna från tidigare. Se docs/BRAIN_VIEW_REDESIGN.md.
 const PALETTE = [
-  '#334671','#43796d','#c9523c','#d29c33','#7a4966',
-  '#5d7b46','#a54f44','#6a8aa7','#567a8b','#8d5f32',
-  '#8e6a86','#4a5d8d','#7f814b','#b5723f','#51603f',
+  '#5ee0ff', // cyan
+  '#a78bfa', // violet
+  '#ff5c72', // coral/rose
+  '#ffcf5c', // amber
+  '#34e2b5', // mint
+  '#7ee08a', // lime-green
+  '#ff8fd6', // pink
+  '#6f9bff', // periwinkle
+  '#ff9a5c', // orange
+  '#4de0c7', // teal
+  '#c792ff', // lavender
+  '#5cd6ff', // sky
+  '#ffd166', // gold
+  '#ff6b8b', // rose-red
+  '#87f5a3', // spring green
 ];
 const domainColors = {};
 let domainColorIdx = 0;
@@ -892,9 +917,9 @@ const UI_THEME = Object.freeze({
   ink: '#1c1517',
   soft: '#5a474a',
   faint: '#8b7678',
-  accent: '#c9523c',
-  indigo: '#334671',
-  gold: '#d29c33',
+  accent: '#ff5c72',
+  indigo: '#5ee0ff',
+  gold: '#ffcf5c',
   success: '#5d7b46',
   shadow: 'rgba(25, 17, 16, 0.22)',
 });
@@ -943,6 +968,20 @@ const DISPLAY_LABELS = Object.freeze({
   'indikation': 'indication',
   'hypotes': 'hypothesis',
 });
+
+// Desaturerar en hex-färg mot grått i proportion till `amount` [0,1].
+// amount=0 → oförändrad (validerat), amount=1 → helt grå (rent antagande).
+// Lager 2, docs/BRAIN_VIEW_REDESIGN.md.
+function desaturateHex(hex, amount) {
+  const clamped = Math.max(0, Math.min(1, amount || 0));
+  if (clamped <= 0) return hex;
+  const n = parseInt(String(hex).replace('#', ''), 16);
+  const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+  const mix = (c) => Math.round(c + (gray - c) * clamped);
+  const toHex = (c) => c.toString(16).padStart(2, '0');
+  return `#${toHex(mix(r))}${toHex(mix(g))}${toHex(mix(b))}`;
+}
 
 function domainColor(domain) {
   if (!domain) return '#6a8aaa';
@@ -1193,11 +1232,15 @@ function pulseFindingTargets(entry) {
   const targets = collectFindingTargets(entry);
   targets.forEach((id, idx) => {
     setTimeout(() => pulseGraphNode(id, findingTierColor(entry.tier)), idx * 140);
-    if (currentView === 'city' && typeof cityViewPulse === 'function') {
-      setTimeout(() => cityViewPulse(id), idx * 140);
-    }
   });
   return targets;
+}
+
+// ── Verktygspaneler (dolda som standard) ────────────────────────
+function toggleTools() {
+  document.body.classList.toggle('tools-open');
+  const btn = document.getElementById('btn-tools');
+  if (btn) btn.classList.toggle('active');
 }
 
 // ── View mode ─────────────────────────────────────────────────
@@ -1212,25 +1255,11 @@ function setView(mode) {
   if (btn) btn.classList.add('active');
 
   const graphEl = document.getElementById('graph-container');
-  const cityEl  = document.getElementById('city-container');
   const brainEl = document.getElementById('brain-container');
 
-  if (mode === 'city') {
-    // Visa city, dölj graph + brain
-    graphEl.style.display = 'none';
-    brainEl.style.display = 'none';
-    cityEl.style.display  = 'block';
-    // Initiera city-vyn (lazy)
-    if (!window._nouseCityView && typeof cityViewInit === 'function') {
-      cityViewInit(graphData);
-    }
-    return;
-  }
-
   if (mode === 'brain') {
-    // Visa brain, dölj graph + city
+    // Visa brain, dölj graph
     graphEl.style.display = 'none';
-    cityEl.style.display  = 'none';
     brainEl.style.display = 'block';
     // Initiera brain-vyn (lazy)
     if (typeof brainViewInit === 'function') {
@@ -1239,9 +1268,8 @@ function setView(mode) {
     return;
   }
 
-  // Visa graph, dölj city + brain
+  // Visa graph, dölj brain
   graphEl.style.display = 'block';
-  cityEl.style.display  = 'none';
   brainEl.style.display = 'none';
 
   if (!Graph) return;
@@ -1296,7 +1324,7 @@ function initGraph(initialData) {
     .nodeColor(node => {
       if (node.isMeta) return '#ffd700';
       if (node._new) return '#ffffff';
-      return domainColor(node.group);
+      return desaturateHex(domainColor(node.group), node._assumptionShare || 0);
     })
     .nodeVal(node => {
       if (node.isMeta) return 8;
@@ -1307,16 +1335,30 @@ function initGraph(initialData) {
     .nodeThreeObject(node => {
       const isMeta = node.isMeta;
       const size = isMeta ? 7 : Math.max(3, Math.min(10, (node._degree || 1) * 0.6 + 3));
-      const color = isMeta ? 0xffd700 : parseInt(domainColor(node.group).replace('#',''), 16);
+      // Lager 2: nodens grundfärg desatureras mot grått i proportion till
+      // hur stor andel av dess relationer som är antaganden, ej validerade.
+      const baseHex = isMeta ? '#ffd700' : domainColor(node.group);
+      const displayHex = isMeta ? baseHex : desaturateHex(baseHex, node._assumptionShare || 0);
+      const color = parseInt(displayHex.replace('#', ''), 16);
 
       const geo = isMeta
         ? new THREE.OctahedronGeometry(size, 0)
         : new THREE.SphereGeometry(size, 10, 8);
 
-      const mat = new THREE.MeshLambertMaterial({
+      // Evidensdriven glöd (docs/BRAIN_VIEW_REDESIGN.md, lager 1):
+      // en nod med osäkra relationer (låg _avgEvidence) ska se osäker
+      // ut — matt, nästan genomskinlig — inte lysa lika starkt som en
+      // välbelagd nod. Ingen nod glöder mer än sin data motiverar.
+      const evidence = Math.max(0, Math.min(1, node._avgEvidence ?? 0.5));
+      const baseOpacity = node._new ? 1.0 : (isMeta ? 0.95 : 0.32 + evidence * 0.6);
+      const mat = new THREE.MeshStandardMaterial({
         color,
         transparent: true,
-        opacity: node._new ? 1.0 : (isMeta ? 0.95 : 0.82),
+        opacity: baseOpacity,
+        emissive: color,
+        emissiveIntensity: isMeta ? 0.6 : evidence * 0.9,
+        roughness: 0.5,
+        metalness: 0.1,
       });
 
       const mesh = new THREE.Mesh(geo, mat);
@@ -1331,8 +1373,11 @@ function initGraph(initialData) {
         mesh.add(new THREE.Mesh(ringGeo, ringMat));
       }
 
-      // Label sprite
-      if (labelsEnabled) {
+      // Label sprite — bara för noder som faktiskt betyder något i
+      // sammanhanget (meta-axiom, nyligen tillagd, eller välkopplad).
+      // Att visa alla ~3700 etiketter samtidigt är brus, inte information.
+      const worthLabeling = isMeta || node._new || (node._degree || 0) >= 4;
+      if (labelsEnabled && worthLabeling) {
         const sprite = makeLabel(node.id, isMeta ? '#ffd700' : domainColor(node.group));
         const lift = sprite.userData.labelLineCount > 1 ? 8.2 : 6.4;
         sprite.position.set(0, size + lift, 0);
@@ -1350,7 +1395,7 @@ function initGraph(initialData) {
     .linkColor(link => {
       const t = link.label || link.rel || '';
       if (t.includes('isomorf')) return '#43796d';
-      if (t.includes('meta') || t.includes('convergerar')) return '#d29c33';
+      if (t.includes('meta') || t.includes('convergerar')) return '#ffcf5c';
       if (t.includes('primitiv')) return 'rgba(214, 196, 168, 0.52)';
       return `rgba(51, 70, 113, ${Math.max(0.18, Math.min(0.68, link.evidence_score || 0.3))})`;
     })
@@ -1368,7 +1413,7 @@ function initGraph(initialData) {
     .linkDirectionalParticleSpeed(0.005)
     .linkDirectionalParticleWidth(link => link._hot ? 2.5 : 1.5)
     .linkDirectionalParticleColor(link => {
-      if ((link.label || '').includes('convergerar')) return '#d29c33';
+      if ((link.label || '').includes('convergerar')) return '#ffcf5c';
       return '#43796d';
     })
     // Interaction
@@ -1384,6 +1429,29 @@ function initGraph(initialData) {
   const dir = new THREE.DirectionalLight(0xd8a15a, 1.35);
   dir.position.set(100, 200, 100);
   scene.add(dir);
+
+  // Djup i bakgrunden — ett stilla stjärnfält bortom grafen. Rent
+  // atmosfäriskt, kopplat till ingen data (ok — det efterliknar bara
+  // "rymden runt tanken", inte ett mätvärde).
+  (function addStarfield() {
+    const starCount = 1400;
+    const positions = new Float32Array(starCount * 3);
+    for (let i = 0; i < starCount; i++) {
+      const r = 900 + Math.random() * 1600;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      positions[i * 3]     = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = r * Math.cos(phi);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    const mat = new THREE.PointsMaterial({
+      color: 0xd6c4a8, size: 1.6, transparent: true, opacity: 0.55,
+      sizeAttenuation: true,
+    });
+    scene.add(new THREE.Points(geo, mat));
+  })();
 
   const controls = Graph.controls && Graph.controls();
   if (controls) {
@@ -1458,19 +1526,41 @@ function makeLabel(text, color = UI_THEME.indigo) {
 
 // ── Set / update graph data ────────────────────────────────────
 function setGraphData(nodes, edges) {
-  // Compute degree for node sizing
+  // Compute degree for node sizing, and evidence accumulation for
+  // glow intensity — a node's brightness reflects how well-evidenced
+  // its relations are, not a fixed constant. See docs/BRAIN_VIEW_REDESIGN.md.
   const degree = {};
+  const evidenceSum = {};
+  const evidenceCount = {};
+  const assumptionSum = {};
   (edges || []).forEach(e => {
     const s = e.from || e.source;
     const t = e.to || e.target;
-    if (s) degree[s] = (degree[s] || 0) + 1;
-    if (t) degree[t] = (degree[t] || 0) + 1;
+    const ev = Number(e.evidence_score);
+    const evNorm = Number.isFinite(ev) ? Math.max(0, Math.min(1, ev)) : 0.3;
+    const isAssumption = e.assumption_flag ? 1 : 0;
+    if (s) {
+      degree[s] = (degree[s] || 0) + 1;
+      evidenceSum[s] = (evidenceSum[s] || 0) + evNorm;
+      evidenceCount[s] = (evidenceCount[s] || 0) + 1;
+      assumptionSum[s] = (assumptionSum[s] || 0) + isAssumption;
+    }
+    if (t) {
+      degree[t] = (degree[t] || 0) + 1;
+      evidenceSum[t] = (evidenceSum[t] || 0) + evNorm;
+      evidenceCount[t] = (evidenceCount[t] || 0) + 1;
+      assumptionSum[t] = (assumptionSum[t] || 0) + isAssumption;
+    }
   });
 
   const gNodes = (nodes || []).map(n => ({
     ...n,
     isMeta: (n.id || '').startsWith('META::'),
     _degree: degree[n.id] || 0,
+    _avgEvidence: evidenceCount[n.id] ? evidenceSum[n.id] / evidenceCount[n.id] : 0.5,
+    // Andel av nodens relationer flaggade som antagande (ej validerade) —
+    // driver mättnad, lager 2 i docs/BRAIN_VIEW_REDESIGN.md.
+    _assumptionShare: evidenceCount[n.id] ? assumptionSum[n.id] / evidenceCount[n.id] : 0,
   }));
 
   const gLinks = (edges || []).map(e => ({
@@ -1491,7 +1581,7 @@ function addNode(id, domain, source) {
   const node = {
     id, label: id, group: domain || 'unknown', source,
     isMeta: id.startsWith('META::'),
-    _degree: 0, _new: true,
+    _degree: 0, _new: true, _avgEvidence: 0.5, _assumptionShare: 0,
   };
   graphData.nodes.push(node);
   Graph.graphData(graphData);
@@ -1534,11 +1624,23 @@ function addEdge(src, tgt, rel, evidenceScore, hot = false) {
   }
   Graph.graphData(graphData);
 
-  // Update degrees
+  // Update degrees and running evidence/assumption averages (drives
+  // glow + saturation — see docs/BRAIN_VIEW_REDESIGN.md, layer 1-2).
+  const evNorm = Math.max(0, Math.min(1, Number(evidenceScore) || 0.3));
+  const assumptionNorm = 0; // live edge_added events don't carry the flag yet
   const s = graphData.nodes.find(n => n.id === src);
   const t = graphData.nodes.find(n => n.id === tgt);
-  if (s) s._degree = (s._degree || 0) + 1;
-  if (t) t._degree = (t._degree || 0) + 1;
+  [s, t].forEach(n => {
+    if (!n) return;
+    const prevDegree = n._degree || 0;
+    n._avgEvidence = prevDegree > 0
+      ? ((n._avgEvidence || 0.5) * prevDegree + evNorm) / (prevDegree + 1)
+      : evNorm;
+    n._assumptionShare = prevDegree > 0
+      ? ((n._assumptionShare || 0) * prevDegree + assumptionNorm) / (prevDegree + 1)
+      : assumptionNorm;
+    n._degree = prevDegree + 1;
+  });
 }
 
 // ── Growth probe: flash source node ───────────────────────────
@@ -1831,7 +1933,7 @@ async function refreshInsightsPanel() {
     renderInsightsPanel(data);
   } catch (err) {
     if (list) {
-      list.innerHTML = `<div style="color:#c9523c;font-size:10px">Findings error: ${escapeHtml(err.message || String(err))}</div>`;
+      list.innerHTML = `<div style="color:#ff5c72;font-size:10px">Findings error: ${escapeHtml(err.message || String(err))}</div>`;
     }
   }
 }
@@ -1895,9 +1997,9 @@ function connectSSE() {
         addEdge(data.src, data.name, 'convergerar_i', data.score, true);
         addEdge(data.tgt, data.name, 'convergerar_i', data.score, true);
         buildDomainLegend();
-        pulseGraphNode(data.src, '#d29c33');
-        pulseGraphNode(data.tgt, '#d29c33');
-        setTimeout(() => pulseGraphNode(data.name, '#d29c33'), 120);
+        pulseGraphNode(data.src, '#ffcf5c');
+        pulseGraphNode(data.tgt, '#ffcf5c');
+        setTimeout(() => pulseGraphNode(data.name, '#ffcf5c'), 120);
         pushEventRow('meta', '✦', 'meta',
           `META AXIOM: ${formatNodeName(data.name)} ← ${formatNodeName(data.src)} + ${formatNodeName(data.tgt)}`
         );
@@ -1908,12 +2010,6 @@ function connectSSE() {
         addNode(data.id, data.domain, data.source);
         break;
       }
-    }
-
-    // Vidarebefordra till city-vyn om aktiv
-    if (currentView === 'city' && typeof cityViewPulse === 'function') {
-      const nodeId = data.src || data.axiom || data.id;
-      if (nodeId) cityViewPulse(nodeId);
     }
 
     // Vidarebefordra till brain-vyn om aktiv (SSE events handled internally by brain_view.js)
@@ -1966,7 +2062,7 @@ async function showInspector(node) {
     }).join('');
   } catch {
     document.getElementById('inspector-rels').innerHTML =
-      '<div style="color:#c9523c;font-size:10px">Fetch error.</div>';
+      '<div style="color:#ff5c72;font-size:10px">Fetch error.</div>';
   }
 }
 
