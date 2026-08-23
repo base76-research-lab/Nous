@@ -248,6 +248,123 @@ def _ingest_knowledge(src: str, rel: str, tgt: str, why: str) -> bool:
         return False
 
 
+# ─── Scheduled background pass (Fas 1 steg 3) ────────────
+#
+# solve() above requires a human-written problem string. A scheduled
+# background task has none — but the graph's own TDA already surfaces
+# domain pairs that are topologically similar yet semantically unconnected
+# (field.bisociation_candidates(), served at /api/bisoc). That IS a
+# bisociation candidate: no one has to notice it, the graph already did.
+# This is the step that makes bisociation genuinely autonomous instead of
+# a tool that only runs when a human remembers to invoke it — see
+# docs/NOUS_NEXT_GENERATION_PLAN.md Fas 1 steg 3.
+
+_DATA_DIR = Path(os.getenv("NOUSE_DATA_DIR", str(Path.home() / ".local" / "share" / "nouse")))
+_EXPLORED_PAIRS_PATH = _DATA_DIR / "bisoc_explored_pairs.json"
+
+
+def _pair_key(domain_a: str, domain_b: str) -> str:
+    return "::".join(sorted([domain_a, domain_b]))
+
+
+def _load_explored_pairs() -> set[str]:
+    try:
+        if _EXPLORED_PAIRS_PATH.exists():
+            return set(json.loads(_EXPLORED_PAIRS_PATH.read_text(encoding="utf-8")))
+    except Exception as e:
+        _log.warning("Kunde inte läsa utforskade bisociation-par: %s", e)
+    return set()
+
+
+def _save_explored_pairs(pairs: set[str]) -> None:
+    try:
+        _EXPLORED_PAIRS_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _EXPLORED_PAIRS_PATH.write_text(
+            json.dumps(sorted(pairs), ensure_ascii=False), encoding="utf-8"
+        )
+    except Exception as e:
+        _log.warning("Kunde inte spara utforskade bisociation-par: %s", e)
+
+
+def fetch_bisociation_candidates(
+    tau: float = 0.55, epsilon: float = 2.0, max_domains: int = 50,
+) -> list[dict]:
+    """Hämta strukturella bisociation-kandidater från grafens egen TDA (/api/bisoc).
+
+    Redan sorterade bäst-först (score, sedan tau) av field.bisociation_candidates().
+    """
+    try:
+        resp = httpx.get(
+            f"{NOUSE_API}/api/bisoc",
+            params={"tau": tau, "epsilon": epsilon, "max_domains": max_domains},
+            timeout=30.0,
+        )
+        if resp.status_code == 200:
+            return resp.json().get("candidates", [])
+    except Exception as e:
+        _log.warning("Kunde inte hämta bisociation-kandidater: %s", e)
+    return []
+
+
+def scheduled_bisociation_pass(
+    max_pairs: int = 1, feedback: bool = True, tau: float = 0.55,
+) -> list[SolverResult]:
+    """Kör bisociative_solver.py som en schemalagd bakgrundsuppgift (daemon-cykel
+    eller nouse-daemon.timer), i stället för att bara vänta på en människas
+    problemformulering.
+
+    Tar de starkaste ännu-outforskade domänparen från fetch_bisociation_candidates(),
+    formulerar dem som problem, kör solve() på varje (dekomponera → sök korsdomänt →
+    syntetisera → mata tillbaka), och loggar varje fynd till forskningsjournalen via
+    write_bisociation_finding_event(). Utforskade par persisteras i
+    bisoc_explored_pairs.json så samma par inte drivs mot LLM:en om och om igen.
+    """
+    from nouse.daemon.journal import write_bisociation_finding_event
+
+    candidates = fetch_bisociation_candidates(tau=tau)
+    if not candidates:
+        _log.info("Inga bisociation-kandidater just nu — hoppar över schemalagd pass")
+        return []
+
+    explored = _load_explored_pairs()
+    results: list[SolverResult] = []
+
+    for cand in candidates:
+        if len(results) >= max_pairs:
+            break
+        domain_a = str(cand.get("domain_a") or "").strip()
+        domain_b = str(cand.get("domain_b") or "").strip()
+        if not domain_a or not domain_b:
+            continue
+        key = _pair_key(domain_a, domain_b)
+        if key in explored:
+            continue
+
+        cand_tau = float(cand.get("tau", 0.0) or 0.0)
+        problem = (
+            f"Domänerna '{domain_a}' och '{domain_b}' är topologiskt lika i "
+            f"NoUse-grafen (τ={cand_tau:.2f}) men saknar semantisk koppling. "
+            f"Finns en bisociativ bro mellan dem — ett mönster, koncept eller "
+            f"struktur som överförs från den ena till den andra?"
+        )
+        _log.info("Schemalagd bisociation-pass: %s <-> %s (τ=%.2f)", domain_a, domain_b, cand_tau)
+        result = solve(
+            problem,
+            context=f"Automatiskt genererat av scheduled_bisociation_pass, τ={cand_tau:.2f}",
+            feedback=feedback,
+        )
+        results.append(result)
+        explored.add(key)
+        write_bisociation_finding_event(
+            domain_a=domain_a, domain_b=domain_b, tau=cand_tau,
+            suggestions=len(result.suggestions), ingested=result.ingested,
+            synthesis=result.synthesis,
+        )
+
+    _save_explored_pairs(explored)
+    return results
+
+
 # ─── Core solver ─────────────────────────────────────────
 
 def solve(

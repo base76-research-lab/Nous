@@ -1018,6 +1018,8 @@ def _graph_rows(
                 "group": (_coerce_text(row.get("dom")) or "unknown"),
                 "source": _coerce_text(row.get("source")),
                 "created": _coerce_text(row.get("created")),
+                "dormant_since": _coerce_text(row.get("dormant_since")) or None,
+                "scope": _coerce_text(row.get("scope")) or "general",
             }
         )
 
@@ -1049,6 +1051,10 @@ def _graph_rows(
                 "value": _coerce_float(row.get("strength"), default=1.0),
                 "created": _coerce_text(row.get("created")),
                 "evidence_score": _coerce_float(row.get("evidence_score"), default=0.0),
+                "assumption_flag": bool(row.get("assumption_flag") or 0),
+                "valid_from": _coerce_text(row.get("valid_from")) or None,
+                "valid_until": _coerce_text(row.get("valid_until")) or None,
+                "derived_from": row.get("derived_from"),
             }
         )
     return nodes, edges
@@ -3021,6 +3027,7 @@ class ConductorCycleRequest(BaseModel):
 class ContextRequest(BaseModel):
     query: str
     top_k: int = 5
+    include_sensitive: bool = False
 
 
 @app.post("/api/context")
@@ -3029,7 +3036,16 @@ async def post_context(req: ContextRequest):
     Lättviktigt read-only kontext-lookup för hooks och externa agenter.
     Returnerar relevanta noder + relationer utan att starta LLM.
     Anropas av: Claude Code PreToolUse-hook, externa agenter.
+
+    Fas 2 steg 5 (2026-08-23): denna endpoint serverar uttryckligen externa
+    agenter (se docstring ovan) och är exakt vägen bisociative_solver.py
+    använder för att hämta grafinnehåll innan det skickas till en extern LLM
+    (_search_nouse). SENSITIVE_SCOPES (t.ex. personal_health) exkluderas
+    därför som standard — sätt include_sensitive=true endast för en
+    uttryckligt lokal, av Björn godkänd förfrågan.
     """
+    from nouse.field.surface import SENSITIVE_SCOPES
+
     field = get_field()
     q = str(req.query or "").strip()[:300]
     if not q:
@@ -3037,7 +3053,8 @@ async def post_context(req: ContextRequest):
 
     try:
         # Hämta topp-K noder via enkel label-sökning
-        rows = field.concepts()
+        exclude_scopes = None if req.include_sensitive else SENSITIVE_SCOPES
+        rows = field.concepts(exclude_scopes=exclude_scopes)
         q_lower = q.lower()
         hits = [
             r for r in rows

@@ -31,8 +31,20 @@ from nouse.daemon.extractor import (
 from nouse.daemon.sources import (
     FileSource, ConversationSource,
     BashHistorySource, ChromeBookmarksSource, ChromeHistorySource,
-    CaptureQueueSource,
+    CaptureQueueSource, DEFAULT_EXCLUDED_DIR_NAMES,
 )
+
+# Utöver standardexkluderingarna (byggkataloger etc.): kataloger som kan
+# innehålla autentiseringsuppgifter/hemligheter. Filtret på filändelser
+# (.md/.txt/.py/.pdf) skyddar redan mot de flesta binära nyckelfiler, men
+# .py/.txt kan innehålla hårdkodade tokens — extra marginal vid systemvid bevakning.
+_SENSITIVE_EXCLUDED_DIR_NAMES = DEFAULT_EXCLUDED_DIR_NAMES | frozenset({
+    ".ssh", ".gnupg", ".gpg", ".password-store",
+    ".mozilla", ".thunderbird", "thunderbird",
+    ".config", ".local",
+    ".aws", ".azure", ".kube",
+    "secrets", "credentials",
+})
 from nouse.daemon.write_queue import enqueue_write, start_worker, stop_worker
 from nouse.self_layer.writer import write_discovery
 from nouse.self_layer import ensure_living_core, update_living_core
@@ -151,6 +163,16 @@ KNOWLEDGE_BACKFILL_LIMIT = max(1, int(os.getenv("NOUSE_KNOWLEDGE_BACKFILL_LIMIT"
 KNOWLEDGE_BACKFILL_MIN_EVIDENCE = float(
     os.getenv("NOUSE_KNOWLEDGE_BACKFILL_MIN_EVIDENCE", "0.65")
 )
+BISOC_SOLVER_ENABLED = str(os.getenv("NOUSE_BISOC_SOLVER_ENABLED", "1")).strip().lower() in _BOOL_TRUE
+BISOC_SOLVER_EVERY = max(1, int(os.getenv("NOUSE_BISOC_SOLVER_EVERY_CYCLES", "48")))
+BISOC_SOLVER_MAX_PAIRS = max(1, int(os.getenv("NOUSE_BISOC_SOLVER_MAX_PAIRS", "1")))
+DORMANCY_CONSOLIDATION_ENABLED = str(
+    os.getenv("NOUSE_DORMANCY_CONSOLIDATION_ENABLED", "1")
+).strip().lower() in _BOOL_TRUE
+DORMANCY_CONSOLIDATION_EVERY = max(1, int(os.getenv("NOUSE_DORMANCY_CONSOLIDATION_EVERY_CYCLES", "20")))
+DORMANCY_MIN_AGE_DAYS = max(1, int(os.getenv("NOUSE_DORMANCY_MIN_AGE_DAYS", "14")))
+DORMANCY_STRENGTH_CEILING = float(os.getenv("NOUSE_DORMANCY_STRENGTH_CEILING", "0.4"))
+DORMANCY_MAX_NODES_PER_PASS = max(1, int(os.getenv("NOUSE_DORMANCY_MAX_NODES_PER_PASS", "200")))
 MISSION_SEED_EVERY = max(1, int(os.getenv("NOUSE_MISSION_SEED_EVERY", "1")))
 MISSION_SEED_MAX = max(0, int(os.getenv("NOUSE_MISSION_SEED_MAX", "2")))
 MISSION_AUDIT_EVERY = max(1, int(os.getenv("NOUSE_MISSION_AUDIT_EVERY", "3")))
@@ -767,10 +789,12 @@ async def brain_loop(
                             count = 0
                             for r in rels:
                                 field.add_concept(
-                                    r["src"], r["domain_src"], source=meta.get("source", "file")
+                                    r["src"], r["domain_src"], source=meta.get("source", "file"),
+                                    scope=meta.get("scope_hint"),
                                 )
                                 field.add_concept(
-                                    r["tgt"], r["domain_tgt"], source=meta.get("source", "file")
+                                    r["tgt"], r["domain_tgt"], source=meta.get("source", "file"),
+                                    scope=meta.get("scope_hint"),
                                 )
                                 # ── brain_sync: Analogy Event (cross-domain relations) ──
                                 if BRAIN_SYNC_ENABLED:
@@ -801,6 +825,8 @@ async def brain_loop(
                                     source_tag=meta.get("path", ""),
                                     domain_src=r.get("domain_src", "okänd"),
                                     domain_tgt=r.get("domain_tgt", "okänd"),
+                                    scope_src=meta.get("scope_hint"),
+                                    scope_tgt=meta.get("scope_hint"),
                                 )
                                 LearningCoordinator(field, limbic_state).on_fact(
                                     r["src"], r["type"], r["tgt"],
@@ -1266,6 +1292,23 @@ async def brain_loop(
                     f"-{stats['nodes_pruned']} orphan-noder"
                 )
 
+            # ── 7b: Gradvis, reversibel tystnad — inte radering (Fas 2 steg 4,
+            # docs/NOUS_NEXT_GENERATION_PLAN.md). Separat och mjukare spår än
+            # 7:ans hårda delete-baserade compaction: gamla, aldrig förstärkta
+            # koncept markeras dormant_since i stället för att raderas, och
+            # väcks automatiskt om de berörs igen (Letta-mönstret).
+            if DORMANCY_CONSOLIDATION_ENABLED and cycle % DORMANCY_CONSOLIDATION_EVERY == 0:
+                try:
+                    dormancy_stats = field.consolidate_dormant_concepts(
+                        min_age_days=DORMANCY_MIN_AGE_DAYS,
+                        strength_ceiling=DORMANCY_STRENGTH_CEILING,
+                        max_nodes=DORMANCY_MAX_NODES_PER_PASS,
+                    )
+                    if dormancy_stats.get("silenced"):
+                        log.info(f"  Dormancy: {dormancy_stats['silenced']} koncept tystade (ej raderade)")
+                except Exception as dormancy_err:
+                    log.debug(f"  Dormancy-konsolidering (non-fatal): {dormancy_err}")
+
             # ── 8: Autonom Curiosity Loop + D3 Goal-Directed Execution ────────
             # Vi kör curiosity ca var 3:e cykel för att inte överlasta.
             if cycle % 3 == 0 and not (stop_event and stop_event.is_set()):
@@ -1428,6 +1471,27 @@ async def brain_loop(
                             )
                         except Exception:
                             pass
+
+                    # ── 8d3: Bisociation-motorn som bakgrundsuppgift (Fas 1 steg 3,
+                    # docs/NOUS_NEXT_GENERATION_PLAN.md) ────────────────────────
+                    # Kör bisociative_solver.py på grafens egna TDA-kandidater i
+                    # stället för att bara vänta på en människas problemformulering
+                    # — Nous enda verkliga skillnad mot Mem0/Zep/Letta, tidigare
+                    # oanvänd. Blockerande LLM-anrop, körs i tråd så cykel-loopen
+                    # inte fryser.
+                    if BISOC_SOLVER_ENABLED and cycle % BISOC_SOLVER_EVERY == 0:
+                        try:
+                            from nouse.tools.bisociative_solver import scheduled_bisociation_pass
+                            bisoc_results = await asyncio.to_thread(
+                                scheduled_bisociation_pass, max_pairs=BISOC_SOLVER_MAX_PAIRS,
+                            )
+                            if bisoc_results:
+                                log.info(
+                                    f"  Bisociation-pass: {len(bisoc_results)} par utforskade, "
+                                    f"{sum(r.ingested for r in bisoc_results)} nya kopplingar ingesterade"
+                                )
+                        except Exception as bisoc_err:
+                            log.debug(f"  Bisociation-pass (non-fatal): {bisoc_err}")
 
                     # ── 8e: Camera + Speech (sensorimotor loop) ────────────────
                     try:
@@ -1982,7 +2046,11 @@ def _build_sources():
         if "claude" in str(p) or "antigravity" in str(p):
             out.append(ConversationSource(p))
         else:
-            out.append(FileSource(p, extensions=[".md", ".txt", ".py", ".pdf"]))
+            out.append(FileSource(
+                p,
+                extensions=[".md", ".txt", ".py", ".pdf"],
+                excluded_dir_names=_SENSITIVE_EXCLUDED_DIR_NAMES,
+            ))
 
     # ── Laptop-integrationer ───────────────────────────────────────────────
     out.append(BashHistorySource())

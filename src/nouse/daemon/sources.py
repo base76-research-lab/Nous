@@ -135,6 +135,7 @@ class FileSource:
                     "path": str(path),
                     "source": "file",
                     "domain_hint": _domain_from_path(path),
+                    "scope_hint": scope_from_path(path),
                 }
                 self._state[key] = mtime
                 _batch_count += 1
@@ -381,3 +382,21 @@ def _domain_from_path(path: Path) -> str:
     if any(k in p for k in ["bio", "svamp", "fungi"]):
         return "biologi"
     return "övrigt"
+
+
+def scope_from_path(path: Path) -> str:
+    """Gissa källgräns (Fas 2 steg 5, docs/NOUS_NEXT_GENERATION_PLAN.md) från
+    sökvägen. Deterministisk och statisk — scope avgör vad som får lämna
+    maskinen, så det avgörs INTE av LLM-extraktionen (som domain_hint är),
+    utan av var filen faktiskt ligger i IIC-strukturen. Okänd sökväg →
+    "general" (field.surface._normalize_scope faller ändå tillbaka dit)."""
+    p = str(path).lower()
+    if "halsa" in p or "hälsa" in p or "glp1" in p or "glp-1" in p:
+        return "personal_health"
+    if "/work/nous/" in p or "/nouse/" in p:
+        return "nous_system"
+    if "ljudanteckningar" in p or "voicenote" in p:
+        return "voice_notes"
+    if "library/research" in p or ("02_library" in p and "research" in p):
+        return "research_plg"
+    return "general"

@@ -109,6 +109,67 @@ def write_contradiction_event(
     })
 
 
+def write_bisociation_finding_event(
+    *,
+    domain_a: str,
+    domain_b: str,
+    tau: float,
+    suggestions: int = 0,
+    ingested: int = 0,
+    synthesis: str = "",
+) -> None:
+    """Write a scheduled bisociative_solver.py finding to the research event log
+    (Fas 1 steg 3, docs/NOUS_NEXT_GENERATION_PLAN.md — bisociation-motorn körd
+    som bakgrundsuppgift på grafens egna TDA-kandidater, inte bara på begäran)."""
+    now = datetime.now(timezone.utc)
+    _write_research_event(now, {
+        "event": "bisociation_finding",
+        "domain_a": domain_a,
+        "domain_b": domain_b,
+        "tau": float(tau),
+        "suggestions": int(suggestions),
+        "ingested": int(ingested),
+        "synthesis": synthesis[:400] if synthesis else "",
+    })
+
+
+def count_bisociation_finding_events(since_ts: str) -> dict[str, Any]:
+    """Count scheduled bisociation findings in journal since the given ISO timestamp.
+
+    Returns dict with: found, ingested_total, tau_mean.
+    """
+    found = 0
+    ingested_total = 0
+    total_tau = 0.0
+    journal_base = journal_dir()
+
+    for events_file in sorted(journal_base.glob("*.events.jsonl")):
+        try:
+            for line in events_file.read_text(encoding="utf-8").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    row = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if row.get("event") != "bisociation_finding":
+                    continue
+                ts = row.get("ts", "")
+                if ts < since_ts:
+                    continue
+                found += 1
+                ingested_total += int(row.get("ingested", 0) or 0)
+                total_tau += float(row.get("tau", 0.0) or 0.0)
+        except Exception:
+            continue
+
+    return {
+        "found": found,
+        "ingested_total": ingested_total,
+        "tau_mean": round(total_tau / found, 3) if found > 0 else 0.0,
+    }
+
+
 def count_contradiction_events(since_ts: str) -> dict[str, Any]:
     """Count contradiction events in journal since the given ISO timestamp.
 

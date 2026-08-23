@@ -11,7 +11,7 @@ Nuvarande lagret är fullt SQLite/NetworkX.
 from __future__ import annotations
 
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import json
 import math
@@ -25,6 +25,29 @@ import networkx as nx
 from nouse.config.paths import path_from_env
 
 _STRONG_FACT_MIN_SCORE = float(os.getenv("NOUSE_STRONG_FACT_MIN_SCORE", "0.65"))
+
+# ── Skopat minne (Fas 2 steg 5, 2026-08-23) ──────────────────────────────────
+# Google Memory Bank / Mem0-mönster: en formell gräns mellan källtyper i
+# stället för lösa domäntaggar. `domain` förblir fri ämnestaxonomi
+# ("topologi", "musikteori"); `scope` är källgränsen som avgör vad som får
+# lämna maskinen. SENSITIVE_SCOPES exkluderas som standard ur bisociation
+# (domain_tda_profile) och /api/context — de två ställena som antingen
+# skickar grafinnehåll till en extern LLM (bisociative_solver.py) eller
+# serverar det till externa agenter. Se docs/NOUS_NEXT_GENERATION_PLAN.md.
+KNOWN_SCOPES = {
+    "personal_health",  # Björns hälsodata — se IIC/01_PROJECTS/halsa-glp1/STATUS.md
+    "nous_system",       # Nous egen kod/dokumentation
+    "research_plg",      # PLG-forskning / akademiskt arbete
+    "voice_notes",       # /voicenote-transkriptioner
+    "general",           # allt annat — standard
+}
+SENSITIVE_SCOPES = {"personal_health"}
+DEFAULT_SCOPE = "general"
+
+
+def _normalize_scope(scope) -> str:
+    s = str(scope or "").strip()
+    return s if s in KNOWN_SCOPES else DEFAULT_SCOPE
 
 
 def _queue_indications(src_node: str, rows: list[dict]) -> None:
@@ -132,11 +155,13 @@ class FieldSurface:
         cur = self._sql.cursor()
         cur.executescript("""
             CREATE TABLE IF NOT EXISTS concept (
-                name        TEXT PRIMARY KEY,
-                domain      TEXT,
-                granularity INTEGER DEFAULT 1,
-                source      TEXT,
-                created     TEXT
+                name          TEXT PRIMARY KEY,
+                domain        TEXT,
+                granularity   INTEGER DEFAULT 1,
+                source        TEXT,
+                created       TEXT,
+                dormant_since TEXT,
+                scope         TEXT DEFAULT 'general'
             );
             CREATE TABLE IF NOT EXISTS relation (
                 id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -148,6 +173,8 @@ class FieldSurface:
                 created         TEXT,
                 evidence_score  REAL,
                 assumption_flag INTEGER DEFAULT 0,
+                valid_from      TEXT,
+                valid_until     TEXT,
                 FOREIGN KEY (src) REFERENCES concept(name),
                 FOREIGN KEY (tgt) REFERENCES concept(name)
             );
@@ -173,20 +200,70 @@ class FieldSurface:
             );
         """)
         self._sql.commit()
+        self._migrate_relation_temporal_columns()
+        self._migrate_concept_dormancy_column()
+        self._migrate_concept_scope_column()
+
+    def _migrate_concept_scope_column(self) -> None:
+        """Fas 2 steg 5 (2026-08-23): formell källgräns, se KNOWN_SCOPES ovan."""
+        cur = self._sql.cursor()
+        existing = {row["name"] for row in cur.execute("PRAGMA table_info(concept)")}
+        if "scope" not in existing:
+            cur.execute(f"ALTER TABLE concept ADD COLUMN scope TEXT DEFAULT '{DEFAULT_SCOPE}'")
+        self._sql.commit()
+
+    def _migrate_concept_dormancy_column(self) -> None:
+        """Fas 2 steg 4 (2026-08-23, se docs/NOUS_NEXT_GENERATION_PLAN.md): plats
+        för gradvis, reversibel tystnad på koncept i stället för radering
+        (Letta-mönster + biologisk gradvis degradering, aldrig katastrofal
+        överskrivning). NULL = aktiv. Sätts av consolidate_dormant_concepts(),
+        rensas automatiskt av add_concept() så fort konceptet berörs igen."""
+        cur = self._sql.cursor()
+        existing = {row["name"] for row in cur.execute("PRAGMA table_info(concept)")}
+        if "dormant_since" not in existing:
+            cur.execute("ALTER TABLE concept ADD COLUMN dormant_since TEXT")
+        self._sql.commit()
+
+    def _migrate_relation_temporal_columns(self) -> None:
+        """Fas 1 (2026-08-23, se docs/NOUS_NEXT_GENERATION_PLAN.md): temporal
+        giltighet på relationer (Zep-mönster). Grafer skapade före denna
+        migration saknar valid_from/valid_until — CREATE TABLE IF NOT EXISTS
+        rör inte redan existerande tabeller, så kolumnerna läggs till här om
+        de saknas. valid_from backfylls från created; valid_until förblir
+        NULL (fortfarande giltig) tills en relation uttryckligen ersätts."""
+        cur = self._sql.cursor()
+        existing = {row["name"] for row in cur.execute("PRAGMA table_info(relation)")}
+        if "valid_from" not in existing:
+            cur.execute("ALTER TABLE relation ADD COLUMN valid_from TEXT")
+            cur.execute("UPDATE relation SET valid_from = created WHERE valid_from IS NULL")
+        if "valid_until" not in existing:
+            cur.execute("ALTER TABLE relation ADD COLUMN valid_until TEXT")
+        if "derived_from" not in existing:
+            # Fas 1 steg 2 (Eywa-mönster): proveniens som en bakåtlänkad kedja
+            # i stället för en enskild fritextrad. derived_from pekar på
+            # relation.id denna relation härleddes/korrigerades från — NULL
+            # betyder rot (ingen känd förälder). `why` förblir den
+            # mänskligt läsbara motiveringen för just det steget i kedjan.
+            cur.execute("ALTER TABLE relation ADD COLUMN derived_from INTEGER")
+        self._sql.commit()
 
     def _load_graph_into_networkx(self) -> None:
         G = self._G
         G.clear()
         cur = self._sql.cursor()
-        for row in cur.execute("SELECT name, domain, granularity, source, created FROM concept"):
+        for row in cur.execute(
+            "SELECT name, domain, granularity, source, created, dormant_since, scope FROM concept"
+        ):
             if row["name"] is None:
                 continue
             G.add_node(row["name"], domain=row["domain"],
                        granularity=row["granularity"],
-                       source=row["source"], created=row["created"])
+                       source=row["source"], created=row["created"],
+                       dormant_since=row["dormant_since"],
+                       scope=row["scope"] or DEFAULT_SCOPE)
         for row in cur.execute(
             "SELECT id, src, tgt, type, why, strength, created, "
-            "evidence_score, assumption_flag FROM relation"
+            "evidence_score, assumption_flag, valid_from, valid_until, derived_from FROM relation"
         ):
             if not row["src"] or not row["tgt"]:
                 continue
@@ -195,33 +272,54 @@ class FieldSurface:
                        strength=row["strength"] or 1.0,
                        created=row["created"],
                        evidence_score=row["evidence_score"],
-                       assumption_flag=bool(row["assumption_flag"]))
+                       assumption_flag=bool(row["assumption_flag"]),
+                       valid_from=row["valid_from"] or row["created"],
+                       valid_until=row["valid_until"],
+                       derived_from=row["derived_from"])
 
-    def _nx_add_concept(self, name, domain, granularity, source, created):
+    def _nx_add_concept(self, name, domain, granularity, source, created,
+                        dormant_since=None, scope=None):
         self._G.add_node(name, domain=domain, granularity=granularity,
-                         source=source, created=created)
+                         source=source, created=created, dormant_since=dormant_since,
+                         scope=scope or DEFAULT_SCOPE)
 
     def _nx_add_relation(self, row_id, src, tgt, rel_type, why, strength,
-                         created, evidence_score, assumption_flag):
+                         created, evidence_score, assumption_flag,
+                         valid_from=None, valid_until=None, derived_from=None):
         self._G.add_edge(src, tgt, key=row_id, id=row_id,
                          type=rel_type, why=why, strength=strength,
                          created=created, evidence_score=evidence_score,
-                         assumption_flag=assumption_flag)
+                         assumption_flag=assumption_flag,
+                         valid_from=valid_from or created, valid_until=valid_until,
+                         derived_from=derived_from)
 
     # ── Write operations ─────────────────────────────────────────────────────
 
     def add_concept(self, name, domain, granularity=1, source="auto",
-                    ensure_knowledge=True):
+                    ensure_knowledge=True, scope=None):
         ts = datetime.utcnow().isoformat()
+        scope_clean = _normalize_scope(scope)
         with self._lock:
             cur = self._sql.execute(
-                "INSERT OR IGNORE INTO concept (name, domain, granularity, source, created) "
-                "VALUES (?, ?, ?, ?, ?)",
-                (name, domain, granularity, source, ts))
+                "INSERT OR IGNORE INTO concept (name, domain, granularity, source, created, scope) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (name, domain, granularity, source, ts, scope_clean))
             self._sql.commit()
             inserted = cur.rowcount > 0
+            revived = False
+            if not inserted:
+                # Fas 2 steg 4: att röra ett koncept igen väcker det — gradvis
+                # tystnad ska vara reversibel, inte en permanent gravsten.
+                rcur = self._sql.execute(
+                    "UPDATE concept SET dormant_since = NULL "
+                    "WHERE name = ? AND dormant_since IS NOT NULL",
+                    (name,))
+                self._sql.commit()
+                revived = rcur.rowcount > 0
         if inserted or name not in self._G:
-            self._nx_add_concept(name, domain, granularity, source, ts)
+            self._nx_add_concept(name, domain, granularity, source, ts, scope=scope_clean)
+        elif revived:
+            self._G.nodes[name]["dormant_since"] = None
         if ensure_knowledge:
             self.ensure_minimal_concept_knowledge(name, domain=domain, source=source)
 
@@ -244,27 +342,122 @@ class FieldSurface:
             self._G.nodes[target_name]["domain"] = target_domain
         return changed
 
+    def set_concept_scope(self, name: str, scope: str) -> bool:
+        """Uppdatera källgräns för befintligt koncept (true om något ändrades).
+        Se KNOWN_SCOPES/SENSITIVE_SCOPES ovan — okänt scope faller tillbaka
+        till DEFAULT_SCOPE i stället för att skapa en ny fri tagg."""
+        target_name = str(name or "").strip()
+        if not target_name:
+            return False
+        target_scope = _normalize_scope(scope)
+        with self._lock:
+            cur = self._sql.execute(
+                "UPDATE concept SET scope = ? WHERE name = ? AND (scope IS NULL OR scope != ?)",
+                (target_scope, target_name, target_scope),
+            )
+            self._sql.commit()
+            changed = bool(cur.rowcount and cur.rowcount > 0)
+        if changed and target_name in self._G:
+            self._G.nodes[target_name]["scope"] = target_scope
+        return changed
+
     def add_relation(self, src, rel_type, tgt, why="", strength=1.0,
                      source_tag="auto", evidence_score=None, assumption_flag=None,
-                     domain_src="external", domain_tgt="external"):
+                     domain_src="external", domain_tgt="external",
+                     valid_from=None, valid_until=None, derived_from=None,
+                     scope_src=None, scope_tgt=None):
         ts = datetime.utcnow().isoformat()
-        for name, domain in ((src, domain_src), (tgt, domain_tgt)):
+        for name, domain, scope in ((src, domain_src, scope_src), (tgt, domain_tgt, scope_tgt)):
             self.add_concept(name, domain=domain, granularity=1,
-                             source=source_tag, ensure_knowledge=False)
+                             source=source_tag, ensure_knowledge=False, scope=scope)
         why_clean = (why or "").strip()
         ev = float(evidence_score) if evidence_score is not None else (
             min(1.0, max(0.0, float(strength))) if why_clean else 0.35)
         af = bool(assumption_flag) if assumption_flag is not None else (not bool(why_clean))
+        vf = valid_from or ts
+        df = int(derived_from) if derived_from is not None else None
 
         with self._lock:
             cur = self._sql.execute(
                 "INSERT INTO relation (src, tgt, type, why, strength, created, "
-                "evidence_score, assumption_flag) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-                (src, tgt, rel_type, why, strength, ts, ev, int(af)))
+                "evidence_score, assumption_flag, valid_from, valid_until, derived_from) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (src, tgt, rel_type, why, strength, ts, ev, int(af), vf, valid_until, df))
             self._sql.commit()
             row_id = cur.lastrowid
-        self._nx_add_relation(row_id, src, tgt, rel_type, why, strength, ts, ev, af)
+        self._nx_add_relation(row_id, src, tgt, rel_type, why, strength, ts, ev, af,
+                              valid_from=vf, valid_until=valid_until, derived_from=df)
         self._enrich_nodes_from_relation(src, rel_type, tgt, why, source_tag)
+        return row_id
+
+    def relation_chain(self, relation_id, max_depth=20):
+        """Följ `derived_from` bakåt från en relation till dess rot (Eywa-mönster,
+        se docs/NOUS_NEXT_GENERATION_PLAN.md Fas 1 steg 2).
+
+        Proveniens är en kedja, inte en fritextrad: minne B kan härledas från
+        minne A som i sin tur härleddes från observation C. Returnerar en lista
+        ordnad nyast→äldst, `[]` om relationen saknas. Om en källa i kedjan
+        senare visar sig fel går det att slå upp exakt vilka senare relationer
+        som ärvde det antagandet.
+        """
+        chain: list[dict] = []
+        seen: set[int] = set()
+        current_id = relation_id
+        while current_id is not None and current_id not in seen and len(chain) < max_depth:
+            seen.add(current_id)
+            row = self._sql.execute(
+                "SELECT id, src, type, tgt, why, created, valid_from, valid_until, "
+                "evidence_score, derived_from FROM relation WHERE id = ?",
+                (current_id,),
+            ).fetchone()
+            if row is None:
+                break
+            chain.append(dict(row))
+            current_id = row["derived_from"]
+        return chain
+
+    def supersede_relation(self, src, rel_type, tgt, new_tgt, why="",
+                           source_tag="auto", evidence_score=None):
+        """Ersätt en gällande src-[rel_type]->tgt-relation med src-[rel_type]->new_tgt,
+        utan att förlora historiken (Zep/Eywa-mönster, se
+        docs/NOUS_NEXT_GENERATION_PLAN.md Fas 1).
+
+        Den gamla relationen stängs (valid_until sätts) i stället för att skrivas
+        över eller raderas, den nya relationen länkas bakåt till den gamla via
+        `derived_from` (kedjad proveniens, inte bara en fritextrad), och en
+        explicit `supersedes`-kant new_tgt -> tgt registrerar att bytet skedde
+        och varför. Grafen kan därmed alltid svara på "vad trodde vi förut",
+        "vad ersatte det" och "varifrån kom det ursprungliga antagandet".
+        """
+        ts = datetime.utcnow().isoformat()
+        old_row = self._sql.execute(
+            "SELECT id FROM relation WHERE src = ? AND type = ? AND tgt = ? "
+            "AND valid_until IS NULL ORDER BY id DESC LIMIT 1",
+            (src, rel_type, tgt),
+        ).fetchone()
+        old_id = old_row["id"] if old_row else None
+        with self._lock:
+            self._sql.execute(
+                "UPDATE relation SET valid_until = ? "
+                "WHERE src = ? AND type = ? AND tgt = ? AND valid_until IS NULL",
+                (ts, src, rel_type, tgt))
+            self._sql.commit()
+        if self._G.has_edge(src, tgt):
+            for key in list(self._G[src][tgt]):
+                edata = self._G[src][tgt][key]
+                if edata.get("type") == rel_type and not edata.get("valid_until"):
+                    edata["valid_until"] = ts
+        new_id = self.add_relation(
+            src, rel_type, new_tgt, why=why, source_tag=source_tag,
+            evidence_score=evidence_score, valid_from=ts, derived_from=old_id,
+        )
+        self.add_relation(
+            new_tgt, "supersedes", tgt,
+            why=why or f"ersätter tidigare {rel_type}-relation från {src}",
+            source_tag=source_tag, evidence_score=evidence_score or 0.9,
+            valid_from=ts, derived_from=old_id,
+        )
+        return new_id
 
     def strengthen(self, src, tgt, delta=0.05, *, rel_type=None, ceiling=3.5):
         safe_delta = max(0.0, float(delta))
@@ -838,16 +1031,23 @@ class FieldSurface:
 
     # ── Read operations ──────────────────────────────────────────────────────
 
-    def concepts(self, domain=None, limit=None):
+    def concepts(self, domain=None, limit=None, exclude_scopes=None):
+        select_cols = "name" if domain else "name, domain"
+        where_clauses = []
+        params: list = []
         if domain:
-            sql = "SELECT name FROM concept WHERE domain = ?"
-            params = (domain,)
-        else:
-            sql = "SELECT name, domain FROM concept"
-            params = ()
+            where_clauses.append("domain = ?")
+            params.append(domain)
+        if exclude_scopes:
+            placeholders = ",".join("?" for _ in exclude_scopes)
+            where_clauses.append(f"(scope IS NULL OR scope NOT IN ({placeholders}))")
+            params.extend(exclude_scopes)
+        sql = f"SELECT {select_cols} FROM concept"
+        if where_clauses:
+            sql += " WHERE " + " AND ".join(where_clauses)
         if limit is not None:
             sql += f" LIMIT {int(limit)}"
-        return self._sql.execute(sql, params).fetchall()
+        return self._sql.execute(sql, tuple(params)).fetchall()
 
     def out_relations(self, name):
         if name not in self._G:
@@ -941,10 +1141,11 @@ class FieldSurface:
 
     def query_all_relations_with_metadata(self, limit=5000, include_evidence=False):
         if include_evidence:
-            sql = (f"SELECT r.src, r.type AS rel, r.why, r.strength, r.created, "
-                   f"r.evidence_score, r.tgt FROM relation r LIMIT {int(limit)}")
+            sql = (f"SELECT r.id, r.src, r.type AS rel, r.why, r.strength, r.created, "
+                   f"r.evidence_score, r.assumption_flag, r.valid_from, r.valid_until, "
+                   f"r.derived_from, r.tgt FROM relation r LIMIT {int(limit)}")
         else:
-            sql = (f"SELECT r.src, r.type AS rel, r.strength, r.created, r.tgt "
+            sql = (f"SELECT r.src, r.type AS rel, r.strength, r.created, r.valid_until, r.tgt "
                    f"FROM relation r LIMIT {int(limit)}")
         return self._sql.execute(sql).fetchall()
 
@@ -1024,7 +1225,8 @@ class FieldSurface:
 
     def get_concepts_with_metadata(self, limit=5000):
         return self._sql.execute(
-            "SELECT name AS id, domain AS dom, source, created FROM concept LIMIT ?",
+            "SELECT name AS id, domain AS dom, source, created, dormant_since, scope "
+            "FROM concept LIMIT ?",
             (limit,)).fetchall()
 
     def find_weak_concepts(self, threshold=1.2, max_rels=3, limit=9):
@@ -1034,6 +1236,74 @@ class FieldSurface:
             "HAVING avg_str < ? AND n_rels <= ? "
             "ORDER BY avg_str ASC LIMIT ?",
             (threshold, max_rels, limit)).fetchall()
+
+    # ── Konsolidering: gradvis, reversibel tystnad (Fas 2 steg 4) ────────────
+    #
+    # Letta-mönstret (agenten hanterar sitt eget minne) + biologisk gradvis
+    # degradering ("bleknar genom interferens, försvinner aldrig i en enda
+    # kollaps" — se docs/NOUS_NEXT_GENERATION_PLAN.md). Detta ersätter INTE
+    # orchestrator/compaction.py:s hårda delete-baserade pruning — det är en
+    # separat, mjukare väg: koncept markeras dormant_since i stället för att
+    # raderas, och väcks automatiskt av add_concept() om de berörs igen.
+
+    def consolidate_dormant_concepts(self, min_age_days=14, strength_ceiling=0.4,
+                                     max_nodes=200):
+        """Tysta (inte radera) koncept som är gamla OCH aldrig blivit förstärkta.
+
+        Kandidat = skapad före cutoff, ingen relation med strength över
+        strength_ceiling (dvs. aldrig träffad av strengthen()), och inte redan
+        dormant. Returnerar {"silenced": n, "candidates_seen": n}.
+        """
+        cutoff = (datetime.utcnow() - timedelta(days=min_age_days)).isoformat()
+        rows = self._sql.execute(
+            "SELECT c.name FROM concept c "
+            "WHERE c.created < ? AND c.dormant_since IS NULL "
+            "AND NOT EXISTS ("
+            "  SELECT 1 FROM relation r "
+            "  WHERE (r.src = c.name OR r.tgt = c.name) AND r.strength > ?"
+            ") "
+            "LIMIT ?",
+            (cutoff, strength_ceiling, max_nodes),
+        ).fetchall()
+        names = [row["name"] for row in rows]
+        if not names:
+            return {"silenced": 0, "candidates_seen": 0}
+
+        ts = datetime.utcnow().isoformat()
+        with self._lock:
+            self._sql.executemany(
+                "UPDATE concept SET dormant_since = ? WHERE name = ? AND dormant_since IS NULL",
+                [(ts, name) for name in names],
+            )
+            self._sql.commit()
+        for name in names:
+            if name in self._G:
+                self._G.nodes[name]["dormant_since"] = ts
+        return {"silenced": len(names), "candidates_seen": len(names)}
+
+    def dormant_concepts(self, limit=200):
+        """Lista tystade koncept för granskning/återupplivning."""
+        return self._sql.execute(
+            "SELECT name, domain, created, dormant_since FROM concept "
+            "WHERE dormant_since IS NOT NULL "
+            "ORDER BY dormant_since DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+
+    def revive_concept(self, name):
+        """Manuell återuppväckning — samma effekt som att röra konceptet via
+        add_concept(), men utan att kräva en ny relation."""
+        with self._lock:
+            cur = self._sql.execute(
+                "UPDATE concept SET dormant_since = NULL "
+                "WHERE name = ? AND dormant_since IS NOT NULL",
+                (name,),
+            )
+            self._sql.commit()
+            revived = cur.rowcount > 0
+        if revived and name in self._G:
+            self._G.nodes[name]["dormant_since"] = None
+        return revived
 
     def find_dangling_targets(self, limit=5000):
         return self._sql.execute(
@@ -1346,7 +1616,10 @@ class FieldSurface:
             from nouse.tda.bridge import compute_distance_matrix, compute_betti
         except ImportError:
             return {"domain": domain, "h0": 1, "h1": 0, "n_concepts": 0}
-        concepts = self.concepts(domain=domain)
+        # Fas 2 steg 5: bisociation_candidates() (via denna) matar
+        # bisociative_solver.py, som skickar innehåll till en extern LLM.
+        # Skyddade scopes ska aldrig kunna surfa upp här.
+        concepts = self.concepts(domain=domain, exclude_scopes=SENSITIVE_SCOPES)
         n = len(concepts)
         if n < 2:
             out = {"domain": domain, "h0": max(n, 1), "h1": 0, "n_concepts": n,
