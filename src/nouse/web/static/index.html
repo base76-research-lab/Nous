@@ -111,6 +111,36 @@
       z-index: -1;
     }
 
+    /* ── Tankeström (Brain View lager 5) ───────────────────────
+       living_core.last_reflection.thought, sann i realtid, uppdaterad
+       varje cykel — se docs/BRAIN_VIEW_REDESIGN.md. Ingen mätare, en rad. */
+    #thought-stream {
+      position: fixed;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      z-index: 100;
+      max-width: min(70vw, 820px);
+      padding: 8px 20px;
+      background: var(--paper-main);
+      backdrop-filter: blur(var(--panel-blur)) saturate(140%);
+      -webkit-backdrop-filter: blur(var(--panel-blur)) saturate(140%);
+      border: 1px solid var(--panel-border);
+      border-radius: 999px;
+      box-shadow: 0 18px 38px rgba(0, 0, 0, 0.45), inset 0 0 0 1px var(--paper-edge);
+      font-family: 'Yu Mincho', 'Hiragino Mincho ProN', 'Noto Serif JP', Georgia, serif;
+      font-size: 13px;
+      font-style: italic;
+      color: var(--ink-soft, #cfd3e6);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      opacity: 0;
+      transition: opacity 0.6s ease;
+      pointer-events: none;
+    }
+    #thought-stream.visible { opacity: 0.92; }
+
     #hud-stats {
       top: 14px; left: 14px;
       min-width: 200px;
@@ -684,6 +714,9 @@
 
 <!-- Brain view container -->
 <div id="brain-container"></div>
+
+<!-- Tankeström: living_core.last_reflection.thought, en rad, sann i realtid -->
+<div id="thought-stream"></div>
 
 <!-- Stats HUD -->
 <div class="hud" id="hud-stats">
@@ -1698,6 +1731,20 @@ function updateStats(stats) {
   }
 }
 
+// ── Tankeström (Brain View lager 5) ─────────────────────────────
+let _lastThoughtCycle = null;
+function updateThoughtStream(thought, cycle) {
+  const el = document.getElementById('thought-stream');
+  if (!el || !thought) return;
+  if (cycle !== undefined && cycle === _lastThoughtCycle) return;
+  _lastThoughtCycle = cycle;
+  el.textContent = thought;
+  el.classList.remove('visible');
+  // Force reflow so the fade-in retriggers even if text changed while still visible
+  void el.offsetWidth;
+  el.classList.add('visible');
+}
+
 // ── Synapses/min counter ───────────────────────────────────────
 function recordSynapse() {
   const now = Date.now();
@@ -1960,6 +2007,7 @@ function connectSSE() {
 
       case 'heartbeat':
         updateStats(data);
+        if (data.thought) updateThoughtStream(data.thought, data.thought_cycle);
         break;
 
       case 'edge_added': {

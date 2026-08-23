@@ -1535,6 +1535,18 @@ async def graph_events_sse(request: Request):
                         "arousal": round(ls.arousal, 3),
                         "dopamine": round(ls.dopamine, 3),
                     }
+                    # Tankeström (Brain View lager 5, docs/BRAIN_VIEW_REDESIGN.md):
+                    # living_core.last_reflection.thought är redan äkta text,
+                    # uppdaterad varje cykel, men visades aldrig i UI:t.
+                    try:
+                        living = load_living_core()
+                        reflection = living.get("last_reflection") or {}
+                        thought = str(reflection.get("thought") or "").strip()
+                        if thought:
+                            hb["thought"] = thought
+                            hb["thought_cycle"] = reflection.get("cycle")
+                    except Exception:
+                        pass
                     yield f"data: {json.dumps(hb)}\n\n"
                 except Exception:
                     pass
@@ -2294,6 +2306,24 @@ def get_system_events(limit: int = 20, session_id: str = ""):
 def get_brain_regions():
     from nouse.field.brain_topology import regions_as_dict
     return {"ok": True, "regions": regions_as_dict()}
+
+
+@app.get("/api/brain_regions/tda_positions")
+def get_brain_regions_tda_positions():
+    """Brain View lager 4: regionpositioner via klassisk MDS på faktiska
+    TDA-avstånd, i stället för hårdkodade anatomiska koordinater. Tomt
+    `positions` (inte fel) om grafen ännu inte har tillräcklig täckning —
+    frontend faller då tillbaka på de hårdkodade positionerna."""
+    from nouse.field.brain_topology import region_tda_positions, BRAIN_REGIONS
+    field = get_field()
+    if not field:
+        return {"ok": True, "positions": {}, "coverage": 0}
+    positions = region_tda_positions(field)
+    return {
+        "ok": True,
+        "positions": positions,
+        "coverage": f"{len(positions)}/{len(BRAIN_REGIONS)}",
+    }
 
 
 @app.get("/api/brain_regions/balance")
