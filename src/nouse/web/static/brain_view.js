@@ -47,7 +47,35 @@
 
   // ── Three.js setup ────────────────────────────────────────────────
 
-  function init(container) {
+  // ── Lager 4: TDA-baserad regionpositionering ──────────────────────
+  // Regionpositioner ovan är hårdkodade anatomiska approximationer.
+  // Om grafen har tillräcklig täckning speglar layouten i stället
+  // faktiska TDA-avstånd mellan regioners koncept-centroider (klassisk
+  // MDS, se field/brain_topology.py:region_tda_positions()) — då blir
+  // layouten själv ett bevis, inte bara dekoration. Kort timeout +
+  // tyst fallback till de hårdkodade positionerna om täckningen saknas.
+  async function loadTdaRegionPositions() {
+    try {
+      const ctrl = new AbortController();
+      const timeout = setTimeout(() => ctrl.abort(), 1500);
+      const resp = await fetch('/api/brain_regions/tda_positions', { signal: ctrl.signal });
+      clearTimeout(timeout);
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (!data.ok || !data.positions) return;
+      for (const [name, pos] of Object.entries(data.positions)) {
+        if (REGIONS[name] && Array.isArray(pos) && pos.length === 3) {
+          REGIONS[name].pos = pos;
+          REGIONS[name].tdaPositioned = true;
+        }
+      }
+      console.log(`Brain View: ${Object.keys(data.positions).length} regioner TDA-positionerade (coverage=${data.coverage})`);
+    } catch (err) {
+      // Tyst fallback — hårdkodade anatomiska positioner används som de är
+    }
+  }
+
+  async function init(container) {
     const W = container.clientWidth || window.innerWidth;
     const H = container.clientHeight || window.innerHeight;
 
@@ -84,6 +112,7 @@
 
     // Build brain geometry
     buildBrain();
+    await loadTdaRegionPositions();
     buildRegions();
     buildNervePaths();
 

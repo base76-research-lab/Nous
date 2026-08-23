@@ -314,6 +314,75 @@ def region_report(field: Any = None) -> dict[str, dict]:
     return region_data
 
 
+def region_tda_positions(field: Any, min_domains_per_region: int = 2,
+                         min_regions: int = 4, max_domains_per_region: int = 50,
+                         target_radius: float = 90.0) -> dict[str, list[float]]:
+    """Regionpositioner i 3D som speglar faktiska TDA-avstånd mellan
+    regioners koncept-centroider, i stället för de hårdkodade anatomiska
+    koordinaterna (Brain View lager 4, docs/BRAIN_VIEW_REDESIGN.md:
+    "layouten själv ett bevis").
+
+    Grupperar domäner per region (classify_domain), tar varje regions
+    medelcentroid (via domain_tda_profile), kör klassisk MDS på
+    regionernas parvisa avstånd, och skalar till target_radius. Returnerar
+    {} om färre än min_regions regioner har tillräcklig täckning — UI:t
+    faller då tillbaka på de hårdkodade positionerna.
+    """
+    try:
+        import numpy as np
+        from nouse.tda.bridge import compute_distance_matrix
+    except ImportError:
+        return {}
+
+    region_domains: dict[str, list[str]] = {name: [] for name in BRAIN_REGIONS}
+    for domain in field.domains():
+        region_domains.setdefault(classify_domain(domain), []).append(domain)
+
+    region_centroids: dict[str, list[float]] = {}
+    for region_name, domains in region_domains.items():
+        if len(domains) < min_domains_per_region:
+            continue
+        centroids = []
+        for domain in domains[:max_domains_per_region]:
+            profile = field.domain_tda_profile(domain, include_centroid=True)
+            c = profile.get("centroid")
+            if c:
+                centroids.append(c)
+        if len(centroids) < min_domains_per_region:
+            continue
+        dims = len(centroids[0])
+        region_centroids[region_name] = [
+            sum(c[i] for c in centroids) / len(centroids) for i in range(dims)
+        ]
+
+    if len(region_centroids) < min_regions:
+        return {}
+
+    names = sorted(region_centroids)
+    vectors = [region_centroids[n] for n in names]
+    dm = np.array(compute_distance_matrix(vectors))
+    n = len(names)
+
+    # Klassisk MDS: dubbelcentrera den kvadrerade avståndsmatrisen,
+    # ta de tre största egenvektorerna skalade med sqrt(egenvärde).
+    J = np.eye(n) - np.ones((n, n)) / n
+    B = -0.5 * J @ (dm ** 2) @ J
+    eigvals, eigvecs = np.linalg.eigh(B)
+    order = np.argsort(eigvals)[::-1][:3]
+    eigvals = np.clip(eigvals[order], 0, None)
+    coords = eigvecs[:, order] * np.sqrt(eigvals)
+    if coords.shape[1] < 3:
+        coords = np.hstack([coords, np.zeros((n, 3 - coords.shape[1]))])
+
+    max_radius = float(np.max(np.linalg.norm(coords, axis=1))) or 1.0
+    coords = coords * (target_radius / max_radius)
+
+    return {
+        names[i]: [round(float(coords[i][0]), 1), round(float(coords[i][1]), 1), round(float(coords[i][2]), 1)]
+        for i in range(n)
+    }
+
+
 def region_distance(a: str, b: str) -> float:
     """Euclidean distance between two brain regions in 3D space."""
     ra = BRAIN_REGIONS.get(a)
