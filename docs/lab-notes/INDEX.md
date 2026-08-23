@@ -15,6 +15,7 @@ Dated research notes, strategic documents, and external communications for the N
 
 | Date | Note | Format |
 |------|------|--------|
+| 2026-08-23 | [Björns hjärndokument mot Nous — vad stämmer, vad saknas](2026-08-23-brain-document-synthesis.md) | md |
 | 2026-04-15 | [The Larynx Problem — LessWrong Post](2026-04-15-larynx-problem-lesswrong.md) | md |
 | 2026-04-15 | [Morning Research Sweep](2026-04-15-morning-research.md) | md |
 | 2026-04-14 | [The Percolation Problem in Autonomous Knowledge Graphs](2026-04-14-percolation-problem.md) | md |
