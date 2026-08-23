@@ -65,9 +65,10 @@ Svara ENDAST med ett JSON-objekt:
 PROVIDERS = {
     # model-prefix → (base_url, api_key_env)
     # None som base_url = Ollama native /api/chat (hanterar thinking-mode korrekt)
-    "cerebras/": ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY"),
-    "groq/":     ("https://api.groq.com/openai/v1", "GROQ_API_KEY"),
-    "ollama/":   (None, None),   # native API — undviker tom content vid thinking-mode
+    "cerebras/":   ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY"),
+    "groq/":       ("https://api.groq.com/openai/v1", "GROQ_API_KEY"),
+    "openrouter/": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
+    "ollama/":     (None, None),   # native API — undviker tom content vid thinking-mode
 }
 
 def _resolve_provider(model: str) -> tuple[str | None, str, dict]:

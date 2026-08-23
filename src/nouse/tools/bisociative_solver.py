@@ -50,6 +50,13 @@ CEREBRAS_API_KEY = os.getenv("CEREBRAS_API_KEY", "")
 CEREBRAS_API_BASE = "https://api.cerebras.ai/v1"
 CEREBRAS_MODEL = os.getenv("CEREBRAS_MODEL", "qwen-3-235b-a22b-instruct-2507")
 
+# OpenRouter: gratis-tier, namngiven leverantör (Nvidia), verifierad 2026-08-23
+# — se docs/lab-notes/2026-08-23-brain-document-synthesis.md-tråden. Föredras
+# framför Cerebras när Cerebras saknar saldo (kontot är inte påfyllt).
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_API_BASE = "https://openrouter.ai/api/v1"
+OPENROUTER_MODEL = os.getenv("OPENROUTER_MODEL", "nvidia/nemotron-3.5-lightning:free")
+
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 OLLAMA_MODEL = os.getenv("NOUSE_OLLAMA_MODEL", "deepseek-r1:1.5b")
 
@@ -170,7 +177,23 @@ class SolverResult:
 def _llm_call(prompt: str) -> dict:
     """Call LLM and parse JSON response."""
     try:
-        if CEREBRAS_API_KEY:
+        if OPENROUTER_API_KEY:
+            resp = httpx.post(
+                f"{OPENROUTER_API_BASE}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": OPENROUTER_MODEL,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.3,
+                    "max_tokens": 2048,
+                },
+                timeout=60.0,
+            )
+            text = resp.json()["choices"][0]["message"]["content"]
+        elif CEREBRAS_API_KEY:
             resp = httpx.post(
                 f"{CEREBRAS_API_BASE}/chat/completions",
                 headers={
