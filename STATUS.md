@@ -16,19 +16,34 @@ om detta om det finns okommitterade ändringar.
 från Björn i sessionen — även när "fria händer" gäller för själva
 byggandet. Historik (senaste överst):
 
-- [ ] **Starta om `nouse-daemon` för att köra user_relevance-viktningen
-      på riktigt (curiosity + predictive-surprise, commit `378c1a2`).**
-      - **Vad:** kör `systemctl --user restart nouse-daemon`.
-      - **Varför:** ren kodändring i `goal_generator.py`/`daemon/main.py`
-        (ingen migration) — daemonen måste starta om för att köra den.
-      - **Risk:** låg. Additiv, degraderar säkert till oförändrat
-        beteende om profilen saknas, 20 nya tester. Enda praktiska
-        effekten: mål/HITL-uppgifter vars koncept kopplar till
-        `scope="user_model"` (nu seedad, se raden nedan) får något högre
-        prioritet än innan.
-      - **Verifiering efter omstart:** `journalctl --user -u nouse-daemon -f`
-        tills en cykel loggas felfritt.
-      - **Status:** ej gjord. Säg till när du vill köra den.
+- [ ] **Lägg till `groq/qwen/qwen3.6-27b` som extraktionskandidat i produktion.**
+      - **Vad:** sätt `NOUSE_MODEL_CANDIDATES_EXTRACT=groq/qwen/qwen3.6-27b,gemma4:e2b,dolphin3:8b`
+        i `systemd/nouse-daemon.service` (eller motsvarande env-fil) +
+        starta om daemonen.
+      - **Varför:** verifierat end-to-end mot skarpt Groq-API (commit
+        `9f61973`) — kvalitet 0,967, högre än `gemma4:e2b`s 0,927,
+        gratis, snabbt (275 ms–4 s). Skulle ge daemonen en molnbaserad
+        förstahandskandidat med lokala modeller som fallback om Groqs
+        gratisnivå (30 anrop/min, 14 400/dag) tar slut.
+      - **Risk:** medel. Fungerar isolerat och i enstaka smoke-tester,
+        men **aldrig körd under den körande daemonens faktiska
+        cykel-belastning** (dussintals anrop/cykel) — okänt om
+        30 anrop/min räcker, eller om det behövs en throttle liknande den
+        som redan finns i `eval/longmemeval_adapter.py` för OpenRouter.
+        Data lämnar maskinen till Groqs API — värt att bekräfta att inget
+        `scope="personal_health"`/`"user_model"`-skyddat innehåll läcker
+        dit (bör redan vara skyddat via `SENSITIVE_SCOPES`-filtrering,
+        men inte uttryckligen testat i den här specifika vägen).
+      - **Status:** ej gjord. Björns beslut — inte en självklar "kör"
+        givet den okända anropsvolymen mot en gratis-gräns.
+
+- [x] **Starta om `nouse-daemon` för att köra user_relevance-viktningen
+      (curiosity + predictive-surprise, commit `378c1a2`) — klar
+      2026-08-24 03:14, PID 946391.** Körd på Björns explicita "kör",
+      bekräftat felfri cykel (`Limbic [cykel 5]`) innan daemonen stoppades
+      igen 03:23 för `eval/extraction_model_bench.py` (isolerad SLM-
+      jämförelse, se Nuläge nedan) — startad igen manuellt 03:33
+      (PID 958535) efter att jämförelsen slutfördes.
 
 - [x] **Seeda `scope="user_model"`-subgrafen i produktionsgrafen — klar
       2026-08-24 03:05.** Körd på Björns explicita "kör". 17 relationer
@@ -136,6 +151,43 @@ tillgängligt. Predictive-surprise-seed-tasken (punkt 8) får en modifierare
 (+0.15 max) om de överraskande domänerna kopplar till profilen — ren
 överraskning förblir huvuddrivaren. 20 nya tester, 352 gröna totalt. Se
 "Planerade actions" för omstart.
+
+**SLM-val + Groq-integration ("vilka free-modeller är lämpliga",
+2026-08-24-konversation) — klar och verifierad, INTE aktiverad i
+produktionens kandidatlista än.**
+
+- Kontrollerad, VRAM-isolerad jämförelse av alla fyra lokala modeller på
+  Nous egen extraktionsuppgift (`eval/extraction_model_bench.py`,
+  resultat i `eval/results/extraction_model_bench_20260824_013300.json`):
+  `gemma4:e2b` bäst (80% lyckade, kvalitet 0,927), `dolphin3:8b` en
+  genuint bra, tidigare otestad tvåa (80%, 0,856). `qwen3.5:9b` och
+  `lfm2.5` duger INTE till extraktion på den här maskinen — timeoutar
+  konsekvent även med full VRAM tillgänglig, inte bara
+  daemon-konkurrens. En metodikbugg hittades och korrigerades i samma
+  pass: skriptets "success" för de två sistnämnda var i själva verket
+  regex-fallbacken, inte modellen.
+- `ollama_client/client.py` (döpt efter sitt ursprung, egentligen
+  redan en generisk multi-provider-klient): ny `_KNOWN_CLOUD_PROVIDERS`
+  ger `groq`/`openrouter`/`cerebras` var sin dedikerade bas-URL +
+  API-nyckel, i stället för att alla molnleverantörer tvingas dela EN
+  global `NOUSE_OPENAI_BASE_URL`/`NOUSE_OPENAI_API_KEY`. Ny publik
+  `model_uses_cloud_provider()`.
+- **Verifierat mot skarpt Groq-API** (inte bara mockat): en andra bugg
+  hittades under smoke-testningen — Groqs resonemangsmodeller
+  (`qwen/qwen3.6-27b`, `openai/gpt-oss-*`) förbrukar sin
+  standard-`max_tokens` (2048) på ett synligt `<think>`-resonemang
+  innan de når JSON-svaret, vilket klipper det mitt i. Fixat:
+  `daemon/extractor.py` skickar nu `max_tokens=4096`
+  (`NOUSE_EXTRACT_CLOUD_MAX_TOKENS`) för molnroutade modeller — ALDRIG
+  för Ollama-modeller, vars native klient saknar den parametern helt
+  och skulle krascha på den. Efter fixen: `groq/qwen/qwen3.6-27b`
+  lyckas, 6 relationer, **kvalitet 0,967 — högre än `gemma4:e2b`s eget
+  facit.**
+- 26 nya tester, 369 gröna totalt.
+- **Inte aktiverad i produktion** — att faktiskt lägga till Groq i
+  `NOUSE_MODEL_CANDIDATES_EXTRACT` är en egen planerad action ovan,
+  eftersom den okända anropsvolymen mot en gratis-gräns under verklig
+  cykel-belastning inte är testad.
 
 ## Körande processer
 
