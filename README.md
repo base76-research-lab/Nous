@@ -152,6 +152,10 @@ There is no retraining. No gradient descent. The graph grows — and the gaps be
 
 ## Brain-Inspired Dynamics
 
+<p align="center">
+  <img src="IMG/nous-brain-dynamics.png" alt="Three control signals layered onto the Hebbian graph: energy budget, multi-timescale strength, predictive surprise" width="100%">
+</p>
+
 Nous does not just accumulate relations — it runs a continuous cognitive cycle with mechanisms
 borrowed from neuroscience, not as metaphor but as working control signals:
 
@@ -173,6 +177,10 @@ or dormancy logic.
 ---
 
 ## Personalization — `user_model`
+
+<p align="center">
+  <img src="IMG/nous-personalization.png" alt="Two tracks kept apart: ordinary LLM-extracted thematic relations versus structured, precise user_model seeding" width="100%">
+</p>
 
 Nous can maintain a structured model of the person it works with, kept in a dedicated,
 access-scoped subgraph (`scope="user_model"`, treated with the same sensitivity as
