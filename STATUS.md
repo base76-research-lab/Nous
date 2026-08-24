@@ -35,6 +35,47 @@ enligt det kontraktet, inte uppfunnet från scratch.
   `RESEARCH_LOCAL_VIOLATION`, blockerad oavsett uppdragsstorlek. Läcksökning
   bekräftad: noll träffar på "bjorn/IIC/02_LIBRARY" i något publikt-sidigt
   filträd.
+- **2026-08-24, senare pass: fem nya agentkort + stdio MCP-klient.**
+  `src/nouse/agent_system/mcp_client.py` fick stdio-transport
+  (`mcp.client.stdio`) för Thunderbird, utöver HTTP-transporten för
+  AgentMail — verifierad direkt mot den lokala `node`-bryggan
+  (`getRecentMessages`, `listEvents`). Nya kort: `mail-triage`,
+  `calendar-lookup` (läsning, Thunderbird), `voice-capture` (lokal
+  filskrivning, scopad till `00_INBOX/ljudanteckningar/`, medvetet lägre
+  kvalitet än Claude Codes egen `/voicenote`-skill), `mail-compose`
+  (bara `saveDraft`, ringer aldrig `sendMail`), `calendar-write`
+  (`createEvent`, alltid via Thunderbirds egen granskningsdialog —
+  `skipReview` hårdkodat till `false` i `executors.py`, appliceras bara på
+  de två verktyg som faktiskt känner till parametern efter en bugg som
+  först skickade den till alla verktyg och kraschade). Ny domänklassificerare
+  `_classify_domain_intent()` i `pipeline.py`, samma statiska
+  substrängsmönster som `daemon/sources.py::scope_from_path()`.
+  **Buggar hittade och fixade under testning:** (1) tom lista `[]`
+  tolkades som falsy i Python och tappade bort kontext till
+  verbaliseringsmodellen — fixat (`is not None`-kontroll). (2) modellen
+  slår ofta in JSON-svar i \`\`\`json-kodblock trots instruktion att inte
+  göra det — ny `_strip_json_fence()`-hjälpare, återanvänd i stage 01 och
+  extraktionshjälparen. **Verifierat live, alla fem:** mail-triage och
+  calendar-lookup gav korrekta "inget nytt"-svar; voice-capture skrev en
+  riktig fil (innehåll bevarat, ingen annanstans rörd); mail-compose
+  skapade ett äkta utkast i Thunderbirds Drafts-mapp (bekräftat via
+  `searchMessages`, `folderPath` visar Drafts, inget skickat); calendar-write
+  öppnade Thunderbirds granskningsdialog (bekräftat: `listEvents` visade
+  inget skapat event förrän Björn godkänner).
+- **Standing sändningsrätt, `nouse@agentmail.to` — Björns uttryckliga
+  beslut 2026-08-24.** Till skillnad från alla andra agentkort får
+  `agent-mail` nu autonomt skicka svar (`reply_to_message`) utan "kör" per
+  händelse — ett medvetet, dokumenterat undantag från hårdregel 3, skopat
+  till exakt den kanalen (se `jarvis-policy.md` hårdregel 3-undantaget och
+  `agent-mail/AGENT.md`). `scripts/agentmail_poll.py` utökad: efter att ha
+  loggat ett nytt mejl, drar den ett svar via `gemma4:e2b` (mejlinnehåll
+  behandlas uttryckligen som DATA, aldrig instruktion — matchar AgentMails
+  egen verktygsvarning) och skickar det via `reply_to_message`. Loggning
+  sker INNAN sändning, så handlingen går att rekonstruera. **Inte
+  end-to-end-testat med en riktig ny sändning än** — undvek medvetet att
+  testa genom att spola tillbaka baslinjen igen (det hade skickat riktiga
+  svar till gårdagens historiska mejl från Björn); väntar på att en äkta
+  ny händelse kommer in via den redan aktiva 10-minuterstimern.
 - **AgentMail-poller byggd, testad, INTE aktiverad än.** Björn hade redan
   testat send/receive mot `nouse@agentmail.to` manuellt 2026-08-23 (finns
   äkta korrespondens i inkorgen, inklusive en upptäckt: en tidigare session

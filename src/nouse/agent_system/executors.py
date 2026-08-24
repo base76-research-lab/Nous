@@ -11,8 +11,39 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from nouse.agent_system.mcp_client import call_named_mcp_tool
 from nouse.ollama_client.client import AsyncOllama
 from nouse.session.relay import relay_open, relay_update
+
+# Hard rule, enforced in code, not just documented: no agent card's
+# constructed arguments may ever request a skip of Thunderbird's own
+# review dialog. Only these two tools accept the parameter at all — it is
+# injected ONLY for them, never blanket-applied (getRecentMessages/
+# listEvents reject an unknown "skipReview" param outright).
+_TOOLS_WITH_SKIP_REVIEW = {"sendMail", "createEvent"}
+
+
+async def call_mcp_executor(*, executor: str, arguments: dict[str, Any]) -> dict[str, Any]:
+    """Dispatch executor strings of the form "mcp:<server>.<tool>", e.g.
+    "mcp:thunderbird_mail.getRecentMessages" or "mcp:agentmail.list_messages".
+    Returns {"ok": bool, "result": Any, "error": str|None}.
+    """
+    if not executor.startswith("mcp:"):
+        return {"ok": False, "result": None, "error": f"not an mcp executor: {executor!r}"}
+    server_tool = executor[len("mcp:"):]
+    if "." not in server_tool:
+        return {"ok": False, "result": None, "error": f"malformed mcp executor: {executor!r}"}
+    server, tool_name = server_tool.split(".", 1)
+
+    safe_arguments = dict(arguments)
+    if tool_name in _TOOLS_WITH_SKIP_REVIEW:
+        safe_arguments["skipReview"] = False  # last word, always wins
+
+    try:
+        result = await call_named_mcp_tool(server=server, tool_name=tool_name, arguments=safe_arguments)
+        return {"ok": True, "result": result, "error": None}
+    except Exception as exc:
+        return {"ok": False, "result": None, "error": f"TOOL_UNAVAILABLE: {exc}"}
 
 
 async def call_model_executor(

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from nouse.agent_system.contract import AgentContract
-from nouse.agent_system.executors import call_model_executor, open_relay_executor
+from nouse.agent_system.executors import call_mcp_executor, call_model_executor, open_relay_executor
 from nouse.agent_system.folder_loader import load_all_agents, read_policy_text
 from nouse.capability.graph import build_route_plan
 from nouse.mcp_gateway.gateway import (
@@ -52,6 +52,45 @@ _LARGE_PROJECT_MARKERS = [
     "refaktorera",
 ]
 
+# Deterministic domain-intent heuristic, same shape as
+# daemon/sources.py::scope_from_path — ordered substring match, no LLM,
+# checked most-specific-first (write markers before their read fallback,
+# since e.g. "skicka mejl" also contains "mejl").
+_DOMAIN_MARKERS: list[tuple[str, list[str]]] = [
+    ("calendar_write", ["boka möte", "boka in", "skapa möte", "lägg till möte", "lägg in i kalendern"]),
+    ("calendar_read", ["kalender", "mina möten", "kommande möte", "vad har jag för möte", "schema"]),
+    ("mail_write", ["skicka mejl", "skicka ett mejl", "svara på mejl", "maila", "skriv ett mejl", "skicka epost"]),
+    ("mail_read", ["mejl", "mail", "inkorg", "olästa", "e-post"]),
+    ("voice_capture", ["anteckna", "notera det här", "kom ihåg det här", "spara den här tanken", "diktera"]),
+]
+
+
+def _classify_domain_intent(text: str) -> str:
+    t = text.lower()
+    for label, markers in _DOMAIN_MARKERS:
+        if any(marker in t for marker in markers):
+            return label
+    return ""
+
+
+async def _extract_json_via_model(*, instruction: str, raw_text: str) -> dict:
+    """Small, reusable JSON-extraction call — same discipline as stage 01:
+    the model extracts/drafts, it does not decide whether to act.
+    """
+    result = await call_model_executor(
+        executor="gemma4:e2b",
+        system_prompt=instruction,
+        user_text=raw_text,
+        executor_options={"think": False},
+    )
+    if not result["ok"]:
+        return {}
+    try:
+        candidate = json.loads(_strip_json_fence(result["content"]))
+        return candidate if isinstance(candidate, dict) else {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -75,6 +114,19 @@ def _looks_like_large_project(text: str) -> bool:
 def _touches_research(text: str) -> bool:
     t = text.lower()
     return any(marker in t for marker in _research_markers())
+
+
+def _strip_json_fence(text: str) -> str:
+    """Small local models routinely wrap JSON answers in a markdown code
+    fence even when told not to ("```json\\n{...}\\n```"). Strip it before
+    parsing rather than let every call site special-case it.
+    """
+    t = text.strip()
+    if t.startswith("```"):
+        t = t.split("\n", 1)[1] if "\n" in t else t[3:]
+        if t.rstrip().endswith("```"):
+            t = t.rstrip()[: -3]
+    return t.strip()
 
 
 def _write_json(path: Path, data: dict) -> None:
@@ -101,7 +153,7 @@ async def _stage01_parse_request(run_dir: Path, request_text: str) -> dict:
     entities: list[str] = []
     if result["ok"]:
         try:
-            candidate = json.loads(result["content"])
+            candidate = json.loads(_strip_json_fence(result["content"]))
             if isinstance(candidate, dict):
                 intent_summary = str(candidate.get("intent_summary", ""))
                 entities = list(candidate.get("entities", []) or [])
@@ -127,10 +179,13 @@ def _stage02_engine_query(run_dir: Path, structured_query: dict) -> dict:
     route_plan = build_route_plan(raw_text)
     skill = str(route_plan.get("skill", ""))
     is_large = _looks_like_large_project(raw_text)
+    domain = _classify_domain_intent(raw_text)
 
     matched: AgentContract | None = None
     if is_large:
         matched = next((a for a in agents.values() if "large_project" in a.match), None)
+    if matched is None and domain:
+        matched = next((a for a in agents.values() if domain in a.match), None)
     if matched is None:
         matched = next((a for a in agents.values() if skill in a.match), None)
 
@@ -144,6 +199,7 @@ def _stage02_engine_query(run_dir: Path, structured_query: dict) -> dict:
     routing_decision = {
         "raw_text": raw_text,
         "classified_skill": skill,
+        "classified_domain": domain,
         "is_large_project": is_large,
         "agent_id": matched.id if matched else "",
         "agent_dir": matched.agent_dir_name if matched else "",
@@ -196,6 +252,166 @@ def _stage03_structural_validation(run_dir: Path, routing_decision: dict) -> dic
     return report
 
 
+# ---------- Stage 04 helpers: MCP-backed agents and voice-capture ----------
+
+_LJUDANTECKNINGAR_DIR = Path("/home/bjornwikstrom/IIC/00_INBOX/ljudanteckningar")
+
+
+async def _verbalize(*, system_prompt: str, context: Any, raw_text: str) -> dict:
+    # NOT "if context else ''" - an empty list/dict is a real, valid tool
+    # result ("nothing found") and must still reach the model as such,
+    # not be silently dropped into a contextless prompt that then invites
+    # it to guess.
+    context_note = f"\n\nData: {json.dumps(context, ensure_ascii=False)}" if context is not None else ""
+    return await call_model_executor(
+        executor="gemma4:e2b",
+        system_prompt=system_prompt + context_note,
+        user_text=raw_text,
+        executor_options={"think": False},
+    )
+
+
+async def _dispatch_mcp_agent(run_dir: Path, agent_id: str, executor: str, raw_text: str) -> dict:
+    if agent_id == "mail-triage-001":
+        call = await call_mcp_executor(
+            executor=executor, arguments={"unreadOnly": True, "maxResults": 10, "daysBack": 14}
+        )
+        if not call["ok"]:
+            return {"ok": False, "error_code": "TOOL_UNAVAILABLE", "content": call["error"]}
+        if not call["result"]:  # empty is a known, deterministic case - don't ask the model to phrase it
+            return {"ok": True, "error_code": None, "content": "Inga olästa mejl."}
+        verbalized = await _verbalize(
+            system_prompt=(
+                "Du ar Jarvis. Sammanfatta kort pa svenska vilka olasta mejl som finns, "
+                "baserat ENDAST pa datan nedan. Hitta inte pa avsandare eller amnen."
+            ),
+            context=call["result"],
+            raw_text=raw_text,
+        )
+        return {"ok": True, "error_code": None, "content": verbalized["content"] or "Inga olästa mejl."}
+
+    if agent_id == "calendar-lookup-001":
+        call = await call_mcp_executor(executor=executor, arguments={"maxResults": 10})
+        if not call["ok"]:
+            return {"ok": False, "error_code": "TOOL_UNAVAILABLE", "content": call["error"]}
+        if not call["result"]:
+            return {"ok": True, "error_code": None, "content": "Inga kommande möten hittade."}
+        verbalized = await _verbalize(
+            system_prompt=(
+                "Du ar Jarvis. Sammanfatta kort pa svenska kommande kalenderhandelser, "
+                "baserat ENDAST pa datan nedan. Hitta inte pa moten som inte finns dar."
+            ),
+            context=call["result"],
+            raw_text=raw_text,
+        )
+        return {"ok": True, "error_code": None, "content": verbalized["content"] or "Inga kommande möten hittade."}
+
+    if agent_id == "mail-compose-001":
+        draft = await _extract_json_via_model(
+            instruction=(
+                'Extrahera ett mejlutkast fran texten. Svara ENDAST med JSON: '
+                '{"to": "mottagarens e-post om den namns, annars tom strang", '
+                '"subject": "kort amnesrad", "body": "utkastets brodtext"}.'
+            ),
+            raw_text=raw_text,
+        )
+        args = {
+            "to": draft.get("to", "") or None,
+            "subject": draft.get("subject", "") or "Utkast från Jarvis",
+            "body": draft.get("body", "") or raw_text,
+        }
+        call = await call_mcp_executor(executor=executor, arguments={k: v for k, v in args.items() if v})
+        if not call["ok"]:
+            return {"ok": False, "error_code": "TOOL_UNAVAILABLE", "content": call["error"]}
+        return {
+            "ok": True,
+            "error_code": None,
+            "content": (
+                f"Jag har lagt ett utkast i Drafts (ämne: \"{args['subject']}\"). "
+                "Inget skickat — granska och skicka själv i Thunderbird."
+            ),
+        }
+
+    if agent_id == "calendar-write-001":
+        now_iso = datetime.now().strftime("%Y-%m-%d %H:%M (%A)")
+        event = await _extract_json_via_model(
+            instruction=(
+                f"Dagens datum och tid är {now_iso}. Extrahera ett kalenderevent fran "
+                "texten, och räkna ut det faktiska datumet för relativa uttryck som "
+                '"imorgon"/"på fredag". Svara ENDAST med JSON: '
+                '{"title": "kort titel", "startDate": "ISO 8601 eller tom strang om okant", '
+                '"description": "kort beskrivning"}.'
+            ),
+            raw_text=raw_text,
+        )
+        if not event.get("startDate"):
+            return {
+                "ok": False,
+                "error_code": "MISSING_STAGE_ARTIFACT",
+                "content": "Jag hittade ingen tydlig tid för mötet — säg en konkret tid så bokar jag.",
+            }
+        args = {
+            "title": event.get("title") or "Möte",
+            "startDate": event["startDate"],
+            "description": event.get("description", ""),
+        }
+        call = await call_mcp_executor(executor=executor, arguments=args)
+        if not call["ok"]:
+            return {"ok": False, "error_code": "TOOL_UNAVAILABLE", "content": call["error"]}
+        return {
+            "ok": True,
+            "error_code": None,
+            "content": (
+                f"Jag har öppnat en granskningsdialog i Thunderbird för \"{args['title']}\" "
+                f"({args['startDate']}) — inget bokat förrän du bekräftar den där."
+            ),
+        }
+
+    return {"ok": False, "error_code": "ROUTE_NOT_FOUND", "content": f"no dispatcher for agent {agent_id!r}"}
+
+
+async def _dispatch_voice_capture(run_dir: Path, raw_text: str) -> dict:
+    cleaned = await call_model_executor(
+        executor="gemma4:e2b",
+        system_prompt=(
+            "Stada bara upp uppenbara transkriptionsfel (upprepade ord, trasiga fragment) "
+            "i texten nedan. Parafrasera inte, forkorta inte, hitta inte pa. Returnera bara "
+            "den stadade texten, inget annat."
+        ),
+        user_text=raw_text,
+        executor_options={"think": False},
+    )
+    text_to_file = cleaned["content"] if cleaned["ok"] else raw_text
+
+    date_str = datetime.now().strftime("%Y-%m-%d")
+    n = 1
+    while (_LJUDANTECKNINGAR_DIR / f"{date_str}-jarvis-{n:03d}.md").exists():
+        n += 1
+    filename = f"{date_str}-jarvis-{n:03d}.md"
+
+    body = (
+        f"# Jarvis-anteckning {date_str}\n\n"
+        f"**Källa:** diktering via Jarvis (lokal, gemma4:e2b)\n"
+        f"**Status:** obearbetad — lägre kvalitet än /voicenote (Claude Code); "
+        f"kör /voicenote manuellt om det här ska struktureras fullt enligt ICM-mallen\n\n"
+        f"## Rå anteckning\n\n{text_to_file}\n"
+    )
+
+    os.environ["NOUSE_LOCAL_FILE_WRITE_ENABLED"] = "1"
+    os.environ["NOUSE_LOCAL_WRITE_ROOTS"] = str(_LJUDANTECKNINGAR_DIR)
+    from nouse.mcp_gateway.gateway import write_local_file
+
+    write_result = write_local_file(str(_LJUDANTECKNINGAR_DIR / filename), body, mode="overwrite", create_dirs=False)
+    if write_result.get("error"):
+        return {"ok": False, "error_code": "TOOL_UNAVAILABLE", "content": str(write_result["error"])}
+
+    return {
+        "ok": True,
+        "error_code": None,
+        "content": f"Antecknat i {filename} (obearbetad — kör /voicenote för full ICM-strukturering).",
+    }
+
+
 # ---------- Stage 04 — dispatch + verbalize only the validated result ----------
 
 async def _stage04_execution_and_generation(
@@ -212,6 +428,12 @@ async def _stage04_execution_and_generation(
 
     executor = str(routing_decision.get("proposed_executor", ""))
     raw_text = routing_decision.get("raw_text", "")
+    agent_id = routing_decision.get("agent_id", "")
+
+    if agent_id == "voice-capture-001":
+        final = await _dispatch_voice_capture(run_dir, raw_text)
+        _write_json(run_dir / "04_execution_and_generation" / "final_answer.json", final)
+        return final
 
     if executor.startswith("relay:"):
         result = open_relay_executor(goal=raw_text, run_dir=run_dir)
@@ -224,12 +446,17 @@ async def _stage04_execution_and_generation(
         _write_json(run_dir / "04_execution_and_generation" / "final_answer.json", final)
         return final
 
+    if executor.startswith("mcp:"):
+        final = await _dispatch_mcp_agent(run_dir, agent_id, executor, raw_text)
+        _write_json(run_dir / "04_execution_and_generation" / "final_answer.json", final)
+        return final
+
     system_prompt = (
         "Du ar Jarvis. Svara kort och naturligt pa svenska, med bara den "
         "grundande kontext som redan finns har - hitta inte pa systemfakta."
     )
     grounding = routing_decision.get("grounding", {})
-    context_note = f"\n\nKontext: {json.dumps(grounding, ensure_ascii=False)}" if grounding else ""
+    context_note = f"\n\nKontext: {json.dumps(grounding, ensure_ascii=False)}" if grounding is not None else ""
     result = await call_model_executor(
         executor=executor,
         system_prompt=system_prompt + context_note,
