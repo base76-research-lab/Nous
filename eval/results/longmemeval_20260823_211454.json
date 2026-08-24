@@ -1,0 +1,506 @@
+{
+  "timestamp": "2026-08-23T21:10:40.567710",
+  "model": "openrouter/nvidia/nemotron-3.5-lightning:free",
+  "judge_model": "openrouter/nvidia/nemotron-3.5-lightning:free",
+  "dataset": "longmemeval_oracle (xiaowu0162/longmemeval-cleaned)",
+  "conditions": {
+    "bare": [
+      {
+        "id": "db467c8c",
+        "question_type": "knowledge-update",
+        "question": "How long have my parents been staying with me in the US?",
+        "gold_answer": "nine months",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"How long have my parents been staying with me in the US?\"\n   - This is a personal, specific question about their parents' stay duration in the US.\n   - I don't have access to their personal data, account, location history, or family details.\n\n2.  **Identify Constraints & Policies:**\n   - I must be factual and concise.\n   - If uncertain or lacking info, I must explicitly state that.\n   - Max 150 words.\n   - No personal data ",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "ed4ddc30",
+        "question_type": "knowledge-update",
+        "question": "How many dozen eggs do we currently have stocked up in our refrigerator?",
+        "gold_answer": "20",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"How many dozen eggs do we currently have stocked up in our refrigerator?\"\n   - Key entities: \"we\", \"refrigerator\", \"dozen eggs\", \"stocked up\"\n   - Context: Personal/home inventory\n\n2.  **Identify Constraints & Limitations:**\n   - I am an AI, I don't have access to physical devices, real-time sensors, or personal/home inventory data unless specifically integrated (which isn't the case here).\n   - I cannot know what's in the ",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "a1eacc2a",
+        "question_type": "knowledge-update",
+        "question": "How many short stories have I written since I started writing regularly?",
+        "gold_answer": "seven",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"How many short stories have I written since I started writing regularly?\"\n   - Key elements: \"How many\", \"short stories\", \"since I started writing regularly\"\n   - User is asking about their own writing history/count.\n\n2.  **Identify My Capabilities/limitations:**\n   - I am an AI language model.\n   - I do not have access to the user's personal data, writing history, accounts, or personal records unless explicitly provided in",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "7e974930",
+        "question_type": "knowledge-update",
+        "question": "How much did I earn at the Downtown Farmers Market on my most recent visit?",
+        "gold_answer": "$420",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"How much did I earn at the Downtown Farmers Market on my most recent visit?\"\n   - Key elements: \"I earn\", \"Downtown Farmers Market\", \"most recent visit\"\n   - Context: This sounds like personal financial/earnings data tied to a specific location/event.\n\n2.  **Identify Constraints & Capabilities:**\n   - I am an AI without personal data, account access, or real-time/user-specific information.\n   - I cannot access the user's ea",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "157a136e",
+        "question_type": "multi-session",
+        "question": "How many years older is my grandma than me?",
+        "gold_answer": "43",
+        "model_answer": "I don't have access to your or your grandma's age, so I can't calculate the difference. If you share both of your ages, I'll gladly",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "bf659f65",
+        "question_type": "multi-session",
+        "question": "How many music albums or EPs have I purchased or downloaded?",
+        "gold_answer": 3,
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"How many music albums or EPs have I purchased or downloaded?\"\n   - This is a personal data question about their purchase/download history.\n   - I need to check what information I have access to.\n\n2.  **Identify Constraints & Capabilities:**\n   - I am an AI language model.\n   - I don't have access to the user's personal accounts, purchase history, download records, or any private data.\n   - I don't know who the user is, thei",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "ba358f49",
+        "question_type": "multi-session",
+        "question": "How many years will I be when my friend Rachel gets married?",
+        "gold_answer": "33",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"How many years will I be when my friend Rachel gets married?\"\n   - Key elements: \"I\" (user), \"friend Rachel gets married\"\n   - Missing critical information: \n     - Who is \"I\" (current age, birth year)?\n     - When is Rachel getting married (date, age, or any reference point)?\n     - What is the relationship between the user and Rachel (age difference, if any)?\n\n2.  **Identify Core Problem:**\n   - The question is unanswerab",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "gpt4_15e38248",
+        "question_type": "multi-session",
+        "question": "How many pieces of furniture did I buy, assemble, sell, or fix in the past few months?",
+        "gold_answer": "4",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"How many pieces of furniture did I buy, assemble, sell, or fix in the past few months?\"\n   - Key elements: Count of furniture items, actions: buy, assemble, sell, fix, timeframe: past few months\n   - Context: The user is asking about their personal activity/history\n\n2.  **Identify My Capabilities/Limitations:**\n   - I am an AI language model without access to the user's personal data, history, accounts, physical interaction",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "16c90bf4",
+        "question_type": "single-session-assistant",
+        "question": "I'm looking back at our previous conversation about the Seco de Cordero recipe from Ancash. You mentioned using a light or medium-bodied beer, but I was wondering if you could remind me what type of beer you specifically recommended?",
+        "gold_answer": "I recommended using a Pilsner or Lager for the recipe.",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User is asking about a previous conversation\n   - Topic: Seco de Cordero recipe from Ancash\n   - Specific question: What type of beer I recommended (light or medium-bodied beer, but they want the specific recommendation)\n   - Constraints: \n     - Answer factually/concise\n     - If unsure, say so explicitly\n     - Max 150 words\n     - No specific constraint mentioned about remembering past conversations, but as an AI I need to check if ",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "c8f1aeed",
+        "question_type": "single-session-assistant",
+        "question": "I wanted to follow up on our previous conversation about fracking in the Marcellus Shale region. You mentioned that some states require fracking companies to monitor groundwater quality at nearby wells before drilling and for a certain period after drilling is complete. Can you remind me which state you mentioned as an example that has this requirement?",
+        "gold_answer": "Pennsylvania",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User wants to follow up on a previous conversation about fracking in the Marcellus Shale region\n   - Specifically asks about a state I mentioned that requires fracking companies to monitor groundwater quality at nearby wells before and after drilling\n   - User is asking me to recall/remind which state I mentioned\n\n2.  **Check My State/Knowledge:**\n   - I need to recall if I actually mentioned a specific state in a previous conversation",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "3249768e",
+        "question_type": "single-session-assistant",
+        "question": "I'm looking back at our previous conversation about building a cocktail bar. You recommended five bottles to make the widest variety of gin-based cocktails. Can you remind me what the fifth bottle was?",
+        "gold_answer": "Absinthe",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User is asking about a previous conversation I had with them.\n   - The topic was building a cocktail bar.\n   - I recommended five bottles to make the widest variety of gin-based cocktails.\n   - They want to know what the fifth bottle was.\n\n2.  **Identify Key Constraints & Policies:**\n   - I need to check if I actually had that conversation with this user before.\n   - As an AI, I don't have persistent memory of specific past conversatio",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "8752c811",
+        "question_type": "single-session-assistant",
+        "question": "I remember you provided a list of 100 prompt parameters that I can specify to influence your output. Can you remind me what was the 27th parameter on that list?",
+        "gold_answer": "The 27th parameter was 'Sound effects (e.g., ambient, diegetic, non-diegetic, etc.)'.",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User says: \"I remember you provided a list of 100 prompt parameters that I can specify to influence your output. Can you remind me what was the 27th parameter on that list?\"\n   - Key points: \n     - Claims I provided a list of 100 prompt parameters\n     - Asks for the 27th parameter on that list\n     - Wants a reminder/recall\n\n2.  **Check Knowledge/Capability:**\n   - I need to verify if I actually provided such a list in our conversati",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "54026fce",
+        "question_type": "single-session-preference",
+        "question": "I've been thinking about ways to stay connected with my colleagues. Any suggestions?",
+        "gold_answer": "The user would prefer responses that acknowledge their desire for social interaction and collaboration while working remotely, utilizing their previous experiences with company initiatives and team collaborations. They might prefer suggestions of virtual team-building activities, regular check-ins, or joining interest-based groups within the company. The user may not prefer generic suggestions that do not take into account their specific work situation or previous attempts at staying connected with colleagues.",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"I've been thinking about ways to stay connected with my colleagues. Any suggestions?\"\n   - Tone: Casual, seeking advice/suggestions\n   - Context: Workplace/colleague relationships, staying connected\n\n2.  **Identify Key Constraints:**\n   - Must be factual and concise\n   - Must say explicitly if uncertain\n   - Max 150 words\n   - AI assistant persona\n\n3.  **Determine Response Strategy:**\n   - Provide practical, common suggesti",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "0edc2aef",
+        "question_type": "single-session-preference",
+        "question": "Can you suggest a hotel for my upcoming trip to Miami?",
+        "gold_answer": "The user would prefer suggestions of hotels in Miami that offer great views, possibly of the ocean or the city skyline, and have unique features such as a rooftop pool or a hot tub on the balcony. They may not prefer suggestions of basic or budget hotels without these features.",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"Can you suggest a hotel for my upcoming trip to Miami?\"\n   - Constraints: \n     - Must respond factually and concisely\n     - Must explicitly state if uncertain\n     - Max 150 words\n   - No additional context provided (dates, budget, preferences, etc.)\n\n2.  **Identify Key Limitations/Requirements:**\n   - I don't have user-specific details (budget, dates, location preference in Miami, etc.)\n   - I need to either ask for more",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "1c0ddc50",
+        "question_type": "single-session-preference",
+        "question": "Can you suggest some activities I can do during my commute to work?",
+        "gold_answer": "The user would prefer suggestions related to listening to new podcasts or audiobooks, especially the genre beyond true crime or self-improvement, such as history. They may not be interested in activities that require visual attention, such as reading or watching videos, as they are commuting. The user would not prefer general podcast topics such as true crime or self-improvement, as the user wants to explore other topics.",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"Can you suggest some activities I can do during my commute to work?\"\n   - Constraints: \n     - Answer factually and concisely\n     - If unsure, say it explicitly\n     - Max 150 words\n   - No complex reasoning, no hidden traps. Just a straightforward request for commute activity suggestions.\n\n2.  **Identify Core Request:**\n   - Suggest activities for commuting to work\n   - Must be factual/concise\n   - Word limit: 150 words (",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "07b6f563",
+        "question_type": "single-session-preference",
+        "question": "Can you suggest some useful accessories for my phone?",
+        "gold_answer": "The user would prefer suggestions of accessories that are compatible with an iPhone 13 Pro, such as high-quality screen protectors, durable cases, portable power banks, or phone wallet cases. They may not prefer suggestions of accessories that are not compatible with Apple products or do not enhance the functionality or protection of their phone.",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"Can you suggest some useful accessories for my phone?\"\n   - Constraints: \n     - Answer factually and concisely\n     - If uncertain, say so explicitly\n     - Max 150 words\n\n2.  **Identify Core Request:**\n   - Suggest useful phone accessories\n   - Need to be general enough to cover common use cases, but specific enough to be helpful\n   - Must stay within 150 words\n   - Must be factual/concise\n\n3.  **Determine Scope/Content:*",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "577d4d32",
+        "question_type": "single-session-user",
+        "question": "What time do I stop checking work emails and messages?",
+        "gold_answer": "7 pm",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"What time do I stop checking work emails and messages?\"\n   - This is a personal/work-life balance question.\n   - They want advice on when to stop.\n\n2.  **Identify Key Constraints:**\n   - Must answer factually and concisely.\n   - If uncertain, say so explicitly.\n   - Max 150 words.\n   - No specific context given about their job, industry, contract, or personal preferences.\n\n3.  **Determine Knowledge Limits:**\n   - I don't kn",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "58bf7951",
+        "question_type": "single-session-user",
+        "question": "What play did I attend at the local community theater?",
+        "gold_answer": "The Glass Menagerie",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"What play did I attend at the local community theater?\"\n   - Key elements: \"What play\", \"I attend\", \"local community theater\"\n   - Context: The user is asking about their own past attendance at a community theater.\n\n2.  **Identify Constraints & Limitations:**\n   - I am an AI, I don't have personal memories, access to user's personal life, location, or history unless provided in conversation context.\n   - No prior context in",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "c19f7a0b",
+        "question_type": "single-session-user",
+        "question": "What time do I usually get home from work on weeknights?",
+        "gold_answer": "6:30 pm",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"What time do I usually get home from work on weeknights?\"\n   - This is a personal question about the user's habits/schedule.\n   - As an AI, I don't have access to the user's personal life, schedule, or data unless provided in context.\n\n2.  **Identify Constraints:**\n   - Must answer factually/accurately.\n   - Must say explicitly if uncertain.\n   - Max 150 words.\n   - Short and concise.\n\n3.  **Determine AI's Capabilities/Limi",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "15745da0",
+        "question_type": "single-session-user",
+        "question": "How long have I been collecting vintage cameras?",
+        "gold_answer": "three months",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"How long have I been collecting vintage cameras?\"\n   - This is a personal question about their history/habits.\n   - I don't have access to their personal data, history, or account information.\n   - I need to respond clearly that I don't know, and explain why.\n\n2.  **Identify Constraints:**\n   - Answer factually and concisely.\n   - If uncertain, say it explicitly.\n   - Max 150 words.\n\n3.  **Determine Response:**\n   - I don't",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "gpt4_2c50253f",
+        "question_type": "temporal-reasoning",
+        "question": "What time do I wake up on Tuesdays and Thursdays?",
+        "gold_answer": "6:45 AM",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"What time do I wake up on Tuesdays and Thursdays?\"\n   - This is a personal/routine question about their schedule.\n\n2.  **Identify Key Constraints:**\n   - I am an AI, I don't know the user's personal schedule/routines.\n   - I need to respond factually and concisely.\n   - If uncertain/something missing, I must explicitly state it.\n   - Max 150 words.\n\n3.  **Determine Response Strategy:**\n   - Acknowledge I don't have access t",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "gpt4_213fd887",
+        "question_type": "temporal-reasoning",
+        "question": "Which event did I participate in first, the volleyball league or the charity 5K run to raise money for a local children's hospital?",
+        "gold_answer": "volleyball league",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"Which event did I participate in first, the volleyball league or the charity 5K run to raise money for a local children's hospital?\"\n   - They want to know the chronological order of two events they participated in.\n   - They mention specific events: volleyball league, charity 5K run for children's hospital.\n\n2.  **Identify Constraints & Limitations:**\n   - I am an AI without access to the user's personal history, memories,",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "gpt4_74aed68e",
+        "question_type": "temporal-reasoning",
+        "question": "How many days passed between the day I replaced my spark plugs and the day I participated in the Turbocharged Tuesdays auto racking event?",
+        "gold_answer": "29 days. 30 days (including the last day) is also acceptable.",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"How many days passed between the day I replaced my spark plugs and the day I participated in the Turbocharged Tuesdays auto racking event?\"\n   - Key elements: \n     - Day they replaced spark plugs\n     - Day they participated in \"Turbocharged Tuesdays auto racking event\"\n     - Asking for the number of days between these two events\n   - Missing information: I don't have access to their personal data, calendar, or past actio",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "gpt4_1a1dc16d",
+        "question_type": "temporal-reasoning",
+        "question": "Which event happened first, the meeting with Rachel or the pride parade?",
+        "gold_answer": "The meeting with Rachel",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:**\n   - User asks: \"Which event happened first, the meeting with Rachel or the pride parade?\"\n   - This seems like a specific, possibly personal or fictional context question.\n   - I need to determine if this refers to real events, a specific story, movie, book, or general knowledge.\n\n2.  **Identify Key Entities/Events:**\n   - \"meeting with Rachel\"\n   - \"pride parade\"\n   - No clear context provided (no year, no location, no specific Rachel, no",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      }
+    ],
+    "nous": [
+      {
+        "id": "db467c8c",
+        "question_type": "knowledge-update",
+        "question": "How long have my parents been staying with me in the US?",
+        "gold_answer": "nine months",
+        "model_answer": "Here's a thinking process:\n\n1.  **Analyze User Input:** User asks \"How long have my parents been staying with me in the US?\"\n2.  **Check Knowledge Base:** I need to look at the provided \"Kunskapsminne (extraherat från konversationshistorik)\":\n   - It only has one entry: \"• if having my parents: modulerar → on my application\"\n   - This is very sparse and doesn't contain any information about duration, dates, or how long the parents have been staying in the US.\n3.  **Evaluate Against Instructions:",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "ed4ddc30",
+        "question_type": "knowledge-update",
+        "question": "How many dozen eggs do we currently have stocked up in our refrigerator?",
+        "gold_answer": "20",
+        "model_answer": "Based on the available knowledge base, there is no information about the current number of eggs stocked in your refrigerator. I don't have access to real-time inventory data for your fridge, so I can't answer this from memory. If you'd",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "a1eacc2a",
+        "question_type": "knowledge-update",
+        "question": "How many short stories have I written since I started writing regularly?",
+        "gold_answer": "seven",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "7e974930",
+        "question_type": "knowledge-update",
+        "question": "How much did I earn at the Downtown Farmers Market on my most recent visit?",
+        "gold_answer": "$420",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "157a136e",
+        "question_type": "multi-session",
+        "question": "How many years older is my grandma than me?",
+        "gold_answer": "43",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "bf659f65",
+        "question_type": "multi-session",
+        "question": "How many music albums or EPs have I purchased or downloaded?",
+        "gold_answer": 3,
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "ba358f49",
+        "question_type": "multi-session",
+        "question": "How many years will I be when my friend Rachel gets married?",
+        "gold_answer": "33",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "gpt4_15e38248",
+        "question_type": "multi-session",
+        "question": "How many pieces of furniture did I buy, assemble, sell, or fix in the past few months?",
+        "gold_answer": "4",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "16c90bf4",
+        "question_type": "single-session-assistant",
+        "question": "I'm looking back at our previous conversation about the Seco de Cordero recipe from Ancash. You mentioned using a light or medium-bodied beer, but I was wondering if you could remind me what type of beer you specifically recommended?",
+        "gold_answer": "I recommended using a Pilsner or Lager for the recipe.",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "c8f1aeed",
+        "question_type": "single-session-assistant",
+        "question": "I wanted to follow up on our previous conversation about fracking in the Marcellus Shale region. You mentioned that some states require fracking companies to monitor groundwater quality at nearby wells before drilling and for a certain period after drilling is complete. Can you remind me which state you mentioned as an example that has this requirement?",
+        "gold_answer": "Pennsylvania",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "3249768e",
+        "question_type": "single-session-assistant",
+        "question": "I'm looking back at our previous conversation about building a cocktail bar. You recommended five bottles to make the widest variety of gin-based cocktails. Can you remind me what the fifth bottle was?",
+        "gold_answer": "Absinthe",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "8752c811",
+        "question_type": "single-session-assistant",
+        "question": "I remember you provided a list of 100 prompt parameters that I can specify to influence your output. Can you remind me what was the 27th parameter on that list?",
+        "gold_answer": "The 27th parameter was 'Sound effects (e.g., ambient, diegetic, non-diegetic, etc.)'.",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "54026fce",
+        "question_type": "single-session-preference",
+        "question": "I've been thinking about ways to stay connected with my colleagues. Any suggestions?",
+        "gold_answer": "The user would prefer responses that acknowledge their desire for social interaction and collaboration while working remotely, utilizing their previous experiences with company initiatives and team collaborations. They might prefer suggestions of virtual team-building activities, regular check-ins, or joining interest-based groups within the company. The user may not prefer generic suggestions that do not take into account their specific work situation or previous attempts at staying connected with colleagues.",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "0edc2aef",
+        "question_type": "single-session-preference",
+        "question": "Can you suggest a hotel for my upcoming trip to Miami?",
+        "gold_answer": "The user would prefer suggestions of hotels in Miami that offer great views, possibly of the ocean or the city skyline, and have unique features such as a rooftop pool or a hot tub on the balcony. They may not prefer suggestions of basic or budget hotels without these features.",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "1c0ddc50",
+        "question_type": "single-session-preference",
+        "question": "Can you suggest some activities I can do during my commute to work?",
+        "gold_answer": "The user would prefer suggestions related to listening to new podcasts or audiobooks, especially the genre beyond true crime or self-improvement, such as history. They may not be interested in activities that require visual attention, such as reading or watching videos, as they are commuting. The user would not prefer general podcast topics such as true crime or self-improvement, as the user wants to explore other topics.",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "07b6f563",
+        "question_type": "single-session-preference",
+        "question": "Can you suggest some useful accessories for my phone?",
+        "gold_answer": "The user would prefer suggestions of accessories that are compatible with an iPhone 13 Pro, such as high-quality screen protectors, durable cases, portable power banks, or phone wallet cases. They may not prefer suggestions of accessories that are not compatible with Apple products or do not enhance the functionality or protection of their phone.",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "577d4d32",
+        "question_type": "single-session-user",
+        "question": "What time do I stop checking work emails and messages?",
+        "gold_answer": "7 pm",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "58bf7951",
+        "question_type": "single-session-user",
+        "question": "What play did I attend at the local community theater?",
+        "gold_answer": "The Glass Menagerie",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "c19f7a0b",
+        "question_type": "single-session-user",
+        "question": "What time do I usually get home from work on weeknights?",
+        "gold_answer": "6:30 pm",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "15745da0",
+        "question_type": "single-session-user",
+        "question": "How long have I been collecting vintage cameras?",
+        "gold_answer": "three months",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "gpt4_2c50253f",
+        "question_type": "temporal-reasoning",
+        "question": "What time do I wake up on Tuesdays and Thursdays?",
+        "gold_answer": "6:45 AM",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "gpt4_213fd887",
+        "question_type": "temporal-reasoning",
+        "question": "Which event did I participate in first, the volleyball league or the charity 5K run to raise money for a local children's hospital?",
+        "gold_answer": "volleyball league",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "gpt4_74aed68e",
+        "question_type": "temporal-reasoning",
+        "question": "How many days passed between the day I replaced my spark plugs and the day I participated in the Turbocharged Tuesdays auto racking event?",
+        "gold_answer": "29 days. 30 days (including the last day) is also acceptable.",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      },
+      {
+        "id": "gpt4_1a1dc16d",
+        "question_type": "temporal-reasoning",
+        "question": "Which event happened first, the meeting with Rachel or the pride parade?",
+        "gold_answer": "The meeting with Rachel",
+        "model_answer": "[ERROR: Client error '429 Too Many Requests' for url 'https://openrouter.ai/api/v1/chat/completions'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/429]",
+        "correct": 0,
+        "judge_reason": "unparseable judge output"
+      }
+    ]
+  },
+  "metrics": {
+    "bare": {
+      "accuracy": 0.0,
+      "n": 24,
+      "by_type": {
+        "knowledge-update": {
+          "accuracy": 0.0,
+          "n": 4
+        },
+        "multi-session": {
+          "accuracy": 0.0,
+          "n": 4
+        },
+        "single-session-assistant": {
+          "accuracy": 0.0,
+          "n": 4
+        },
+        "single-session-preference": {
+          "accuracy": 0.0,
+          "n": 4
+        },
+        "single-session-user": {
+          "accuracy": 0.0,
+          "n": 4
+        },
+        "temporal-reasoning": {
+          "accuracy": 0.0,
+          "n": 4
+        }
+      }
+    },
+    "nous": {
+      "accuracy": 0.0,
+      "n": 24,
+      "by_type": {
+        "knowledge-update": {
+          "accuracy": 0.0,
+          "n": 4
+        },
+        "multi-session": {
+          "accuracy": 0.0,
+          "n": 4
+        },
+        "single-session-assistant": {
+          "accuracy": 0.0,
+          "n": 4
+        },
+        "single-session-preference": {
+          "accuracy": 0.0,
+          "n": 4
+        },
+        "single-session-user": {
+          "accuracy": 0.0,
+          "n": 4
+        },
+        "temporal-reasoning": {
+          "accuracy": 0.0,
+          "n": 4
+        }
+      }
+    }
+  }
+}

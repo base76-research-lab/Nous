@@ -1,5 +1,17 @@
 {
-  "hooks": {},
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -n \"$(git status --short)\" ]; then echo \"Reminder: uncommitted changes in nous repo. Update STATUS.md with what changed and why, then commit (or explicitly note in STATUS.md why it is being left uncommitted) before ending the session.\" >&2; fi; exit 0",
+            "statusMessage": "Checking for uncommitted changes..."
+          }
+        ]
+      }
+    ]
+  },
   "instructions": "This project uses the RIPER workflow with 3 consolidated agents (research-innovate, plan-execute, review). See .claude/project-info.md for detailed context.",
   "project": {
     "description": "Your project description here",

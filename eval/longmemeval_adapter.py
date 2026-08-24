@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import sys
 import tempfile
 from collections import defaultdict
@@ -41,7 +42,22 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 sys.path.insert(0, str(Path(__file__).parent))
 
+# extractor.py:s hårdkodade default (deepseek-r1:1.5b) är inte installerad i
+# Ollama (404) — bekräftat 2026-08-24. Utan detta misslyckas VARJE
+# extract_relations()-anrop tyst (build_isolated_field fångar exceptionen och
+# fortsätter med rels=[]), så "nous"-villkoret körde hela natten mot en tom
+# graf utan att någon körning märkte det. gemma4:e2b är samma modell den
+# körande daemonen faktiskt använder framgångsrikt (se ROADMAP.md).
+os.environ.setdefault("NOUSE_EXTRACT_MODEL", "gemma4:e2b")
+
 from run_eval import call_llm, SYSTEM_BASELINE  # noqa: E402
+
+# OpenRouterts gratis-tier tar 20 anrop/min — 429 Too Many Requests observerat
+# 2026-08-23 utan detta. Groq (LPU-baserad) har ingen kant vi känner till,
+# så bara openrouter/-modeller kastas tillbaka.
+async def _throttle(model: str) -> None:
+    if model.startswith("openrouter/"):
+        await asyncio.sleep(3.2)
 
 DATA_PATH = Path(__file__).parent / "data" / "longmemeval_oracle.json"
 
@@ -168,6 +184,10 @@ def get_nous_lme_context(question: str, field) -> str:
 # ── Judging ──────────────────────────────────────────────────────────────
 
 def _parse_judge(raw: str) -> dict:
+    """Reasoning-modeller (t.ex. nemotron-3.5-lightning) skriver ofta ut en
+    tankeprocess före JSON-svaret ("Here's a thinking process: ..."), inte
+    bara ren eller ```-inramad JSON. Sök efter det SISTA {...}-blocket i
+    texten i stället för att anta att hela strängen är JSON."""
     try:
         cleaned = raw.strip()
         if cleaned.startswith("```"):
@@ -176,9 +196,17 @@ def _parse_judge(raw: str) -> dict:
                 cleaned = cleaned[first_nl + 1:]
             if cleaned.endswith("```"):
                 cleaned = cleaned[:-3].strip()
-        return json.loads(cleaned)
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+            pass
+        start = cleaned.rfind("{")
+        end = cleaned.rfind("}") + 1
+        if start >= 0 and end > start:
+            return json.loads(cleaned[start:end])
     except (json.JSONDecodeError, AttributeError):
-        return {"correct": 0, "reason": "unparseable judge output"}
+        pass
+    return {"correct": 0, "reason": "unparseable judge output"}
 
 
 # ── Runner ───────────────────────────────────────────────────────────────
@@ -218,12 +246,14 @@ async def run_longmemeval_benchmark(
                     raise ValueError(f"Unknown condition: {condition}")
 
                 answer = await call_llm(None, model, system, user, timeout=90.0)
+                await _throttle(model)
 
                 judge_prompt = SYSTEM_JUDGE_LME.format(
                     question=question, answer=gold, model_answer=answer[:500],
                 )
                 judge_raw = await call_llm(None, judge_model, "Du är en objektiv bedömare.",
                                            judge_prompt, timeout=60.0)
+                await _throttle(judge_model)
                 judge = _parse_judge(judge_raw)
 
                 condition_results.append({
