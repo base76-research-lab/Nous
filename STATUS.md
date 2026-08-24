@@ -10,6 +10,15 @@ Uppdatera den här filen **innan session slut** om något ändrats sedan
 senaste uppdateringen — se `.claude/settings.json`s Stop-hook, som påminner
 om detta om det finns okommitterade ändringar.
 
+**Session avslutad 2026-08-24 03:50.** Allt committat (`c1b9072` senast),
+daemonen aktiv och frisk (PID 958535). Två öppna beslut väntar på Björn
+nästa gång, båda under "Planerade actions" nedan: (1) lägga till Groq
+(`groq/qwen/qwen3.6-27b`) i produktionens `bisoc`/`synth`-kandidater —
+lågrisk enligt den nya routingdoktrinen (`NOUS_STRATEGIC_DOCTRINE.md` §11),
+inte aktiverad än; (2) LongMemEval-grundorsaken (fel benchmark för
+Nous) är redan löst som beslut, ingen ny åtgärd väntar där. Ingenting
+kräver daemon-omstart just nu.
+
 ## Planerade actions (väntar på Björns godkännande)
 
 Ändringar som rör den körande daemonen görs aldrig utan uttryckligt "kör"
