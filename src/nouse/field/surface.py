@@ -39,9 +39,14 @@ KNOWN_SCOPES = {
     "nous_system",       # Nous egen kod/dokumentation
     "research_plg",      # PLG-forskning / akademiskt arbete
     "voice_notes",       # /voicenote-transkriptioner
+    "user_model",         # Björns arbetssätt/kommunikationsbehov/mönster — se
+                          # daemon/user_model_seed.py. Sensitiv av samma skäl
+                          # som personal_health: en profil om hur man bäst
+                          # bemöter honom ska inte läcka till externa LLM:er
+                          # via bisociation/context utan uttrycklig override.
     "general",           # allt annat — standard
 }
-SENSITIVE_SCOPES = {"personal_health"}
+SENSITIVE_SCOPES = {"personal_health", "user_model"}
 DEFAULT_SCOPE = "general"
 
 # Fas 3 punkt 9 (multi-timescale synaptisk styrka): halveringstid för den

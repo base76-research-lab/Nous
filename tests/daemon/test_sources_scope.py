@@ -29,3 +29,13 @@ def test_scope_from_path_flags_research_library():
 
 def test_scope_from_path_defaults_to_general_for_unrelated_path():
     assert scope_from_path(Path("/home/bjorn/IIC/01_PROJECTS/cdf/kurs.md")) == "general"
+
+
+def test_scope_from_path_flags_person_md():
+    assert scope_from_path(Path("/home/bjorn/IIC/04_SYSTEM/system/PERSON.md")) == "user_model"
+
+
+def test_scope_from_path_flags_claude_memory_dir():
+    assert scope_from_path(
+        Path("/home/bjorn/.claude/projects/-home-bjorn/memory/bjorn-sells-by-demonstration.md")
+    ) == "user_model"

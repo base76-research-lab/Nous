@@ -16,25 +16,29 @@ om detta om det finns okommitterade ändringar.
 från Björn i sessionen — även när "fria händer" gäller för själva
 byggandet. Historik (senaste överst):
 
-- [ ] **Starta om `nouse-daemon` för att köra Fas 3 punkt 8 (predictive
-      surprise → HITL-task) på riktigt.**
-      - **Vad:** kör `systemctl --user restart nouse-daemon`.
-      - **Varför:** ren kodändring i `daemon/main.py` (ingen
-        schemamigration den här gången) — daemonen måste starta om för
-        att köra den nya modulen.
-      - **Risk:** låg-medel. Additivt block, testat isolerat (8 tester),
-        men det är första gången den faktiskt körs mot den levande
-        curiosity-kön/HITL-kön (`research_queue.json`, `hitl_interrupts.json`)
-        under verklig belastning, inte bara i tester. Om
-        `NOUSE_PREDICTIVE_SURPRISE_THRESHOLD` (default 0.75) visar sig
-        för lågt kan det skapa fler HITL-interrupts än väntat — enkelt
-        att justera via env eller stänga av (`NOUSE_PREDICTIVE_SURPRISE_ENABLED=0`)
-        utan kodändring.
-      - **Verifiering efter omstart:** `journalctl --user -u nouse-daemon -f`
-        tills en cykel loggas felfritt; håll ett öga på
-        `hitl_interrupts.json` de första timmarna för att se om tröskeln
-        känns rätt kalibrerad.
+- [ ] **Seeda `scope="user_model"`-subgrafen i produktionsgrafen.**
+      - **Vad:** `.venv/bin/python -c "..."` (eller ett litet CLI-kommando,
+        se nedan) som anropar
+        `daemon.user_model_seed.seed_user_model(field, person_md_path, memory_dir)`
+        mot **produktionsgrafen** (`~/.local/share/nouse/field.sqlite`),
+        inte en temp-path. Källor: `IIC/04_SYSTEM/system/PERSON.md` och
+        `~/.claude/projects/-home-bjornwikstrom/memory/*.md`
+        (metadata.type ∈ {user, feedback}).
+      - **Varför:** skriver 17 nya, kuraterade relationer om Björn direkt
+        in i den grafen daemonen redan läser/skriver mot — en skrivning
+        till produktionstillstånd, inte bara en kodändring, därför en
+        egen planerad action trots att ingen daemon-omstart krävs.
+      - **Risk:** låg. Additiv, idempotent (kör man om läggs bara nya
+        rader till), testad isolerat (9 tester) OCH torrkörd mot de
+        riktiga källorna in i en temp-databas 2026-08-24 (17 relationer,
+        verifierat innehåll, se commit). SQLite WAL stödjer redan
+        samtidig CLI+daemon-åtkomst (se `CHANGELOG.md` 0.3.x).
       - **Status:** ej gjord. Säg till när du vill köra den.
+
+- [x] Starta om `nouse-daemon` för att köra Fas 3 punkt 8 (predictive
+      surprise → HITL-task) — klar 2026-08-24 02:53, PID 936012. Körd på
+      Björns explicita "kör", bekräftat felfri cykel efter omstart
+      (`Limbic [cykel 3]`, ingen krasch).
 
 - [x] **Starta om `nouse-daemon` för att köra multi-timescale-migrationen
       (Fas 3 punkt 9, slice 1) — klar 2026-08-24 02:45, PID 931901.**
@@ -101,6 +105,23 @@ av Björn. Byggordning: 10 → 9 → 8 → 7.**
   curiosity-loopen redan använder. 8 nya tester, 328 gröna totalt. Se
   "Planerade actions" ovan för omstart.
 - Punkt 7 väntar på 8, som planerat.
+
+**Björn-profilen ("systemet bör känna mig", 2026-08-24-konversation) —
+kod klar, INTE seedad i produktion än.** Ny `scope="user_model"`
+(`field/surface.py`, sensitiv likt `personal_health`) + ny modul
+`daemon/user_model_seed.py`: strukturerad parsning (INTE
+`extract_relations()`s LLM-extraktion — samma grundorsak som
+LongMemEval-lärdomen, precisa meningar ska inte spädas ut till vaga
+tematiska relationer) av `IIC/04_SYSTEM/system/PERSON.md` och Claude-
+minnesfiler (`metadata.type` ∈ {user, feedback}) till relationer typade
+`kommunikationsstil`/`lärstil`/`kognitivt_behov`/`personmönster`/
+`arbetssätt`. Idempotent. `scope_from_path()` i `daemon/sources.py`
+taggar också dessa filvägar automatiskt vid vanlig fil-ingestion, som
+skyddsnät. 9 nya tester, 339 gröna totalt. Torrkörning mot de riktiga
+källorna (temp-databas): 17 relationer, innehåll verifierat gott.
+**Medvetet inte ännu kopplat till curiosity/predictive-viktning** — det
+var uttryckligen nästa steg *efter* att själva profilen finns, inte
+samma pass. Se "Planerade actions" för produktionsseedningen.
 
 ## Körande processer
 

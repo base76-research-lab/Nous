@@ -393,6 +393,8 @@ def scope_from_path(path: Path) -> str:
     p = str(path).lower()
     if "halsa" in p or "hälsa" in p or "glp1" in p or "glp-1" in p:
         return "personal_health"
+    if p.endswith("system/person.md") or (".claude/projects" in p and "/memory/" in p):
+        return "user_model"
     if "/work/nous/" in p or "/nouse/" in p:
         return "nous_system"
     if "ljudanteckningar" in p or "voicenote" in p:
