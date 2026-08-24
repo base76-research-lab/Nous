@@ -70,28 +70,49 @@ harnessen för det.
       identifierad (dataset-ID + modell-åtkomst)
 - [x] `eval/truthfulqa_adapter.py:121` fixad (dataset-ID)
 - [x] Smoke-test (`-n 2`, condition=bare) — grönt
-- [x] Full körning startad (bakgrund, se nedan för task/logg-sökväg)
-- [ ] Full körning klar — resultat sparat till
+- [x] Full körning #1 klar (PID 1134136, 12:57–12:59) — **men resultatet
+      var trasigt**, se "Bugg #2" nedan. Sparad som
+      `eval/results/truthfulqa_run2_20260824_BROKEN_thinktoken.json` för
+      referens, inte den riktiga körningen.
+- [x] **Bugg #2 hittad och fixad:** `eval/run_eval.py::call_llm` satte
+      `max_tokens=300` hårdkodat för alla molnroutade modeller. Groqs
+      `qwen/qwen3.6-27b` är en reasoning-modell som spenderar hela den
+      budgeten på ett dolt `<think>`-block INNAN den når svaret — exakt
+      samma fallgrop som redan var känd och fixad för
+      `daemon/extractor.py` (se STATUS.md, Groq-extraktionskandidaten).
+      Resultat av bara detta: judge_truthful=0% och usla MC1-siffror
+      över ALLA conditions i körning #1 — inte ett riktigt mätvärde,
+      ett trasigt pipeline-symptom. Fixat: `EVAL_CLOUD_MAX_TOKENS`
+      (env `NOUSE_EVAL_CLOUD_MAX_TOKENS`, default 4096) + strippning av
+      `<think>...</think>` innan svaret returneras. Verifierat med ny
+      smoke-test (`-n 3`): judge_truthful nu 100% på tre uppenbart
+      korrekta svar, med fullständig, läsbar svarstext.
+- [x] Full körning #2 startad med fixet (se metadata nedan)
+- [ ] Full körning #2 klar — resultat sparat till
       `eval/results/truthfulqa_run2_20260824.json`
 - [ ] Resultat granskat, sammanfattning skriven här nedan
 - [ ] `STATUS.md` uppdaterad med resultat + länk hit
 - [ ] Committat
 
-## Körnings-metadata
+## Körnings-metadata (körning #2, den giltiga)
 
-- Bakgrunds-PID: **1134136** (frikopplad `nohup`, körs oavsett Claude
-  Code-sessionens status — om sessionen kraschar, kolla
-  `ps -p 1134136` eller om outputfilen nedan slutat växa)
-- Loggfil: `/tmp/claude-1000/-home-bjornwikstrom/7d33d639-f3db-4e2c-97e5-31d03af38c12/scratchpad/truthfulqa_run2.log`
-  (OBS: scratchpad, kan städas mellan sessioner — resultatet
+- Bakgrunds-PID: **1136271** (frikopplad `nohup`)
+- Loggfil: `/tmp/claude-1000/-home-bjornwikstrom/7d33d639-f3db-4e2c-97e5-31d03af38c12/scratchpad/truthfulqa_run2b.log`
+  (scratchpad, kan städas mellan sessioner — resultatet
   `eval/results/truthfulqa_run2_20260824.json` är den bestående källan)
-- Startad: 2026-08-24 12:57:08 CEST
+- Startad: 2026-08-24 12:59:41 CEST
 - Klar: *(fylls i)*
-- **Om sessionen kraschar och den här checklistan fortfarande visar
-  "Full körning startad" som senaste bock:** kolla `ps -p 1134136`. Om
-  processen lever, vänta/övervaka loggfilen. Om den är död utan att
-  `eval/results/truthfulqa_run2_20260824.json` finns: den kraschade,
-  läs loggfilens slut för felet och kör om kommandot ovan.
+- **Om sessionen kraschar:** kolla `ps -p 1136271`. Om processen lever,
+  vänta/övervaka loggfilen. Om den är död utan att
+  `eval/results/truthfulqa_run2_20260824.json` finns: kraschade, läs
+  loggfilens slut för felet. Kommandot (med fixet redan i koden, kräver
+  inte omstart av något annat):
+  ```
+  cd /home/bjornwikstrom/Work/nous && set -a && source .env && set +a
+  .venv/bin/python eval/truthfulqa_adapter.py --model groq/qwen/qwen3.6-27b \
+    --conditions bare rag nous_meta -n 40 \
+    --output eval/results/truthfulqa_run2_20260824.json
+  ```
 
 ## Resultat (fylls i vid slutförande)
 

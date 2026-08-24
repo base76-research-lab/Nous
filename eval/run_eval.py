@@ -22,6 +22,7 @@ import asyncio
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -29,6 +30,18 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+_THINK_BLOCK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
+
+# Molnroutade reasoning-modeller (Groq qwen3.6-27b/gpt-oss-*, NVIDIA nemotron
+# m.fl.) spenderar sin standard-max_tokens på ett dolt <think>-resonemang
+# INNAN de når det faktiska svaret — samma fallgrop redan hittad och fixad
+# för extraktionsvägen (daemon/extractor.py::EXTRACT_CLOUD_MAX_TOKENS,
+# 2026-08-24). Utan det här klipps svaret av mitt i resonemanget och
+# innehåller aldrig ett riktigt svar (verifierat: gav 0% judge-truthful
+# rakt över alla conditions i truthfulqa_run2, se
+# eval/results/RUN_LOG_2026-08-24_truthfulqa.md).
+EVAL_CLOUD_MAX_TOKENS = max(256, int((os.getenv("NOUSE_EVAL_CLOUD_MAX_TOKENS") or "4096").strip()))
 
 SYSTEM_NOUSE = """\
 Du är en AI-assistent med tillgång till ett strukturerat kunskapsminne (Nouse).
@@ -121,14 +134,15 @@ async def call_llm(client, model: str, system: str, user: str,
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "max_tokens": 300,
+            "max_tokens": EVAL_CLOUD_MAX_TOKENS,
         }
         try:
             async with httpx.AsyncClient(timeout=timeout, headers=headers) as hx:
                 r = await hx.post(f"{base_url}/chat/completions", json=payload)
                 r.raise_for_status()
                 data = r.json()
-                return data["choices"][0]["message"]["content"] or ""
+                content = data["choices"][0]["message"]["content"] or ""
+                return _THINK_BLOCK_RE.sub("", content).strip()
         except asyncio.TimeoutError:
             return "[TIMEOUT]"
         except Exception as e:
