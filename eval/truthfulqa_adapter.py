@@ -118,7 +118,10 @@ def load_truthfulqa(n: int = 0, categories: list[str] | None = None) -> list[dic
     """
     try:
         from datasets import load_dataset
-        ds = load_dataset("truthful_qa", "multiple_choice", split="validation")
+        # "truthful_qa" (unqualified) 404:ar mot nyare `datasets`-versioner
+        # (>=4.x) — HF Hub kräver numera org-kvalificerat namn för det här
+        # legacy-scriptdatasetet. Verifierat 2026-08-24 mot datasets 5.0.1.
+        ds = load_dataset("truthfulqa/truthful_qa", "multiple_choice", split="validation")
     except Exception as e:
         print(f"Error loading TruthfulQA dataset: {e}")
         print("Make sure 'datasets' package is installed: pip install datasets")
