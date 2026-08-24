@@ -17,9 +17,15 @@ samma mönster som Groq/OpenRouter/Cerebras. `NVIDIA_API_KEY` tillagd i
 mot skarpt API med `nvidia/nemotron-3.5-lightning-30b-a3b` — 200 OK,
 riktigt svar. Samma reasoning-modell-fallgrop som Groq hittades direkt:
 modellen spenderar `max_tokens` på dolt `<think>`-resonemang innan den når
-JSON/svar. **Inte fixat för NVIDIA än** — `daemon/extractor.py`s
-`NOUSE_EXTRACT_CLOUD_MAX_TOKENS`-hantering gäller idag bara Groq-vägen,
-behöver utökas eller generaliseras innan NVIDIA används för extraktion.
+JSON/svar. **Redan löst, verifierat i efterhand samma session:**
+`daemon/extractor.py`s `NOUSE_EXTRACT_CLOUD_MAX_TOKENS`-hantering (default
+4096) är generisk — den villkoras av `model_uses_cloud_provider()`, som nu
+känner igen `nvidia`-prefixet automatiskt eftersom det ligger i
+`_KNOWN_CLOUD_PROVIDERS`. Omtestat med `max_tokens=4096`: `finish_reason:
+stop`, riktigt svar tillbaka. **Men:** `nemotron-3.5-lightning-30b-a3b`
+la 3326 av 4096 tokens på dolt resonemang för att svara "ja" på en
+trivial fråga — gratis men långsam. Väg in svarstid, inte bara pris, vid
+modellval för Jarvis-routing där latens känns direkt i samtalet.
 Motivation: gratis exekveringskapacitet (58 gratis-endpoint-modeller,
 40 anrop/min, ingen daglig gräns) för Björns planerade Jarvis-arkitektur
 (lokal SLM-front + kod-router + NVIDIA/Groq för delegerad exekvering av
