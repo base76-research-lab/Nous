@@ -10,6 +10,29 @@ Uppdatera den här filen **innan session slut** om något ändrats sedan
 senaste uppdateringen — se `.claude/settings.json`s Stop-hook, som påminner
 om detta om det finns okommitterade ändringar.
 
+## Planerade actions (väntar på Björns godkännande)
+
+Ändringar som rör den körande daemonen görs aldrig utan uttryckligt "kör"
+från Björn i sessionen — även när "fria händer" gäller för själva
+byggandet. Det som väntar just nu:
+
+- [ ] **Starta om `nouse-daemon` för att köra multi-timescale-migrationen
+      (Fas 3 punkt 9, slice 1).**
+      - **Vad:** kör `systemctl --user restart nouse-daemon`.
+      - **Varför:** `strength_fast`/`strength_fast_updated`-kolumnerna
+        (commit `237e917`) läggs till av `_migrate_relation_multitimescale_columns()`,
+        som bara körs vid `FieldSurface`-initiering — daemonen måste
+        starta om för att plocka upp koden och köra migrationen mot
+        `~/.local/share/nouse/field.sqlite`.
+      - **Risk:** låg — additiv ALTER TABLE + backfill, samma mönster som
+        redan verifierat för `energy_budget`-omstarten 2026-08-24 02:24
+        (PID 921187, felfri). Ingen befintlig läsväg ändrar beteende.
+      - **Verifiering efter omstart:** `journalctl --user -u nouse-daemon -f`
+        tills en `Limbic [cykel N]`-rad loggas felfritt (samma metod som
+        senast), plus en snabb `sqlite3 ~/.local/share/nouse/field.sqlite
+        "PRAGMA table_info(relation)"` för att bekräfta att kolumnerna finns.
+      - **Status:** ej gjord. Säg till när du vill köra den.
+
 ## Nuläge (2026-08-24)
 
 **Fas 1 av `NOUS_NEXT_GENERATION_PLAN.md` är klar** (temporal giltighet,

@@ -23,6 +23,17 @@ vinner — de andra filerna är historik/vision, inte aktuellt läge.
    2026-08-23 och krävde en hel session att rekonstruera (git-diff,
    sqlite-inspektion, journal-loggar).
 
+## "Fria händer" gäller aldrig åtgärder mot den levande daemonen
+
+Björn kan ge fria händer att bygga och fatta tekniska beslut självständigt
+— det gäller kod, tester, dokumentation, allt som går att committa och
+granska i efterhand. Det gäller ALDRIG daemon-omstart, migrationer mot
+produktionsgrafen, eller ändringar av systemd-enheter — de kräver alltid
+ett uttryckligt "kör" i sessionen. Dokumentera väntande sådana åtgärder
+som en checklista i `STATUS.md`s "Planerade actions"-avsnitt (vad / varför
+/ risk / verifieringssteg / status) i stället för att köra dem, så bygg-
+arbetet inte blockeras men åtgärden förblir synlig och granskningsbar.
+
 ## Rör aldrig produktionsgrafen från eval/test-kod
 
 En daemon (`nouse daemon web --port 8767`) kan köra som långlivad

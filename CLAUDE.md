@@ -25,6 +25,24 @@ git push check", commit 2026-04-14) som tystnade när `.claude/settings.json`
 återställdes till `"hooks": {}` någon gång innan 2026-08-23 — se
 `git log --oneline -- .claude/settings.json` om exakt när blir relevant.
 
+## Fria händer att bygga — men aldrig fria händer att köra mot den levande daemonen
+
+Björn kan ge "fria händer" att bygga och fatta tekniska beslut (t.ex.
+2026-08-24: löste LongMemEval-benchmarkbeslutet och byggde Fas 3 punkt 9
+slice 1 utan att fråga först). Det gäller *kod, tester, dokumentation och
+beslut som går att committa och granska i efterhand*.
+
+Det gäller INTE åtgärder som direkt förändrar den körande daemonen eller
+dess persistenta tillstånd — daemon-omstart, migrationer mot
+produktionsgrafen, ändringar av `systemctl`-enheter. De kräver alltid ett
+uttryckligt "kör" i sessionen, även mitt i en "fria händer"-instruktion.
+Lägg dem i `STATUS.md`s "Planerade actions"-avsnitt som en checklista
+(vad/varför/risk/verifiering/status) i stället för att köra dem direkt —
+det håller dem synliga och granskningsbara utan att blockera resten av
+byggandet. Se energibudget (körd på explicit "starta om deamon") och
+multi-timescale-styrka (byggd fritt, omstart medvetet lämnad som
+planerad action) för båda mönstren i praktiken.
+
 ## Körande daemon — rör aldrig produktionsgrafen från eval/test-kod
 
 `nouse daemon web --port 8767` körs som en långlivad bakgrundsprocess
