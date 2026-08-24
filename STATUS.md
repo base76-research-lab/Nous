@@ -35,11 +35,18 @@ enligt det kontraktet, inte uppfunnet från scratch.
   `RESEARCH_LOCAL_VIOLATION`, blockerad oavsett uppdragsstorlek. Läcksökning
   bekräftad: noll träffar på "bjorn/IIC/02_LIBRARY" i något publikt-sidigt
   filträd.
-- **Explicit INTE byggt än (medveten avgränsning):** den faktiska headless
-  Claude Code/Codex-subprocessen i `code-delegation` är en stub — den öppnar
-  relay-sessionen och loggar avsikt men spawnar inget. Väntar på att Björn
-  bekräftar vilken mekanism (`claude -p`, Claude Agent SDK, eller Codex CLI)
-  som faktiskt är auktoriserad. Mejl/kalender-integrationer inte inkopplade.
+- **Headless-eskalering nu riktigt inkopplad (samma session, senare pass).**
+  Björn auktoriserade `claude -p --permission-mode plan`, körd som en
+  detached process (`subprocess.Popen(..., start_new_session=True)`) så den
+  överlever CLI-anropets egen process-livstid. Verifierat live: pid loggad
+  i `runs/<run_id>/relay_delegation/meta.json`, körde ~20s, avslutade sig
+  självt, `permission_denials: []` bekräftar att plan-läget varken frågade
+  om eller försökte någon sidoeffekt, verklig kostnad synlig i loggen
+  (~$0.12). `relay_update()` skriver pid/logg-sökväg in i relay-sessionen
+  så `nouse relay show <id>` visar delegeringen. Ingen `--add-dir` mot
+  riktiga projekt än (tom arbetskatalog i den här skivan, medvetet) och
+  ingen automatisk poll-tillbaka in i relay-sessionen än — nästa skiva.
+  Mejl/kalender-integrationer fortfarande inte inkopplade.
 - **Ny `.env`-nyckel:** `NOUSE_AGENT_POLICY_DIR` (pekar på
   `IIC/04_SYSTEM/agents`) och `NOUSE_RESEARCH_LOCAL_MARKERS` (citerad —
   kommaseparerad lista med mellanslag kraschar annars `source .env`).

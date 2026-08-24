@@ -214,7 +214,7 @@ async def _stage04_execution_and_generation(
     raw_text = routing_decision.get("raw_text", "")
 
     if executor.startswith("relay:"):
-        result = open_relay_executor(goal=raw_text)
+        result = open_relay_executor(goal=raw_text, run_dir=run_dir)
         final = {
             "ok": result["ok"],
             "error_code": None,

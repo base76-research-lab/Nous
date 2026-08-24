@@ -5,10 +5,14 @@ cross-model handoff mechanism.
 """
 from __future__ import annotations
 
+import json
+import shutil
+import subprocess
+from pathlib import Path
 from typing import Any
 
 from nouse.ollama_client.client import AsyncOllama
-from nouse.session.relay import relay_open
+from nouse.session.relay import relay_open, relay_update
 
 
 async def call_model_executor(
@@ -32,25 +36,102 @@ async def call_model_executor(
         return {"ok": False, "content": "", "error": f"TOOL_UNAVAILABLE: {exc}"}
 
 
-def open_relay_executor(*, goal: str, requested_by: str = "jarvis") -> dict[str, Any]:
-    """Open a nouse relay session for a delegated task and return
-    immediately — this is the async escalation path. Does NOT spawn a
-    headless Claude Code / Codex process yet (see code-delegation/AGENT.md
-    "STUB" note); it only records intent so the handoff is inspectable via
-    `nouse relay show <id>`.
+def spawn_claude_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
+    """Detached, non-blocking headless Claude Code invocation for a
+    delegated task.
+
+    Authorized 2026-08-24: `claude -p` in `--permission-mode plan`. Plan
+    mode never prompts for approval (safe for a headless run with no TTY
+    to answer prompts) and never takes side-effecting actions on its own —
+    it only reads/explores and returns a plan or analysis. That matches
+    jarvis-policy.md hard rule 3 (no publish/send/spend/push without an
+    explicit "kör" in the session): a delegated background run must not
+    inherit more authority than that.
+
+    The process is detached (`start_new_session=True`) so it survives this
+    CLI invocation's own exit — `nouse agent run` is a one-shot process,
+    an `asyncio` task here would die with it. Output goes to a log file
+    under `run_dir`; nothing polls it back into the relay session yet
+    (that's the next slice, not this one).
+    """
+    claude_bin = shutil.which("claude")
+    if not claude_bin:
+        return {"ok": False, "error": "TOOL_UNAVAILABLE: claude CLI not found on PATH"}
+
+    delegation_dir = run_dir / "relay_delegation"
+    delegation_dir.mkdir(parents=True, exist_ok=True)
+    log_path = delegation_dir / "claude_headless.log"
+    meta_path = delegation_dir / "meta.json"
+
+    cmd = [
+        claude_bin,
+        "-p",
+        goal,
+        "--output-format",
+        "json",
+        "--permission-mode",
+        "plan",
+    ]
+
+    with open(log_path, "w", encoding="utf-8") as log_f:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=str(delegation_dir),
+            stdout=log_f,
+            stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+
+    meta = {
+        "pid": proc.pid,
+        "cmd": cmd,
+        "cwd": str(delegation_dir),
+        "log_path": str(log_path),
+        "permission_mode": "plan",
+    }
+    meta_path.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
+    return {"ok": True, "pid": proc.pid, "log_path": str(log_path)}
+
+
+def open_relay_executor(*, goal: str, run_dir: Path, requested_by: str = "jarvis") -> dict[str, Any]:
+    """Open a nouse relay session for a delegated task, kick off a detached
+    headless `claude -p --permission-mode plan` run, and return
+    immediately — this is the async escalation path. Jarvis never blocks
+    waiting for the delegated work to finish.
     """
     relay = relay_open(goal, model=requested_by)
+    session_id = relay.get("session_id")
+
+    spawn = spawn_claude_headless(goal=goal, run_dir=run_dir)
+
+    if spawn.get("ok"):
+        relay_update(
+            session_id,
+            summary=f"Delegated to headless 'claude -p' (plan mode), pid={spawn['pid']}",
+            file_touched=spawn.get("log_path"),
+            status="active",
+        )
+        content = (
+            "Det här är ett större uppdrag. Jag har öppnat en handoff-session "
+            f"({session_id}) och startat en bakgrundsanalys (plan-läge, ingen "
+            "autonom exekvering). Återkommer när det är klart."
+        )
+    else:
+        relay_update(
+            session_id,
+            summary=f"Delegation attempted but failed: {spawn.get('error')}",
+            status="active",
+        )
+        content = (
+            "Det här är ett större uppdrag. Jag försökte skicka det vidare "
+            f"men kunde inte starta bakgrundsanalysen ({spawn.get('error')}). "
+            f"Handoff-sessionen ({session_id}) finns kvar om du vill fortsätta manuellt."
+        )
+
     return {
         "ok": True,
-        "session_id": relay.get("session_id"),
-        "content": (
-            "Det här är ett större uppdrag. Jag har öppnat en handoff-session "
-            f"({relay.get('session_id')}) och skickar det vidare för bearbetning "
-            "istället för att försöka göra det själv. Återkommer när det är klart."
-        ),
+        "session_id": session_id,
+        "content": content,
         "error": None,
-        "stub_note": (
-            "Headless Claude Code / Codex invocation not yet wired — "
-            "session opened and logged only, per code-delegation/AGENT.md."
-        ),
+        "spawn": spawn,
     }
