@@ -1,5 +1,49 @@
 # Nous — status
 
+**2026-08-24, ICM/Larynx agent-pipeline (Jarvis), första vertikala skivan
+klar och verifierad:**
+
+Björns krav: "Folders over agents. Methodology over tools." Grundat direkt
+i källmaterialet han pekade på —
+`IIC/01_PROJECTS/icm-source-study/source-material/icm-courses/ICM-Larynx-multiAgents.v2.md`
+(hans egna ICM- och Larynx-papper, med ett färdigt compatibility-kontrakt:
+femlagersmodell, exakt stage-pipeline, exakta CONTEXT.md-mallar). Byggt
+enligt det kontraktet, inte uppfunnet från scratch.
+
+- **Nytt, publikt (denna repo):** `ICM-agents.md` (Layer 0-kärnregel:
+  LLM:en parsar och verbaliserar, aldrig routar eller validerar sig själv),
+  `stages/01-05_*/CONTEXT.md`, `_config/{error_codes,validation_rules,
+  executor_registry}.md`, `references/{larynx_policy,icm_stage_conventions}.md`,
+  och `src/nouse/agent_system/{contract,folder_loader,pipeline,executors}.py`.
+  `cli/commands/agent.py` fylld i (var placeholder), registrerad i
+  `cli/main.py` som `nouse agent run "<text>"`.
+- **Nytt, privat (`IIC/04_SYSTEM/agents/`, pushas aldrig):**
+  `jarvis-policy.md` (Björns hårdregler — forskning stannar lokalt m.m.)
+  plus tre agentkort (`local-routine`, `code-delegation`, `research-guard`)
+  i samma YAML-frontmatter-format som redan bevisat fungerar i
+  `Work/autonomous-income-lab/agents/*.yaml`.
+- **Återanvänt, inget nytt uppfunnet:** `capability/graph.py::build_route_plan()`
+  för intent-klassificering, `ollama_client`s multi-provider-klient för
+  alla modellanrop, `session/relay.py` för eskalering till Claude/Codex,
+  `mcp_gateway`s kernel-funktioner för grundning och loggning tillbaka in i
+  Nous minnesgraf.
+- **Verifierat end-to-end, tre scenarier:** (1) småprat → `local-routine`,
+  `gemma4:e2b`, svar på ~2s. (2) stort uppdrag → `code-delegation`,
+  `nouse relay`-session öppnad, Jarvis svarar direkt utan att blockera
+  (relay-öppningen syns via `nouse relay show`). (3) uppdrag som nämner
+  forskningsnyckelord (`NOUSE_RESEARCH_LOCAL_MARKERS` i `.env`) →
+  `RESEARCH_LOCAL_VIOLATION`, blockerad oavsett uppdragsstorlek. Läcksökning
+  bekräftad: noll träffar på "bjorn/IIC/02_LIBRARY" i något publikt-sidigt
+  filträd.
+- **Explicit INTE byggt än (medveten avgränsning):** den faktiska headless
+  Claude Code/Codex-subprocessen i `code-delegation` är en stub — den öppnar
+  relay-sessionen och loggar avsikt men spawnar inget. Väntar på att Björn
+  bekräftar vilken mekanism (`claude -p`, Claude Agent SDK, eller Codex CLI)
+  som faktiskt är auktoriserad. Mejl/kalender-integrationer inte inkopplade.
+- **Ny `.env`-nyckel:** `NOUSE_AGENT_POLICY_DIR` (pekar på
+  `IIC/04_SYSTEM/agents`) och `NOUSE_RESEARCH_LOCAL_MARKERS` (citerad —
+  kommaseparerad lista med mellanslag kraschar annars `source .env`).
+
 **Läs den här filen först i varje ny session.** Den är den enda källan till
 "var är vi" — inte `ROADMAP.md` (historik/konventioner), inte
 `NOUS_NEXT_GENERATION_PLAN.md` (den större arkitekturvisionen), inte

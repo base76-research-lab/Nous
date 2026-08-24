@@ -13,6 +13,7 @@ import typer
 from rich.markdown import Markdown
 from rich.panel import Panel
 
+from nouse.cli.commands import agent as agent_mod
 from nouse.cli.commands import relay as relay_mod
 from nouse.cli.commands import seed_cmd as seed_mod
 from nouse.cli.commands import status as status_mod
@@ -33,6 +34,7 @@ app = typer.Typer(
     ),
 )
 
+app.add_typer(agent_mod.app, name="agent")
 app.add_typer(relay_mod.app, name="relay")
 # Register seed command directly (not as sub-app)
 app.command(name="seed")(seed_mod.seed)

@@ -29,3 +29,9 @@ __pycache__/
 *.egg-info/
 eval/data/
 results/metrics/
+
+# ICM agent-pipeline run artifacts — regenerated per run, not source-controlled
+runs/
+logs/llm/
+logs/nous/
+stages/*/output/
