@@ -104,30 +104,59 @@ harnessen för det.
       försök) som skyddsnät. Verifierat med smoke-test (`-n 8`,
       condition=bare): 6/8 frågor klara utan en enda 429, alla
       `judge=2 T`.
-- [x] Full körning #3 startad med båda fixarna (se metadata nedan)
-- [ ] Full körning #3 klar — resultat sparat till
+- [x] Full körning #3 klar (PID 1136391→**faktiskt 1146391**) — **hängde
+      sig permanent** efter fråga 29/40, noll CPU, sockets fast i
+      `CLOSE-WAIT`, ingen återhämtning på 30+ minuter. Inte en Groq-
+      specifik driftstörning (Groq svarade `200` på 0,2s när jag testade
+      direkt medan processen låg död). Dödad manuellt (`kill -9`).
+      Ingen resultatfil sparad (kraschade innan `--output` skrevs).
+- [x] **Bugg #4 hittad och fixad — den faktiska rotorsaken bakom alla
+      hängningarna:** `call_llm()` skapade en NY `httpx.AsyncClient()`
+      per anrop istället för att återanvända en. Under sekventiell
+      async-belastning (280+ anrop i en körning) ledde det förr eller
+      senare till att processen frös helt (0% CPU, sockets i
+      `CLOSE-WAIT`) — reproducerat mot BÅDE Groq och NVIDIA, alltså inte
+      leverantörsspecifikt. `asyncio.wait_for`-skyddsnätet jag lade till
+      i bugg #3 hjälpte inte heller, eftersom en verkligt fastfrusen
+      coroutine som aldrig lämnar tillbaka kontrollen till event-loopen
+      inte kan avbrytas av `wait_for`. Fixat: en delad, lat-skapad
+      `httpx.AsyncClient` som återanvänds för hela processens livstid.
+      Verifierat: 15 NVIDIA-frågor i rad utan en enda hängning (tidigare
+      hängde det redan efter fråga 1–2 mot NVIDIA också).
+- [x] **Modellbyte, på Björns förslag:** `groq/qwen/qwen3.6-27b` →
+      `nvidia/nemotron-3.5-lightning-30b-a3b` — NVIDIA-nyckeln var redan
+      verifierad fungerande (Björns eget arbete samma dag), och
+      leverantörsbytet var ett enkelt sätt att utesluta en Groq-specifik
+      orsak medan jag felsökte. I efterhand irrelevant för hängningen
+      (bugg #4 var generisk), men avslöjade en EGEN bugg på vägen: NVIDIA
+      NIM:s modell-ID:n är redan org-kvalificerade
+      (`nvidia/nemotron-...`), så samma prefix-strippning som fungerar
+      för Groq/Cerebras gav `404` här. Specialfall tillagt i
+      `_resolve_provider()`.
+- [x] Full körning #4 startad — NVIDIA, delad klient, se metadata nedan
+- [ ] Full körning #4 klar — resultat sparat till
       `eval/results/truthfulqa_run2_20260824.json`
 - [ ] Resultat granskat, sammanfattning skriven här nedan
 - [ ] `STATUS.md` uppdaterad med resultat + länk hit
 - [ ] Committat
 
-## Körnings-metadata (körning #3, den giltiga)
+## Körnings-metadata (körning #4, den giltiga)
 
-- Bakgrunds-PID: **1146391** (frikopplad `nohup`)
-- Loggfil: `/tmp/claude-1000/-home-bjornwikstrom/7d33d639-f3db-4e2c-97e5-31d03af38c12/scratchpad/truthfulqa_run2c.log`
+- Bakgrunds-PID: **1210125** (frikopplad `nohup`)
+- Modell: `nvidia/nemotron-3.5-lightning-30b-a3b` (byte från Groq, se
+  Bugg-historiken ovan)
+- Loggfil: `/tmp/claude-1000/-home-bjornwikstrom/7d33d639-f3db-4e2c-97e5-31d03af38c12/scratchpad/truthfulqa_run3.log`
   (scratchpad — resultatet `eval/results/truthfulqa_run2_20260824.json`
   är den bestående källan)
-- Startad: 2026-08-24 13:08:02 CEST
-- Förväntad körtid: ~10–18 min (280 LLM-anrop, 2,1s throttle mellan
-  varje Groq-anrop + faktisk modell-latens)
+- Startad: 2026-08-24 14:15:08 CEST
 - Klar: *(fylls i)*
-- **Om sessionen kraschar:** kolla `ps -p 1146391`. Om processen lever,
+- **Om sessionen kraschar:** kolla `ps -p 1210125`. Om processen lever,
   vänta/övervaka loggfilen. Om den är död utan att
   `eval/results/truthfulqa_run2_20260824.json` finns: kraschade, läs
-  loggfilens slut för felet. Kommandot (båda fixarna redan i koden):
+  loggfilens slut för felet. Kommandot (alla fyra fixar redan i koden):
   ```
   cd /home/bjornwikstrom/Work/nous && set -a && source .env && set +a
-  .venv/bin/python eval/truthfulqa_adapter.py --model groq/qwen/qwen3.6-27b \
+  .venv/bin/python eval/truthfulqa_adapter.py --model nvidia/nemotron-3.5-lightning-30b-a3b \
     --conditions bare rag nous_meta -n 40 \
     --output eval/results/truthfulqa_run2_20260824.json
   ```
