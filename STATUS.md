@@ -25,6 +25,44 @@ kräver daemon-omstart just nu.
 från Björn i sessionen — även när "fria händer" gäller för själva
 byggandet. Historik (senaste överst):
 
+- [ ] **Aktivera `nouse-watchdog.timer` mot den levande `nouse-daemon`.**
+      - **Vad:** `scripts/nouse_watchdog.py` är byggt, testat (9 enhetstester
+        + tre manuella dry-run-scenarier mot den riktiga daemonen: frisk,
+        konstgjord stale heartbeat, konstgjord nere tjänst — alla gav
+        korrekt beslut utan att faktiskt röra tjänsten). Aktivering =
+        `systemctl --user enable --now nouse-watchdog.timer` (enheten
+        `nouse-watchdog.service` pekar redan på scriptet, ingen
+        enhetsändring behövs).
+      - **Vad den gör:** kollar var 3:e minut (`nouse-watchdog.timer`s
+        `OnUnitActiveSec=3min`) om `nouse-daemon.service` är
+        `active` OCH om `status.json`s heartbeat är färskare än
+        `NOUSE_WATCHDOG_STALE_THRESHOLD_SEC` (default 600s = 5 missade
+        120s-cykler). Om inte: `systemctl --user restart nouse-daemon`.
+        Max `NOUSE_WATCHDOG_MAX_RESTARTS` (default 3) omstarter per
+        `NOUSE_WATCHDOG_RESTART_WINDOW_SEC` (default 1800s) — därefter
+        ger den upp och avslutar med exit 2 (syns som `failed` i
+        `systemctl --user list-units --all`) istället för att flacka
+        i all oändlighet.
+      - **Bugg hittad och fixad under byggandet:** första versionen
+        jämförde heartbeatens `datetime.now()` (lokal tid,
+        `daemon/main.py::_write_status`) mot watchdogens
+        `datetime.utcnow()` — gav en konstant ~2h skevhet (CEST) som i
+        värsta fall antingen döljer en verkligt fastnad daemon eller
+        triggar en onödig omstart. Fixat: watchdogen använder nu
+        `datetime.now()` konsekvent, och tjänstens upptid mäts via
+        `ActiveEnterTimestampMonotonic` + `/proc/uptime` (boot-relativ
+        monoton klocka) istället för att tidszons-parsa
+        `ActiveEnterTimestamp` överhuvudtaget.
+      - **Risk:** låg-medel. Läser aldrig/skriver aldrig produktionsgrafen,
+        rör bara tjänstens livscykel via `systemctl --user restart`
+        (samma kommando Björn redan kör manuellt). Största risken är en
+        falsk positiv (onödig omstart av en frisk daemon som råkar vara
+        mitt i ett långsamt cykel-steg) — mildrat av
+        `NOUSE_WATCHDOG_STALE_THRESHOLD_SEC` (5x loop-intervallet, gott
+        om marginal) men inte body-testat mot en verkligt lång Groq-
+        molnfördröjning under skarp cykel-belastning.
+      - **Status:** ej aktiverad. Björns beslut.
+
 - [x] **Lägg till `groq/qwen/qwen3.6-27b` som extraktionskandidat i produktion
       — klar 2026-08-24 12:26, PID 1105428.** Körd på Björns explicita "kör".
       - **Vad:** satte `NOUSE_MODEL_CANDIDATES_EXTRACT=groq/qwen/qwen3.6-27b,gemma4:e2b,dolphin3:8b`
