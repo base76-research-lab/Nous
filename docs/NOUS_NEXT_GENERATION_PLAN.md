@@ -64,8 +64,9 @@ väntar fortfarande på egna beslutstillfällen.
    att koppla in den där (slice 2) ändrar levande beslut i en körande
    daemon och kräver en egen verifieringsomgång, inte samma pass. 10 nya
    tester (`tests/field/test_multitimescale_strength.py`), 320 tester
-   gröna totalt (inga regressioner). **Kräver omstart av daemonen för att
-   migrationen ska köras — inte gjort ännu, be Björn bekräfta.**
+   gröna totalt (inga regressioner). **Live sedan omstart 2026-08-24
+   02:45 (PID 931901)** — migrationen bekräftad körd, 7056/7056
+   relationer backfyllda, inga fel.
 10. [x] **Energibudget** — klart 2026-08-24, **live sedan omstart
    2026-08-24 02:24** (PID 921187, bekräftad felfri: `energy_budget`
    loggas i cykel-raden). Ny `LimbicState.energy_budget` (`limbic/signals.py`), sjunker med `llm_calls` denna cykel (`sum(source_attempted_models.values())` i `daemon/main.py`), återhämtar sig 8%/cykel mot baslinjen 1.0 oavsett belastning — `update_energy_budget()`. Kopplad in på TVÅ ställen: (1) `run_limbic_cycle(..., llm_calls=...)` beräknar och persisterar den varje cykel, loggas i cykel-raden; (2) bisociation-motorns cykel-modulo-trigger (`cycle % BISOC_SOLVER_EVERY == 0`) har fått ett andra villkor, `limbic_state.energy_budget >= BISOC_SOLVER_MIN_ENERGY_BUDGET` (default 0.15, `NOUSE_BISOC_SOLVER_MIN_ENERGY_BUDGET`) — passet hoppas över och loggas explicit om budgeten är tömd, annars som förut. Curiosity-loopen är INTE kopplad in än (nästa steg om detta ska fortsätta). 8 nya tester (`tests/limbic/test_signals_energy_budget.py`).
