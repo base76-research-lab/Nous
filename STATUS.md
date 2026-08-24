@@ -16,24 +16,19 @@ om detta om det finns okommitterade ändringar.
 från Björn i sessionen — även när "fria händer" gäller för själva
 byggandet. Historik (senaste överst):
 
-- [ ] **Seeda `scope="user_model"`-subgrafen i produktionsgrafen.**
-      - **Vad:** `.venv/bin/python -c "..."` (eller ett litet CLI-kommando,
-        se nedan) som anropar
-        `daemon.user_model_seed.seed_user_model(field, person_md_path, memory_dir)`
-        mot **produktionsgrafen** (`~/.local/share/nouse/field.sqlite`),
-        inte en temp-path. Källor: `IIC/04_SYSTEM/system/PERSON.md` och
-        `~/.claude/projects/-home-bjornwikstrom/memory/*.md`
-        (metadata.type ∈ {user, feedback}).
-      - **Varför:** skriver 17 nya, kuraterade relationer om Björn direkt
-        in i den grafen daemonen redan läser/skriver mot — en skrivning
-        till produktionstillstånd, inte bara en kodändring, därför en
-        egen planerad action trots att ingen daemon-omstart krävs.
-      - **Risk:** låg. Additiv, idempotent (kör man om läggs bara nya
-        rader till), testad isolerat (9 tester) OCH torrkörd mot de
-        riktiga källorna in i en temp-databas 2026-08-24 (17 relationer,
-        verifierat innehåll, se commit). SQLite WAL stödjer redan
-        samtidig CLI+daemon-åtkomst (se `CHANGELOG.md` 0.3.x).
-      - **Status:** ej gjord. Säg till när du vill köra den.
+- [x] **Seeda `scope="user_model"`-subgrafen i produktionsgrafen — klar
+      2026-08-24 03:05.** Körd på Björns explicita "kör". 17 relationer
+      tillagda (`Björn Wikström → kommunikationsstil/lärstil/
+      kognitivt_behov/personmönster/arbetssätt`). Daemonen (PID 936012,
+      SQLite WAL) opåverkad, ingen fel i loggen efteråt.
+      - **Bugg hittad och fixad samma pass:** `Björn Wikström`-konceptet
+        fanns redan (scope="general", från tidigare vanlig
+        fil-ingestion). `add_concept()`s `INSERT OR IGNORE` uppdaterar
+        tyst inte scope för redan existerande koncept — hubb-noden
+        förblev alltså oskyddad även om de nya bullet-koncepten fick
+        rätt scope. Fixat i `seed_user_model()` (explicit
+        `set_concept_scope()`-anrop, commit `25468fa`) + tillämpat direkt
+        på produktionsgrafen. Ny regressionstest fångar scenariot.
 
 - [x] Starta om `nouse-daemon` för att köra Fas 3 punkt 8 (predictive
       surprise → HITL-task) — klar 2026-08-24 02:53, PID 936012. Körd på
@@ -107,21 +102,20 @@ av Björn. Byggordning: 10 → 9 → 8 → 7.**
 - Punkt 7 väntar på 8, som planerat.
 
 **Björn-profilen ("systemet bör känna mig", 2026-08-24-konversation) —
-kod klar, INTE seedad i produktion än.** Ny `scope="user_model"`
-(`field/surface.py`, sensitiv likt `personal_health`) + ny modul
-`daemon/user_model_seed.py`: strukturerad parsning (INTE
-`extract_relations()`s LLM-extraktion — samma grundorsak som
-LongMemEval-lärdomen, precisa meningar ska inte spädas ut till vaga
-tematiska relationer) av `IIC/04_SYSTEM/system/PERSON.md` och Claude-
-minnesfiler (`metadata.type` ∈ {user, feedback}) till relationer typade
-`kommunikationsstil`/`lärstil`/`kognitivt_behov`/`personmönster`/
+klar och LIVE i produktion.** Ny `scope="user_model"` (`field/surface.py`,
+sensitiv likt `personal_health`) + ny modul `daemon/user_model_seed.py`:
+strukturerad parsning (INTE `extract_relations()`s LLM-extraktion — samma
+grundorsak som LongMemEval-lärdomen, precisa meningar ska inte spädas ut
+till vaga tematiska relationer) av `IIC/04_SYSTEM/system/PERSON.md` och
+Claude-minnesfiler (`metadata.type` ∈ {user, feedback}) till relationer
+typade `kommunikationsstil`/`lärstil`/`kognitivt_behov`/`personmönster`/
 `arbetssätt`. Idempotent. `scope_from_path()` i `daemon/sources.py`
 taggar också dessa filvägar automatiskt vid vanlig fil-ingestion, som
-skyddsnät. 9 nya tester, 339 gröna totalt. Torrkörning mot de riktiga
-källorna (temp-databas): 17 relationer, innehåll verifierat gott.
+skyddsnät. 10 nya tester, 340 gröna totalt. **Seedad i produktionsgrafen
+2026-08-24 03:05** (17 relationer + en bugfix, se "Planerade actions").
 **Medvetet inte ännu kopplat till curiosity/predictive-viktning** — det
 var uttryckligen nästa steg *efter* att själva profilen finns, inte
-samma pass. Se "Planerade actions" för produktionsseedningen.
+samma pass.
 
 ## Körande processer
 
