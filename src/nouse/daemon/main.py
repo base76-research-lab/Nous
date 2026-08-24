@@ -192,22 +192,38 @@ def _predictive_surprise_should_trigger(
 
 def _predictive_surprise_seed_task(
     candidates: list[dict], prev_noradrenaline: float, current_noradrenaline: float,
-    threshold: float,
+    threshold: float, field: Any = None,
 ) -> dict:
     """Bygg seed-task-dicten för enqueue_gap_tasks() från vilka
     domän-par som utgjorde denna cykels bisociation-kandidater — det som
-    faktiskt överraskade systemet, inte bara att något gjorde det."""
+    faktiskt överraskade systemet, inte bara att något gjorde det.
+
+    field (valfri): om given, boosta prioriteten med upp till +0.15 om de
+    överraskande domänerna faktiskt kopplar till Björns profil-subgraf
+    (scope="user_model", se daemon/goal_generator.py::_user_relevance()
+    och 2026-08-24-konversationen om att systemet ska prioritera mot
+    honom, inte bara mot vad som är topologiskt intressant). Ren
+    överraskning förblir huvuddrivaren — det här är en modifierare, inte
+    en ersättning. field=None (t.ex. i tester) → ingen boost, oförändrat
+    beteende."""
     surprising_domains = list(dict.fromkeys(
         d
         for c in candidates[:5]
         for d in (c.get("domain_a"), c.get("domain_b"))
         if d
     ))
+    relevance_boost = 0.0
+    if field is not None and surprising_domains:
+        try:
+            from nouse.daemon.goal_generator import _user_relevance
+            relevance_boost = 0.15 * _user_relevance(field, surprising_domains)
+        except Exception:
+            relevance_boost = 0.0
     return {
         "domain": surprising_domains[0] if surprising_domains else "okänd",
         "concepts": surprising_domains[:6],
         "gap_type": "predictive_surprise",
-        "priority": min(1.0, float(current_noradrenaline)),
+        "priority": min(1.0, float(current_noradrenaline) + relevance_boost),
         "query": (
             "Varför överraskade dessa domäner systemet just nu: "
             f"{', '.join(surprising_domains) or 'okänt'}?"
@@ -217,6 +233,7 @@ def _predictive_surprise_seed_task(
             f"{prev_noradrenaline:.2f} till {current_noradrenaline:.2f} "
             f"(surprise-tröskel {threshold}), "
             f"{len(candidates)} bisociation-kandidater denna cykel."
+            + (f" Björn-relevans-boost: +{relevance_boost:.2f}." if relevance_boost > 0 else "")
         ),
         "source": "predictive_surprise_v1",
     }
@@ -1231,7 +1248,7 @@ async def brain_loop(
                 try:
                     seed_task = _predictive_surprise_seed_task(
                         candidates, _prev_noradrenaline, limbic_state.noradrenaline,
-                        PREDICTIVE_SURPRISE_THRESHOLD,
+                        PREDICTIVE_SURPRISE_THRESHOLD, field=field,
                     )
                     new_tasks = enqueue_gap_tasks(
                         field, max_new=1, seed_tasks=[seed_task], detect_gaps=False,

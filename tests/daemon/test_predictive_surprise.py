@@ -13,6 +13,7 @@ from nouse.daemon.main import (
     _predictive_surprise_should_trigger,
 )
 from nouse.daemon.research_queue import enqueue_gap_tasks, pause_task_for_hitl
+from nouse.field.surface import FieldSurface
 
 
 def test_no_trigger_when_below_threshold():
@@ -58,6 +59,43 @@ def test_seed_task_handles_no_candidates_gracefully():
 def test_seed_task_priority_clamped_to_one():
     task = _predictive_surprise_seed_task([], 0.5, 1.4, threshold=0.75)
     assert task["priority"] == 1.0
+
+
+def test_seed_task_without_field_has_no_relevance_boost():
+    """Backward compatible: field=None (default, e.g. every test above
+    that doesn't pass it) must behave exactly as before this feature."""
+    task = _predictive_surprise_seed_task(
+        [{"domain_a": "topologi", "domain_b": "musikteori"}], 0.5, 0.8, threshold=0.75,
+    )
+    assert task["priority"] == 0.8
+    assert "Björn-relevans-boost" not in task["rationale"]
+
+
+def test_seed_task_boosts_priority_when_domains_relate_to_user_model(tmp_path: Path):
+    field = FieldSurface(db_path=tmp_path / "field.sqlite", read_only=False)
+    field.add_relation(
+        "Björn Wikström", "arbetssätt", "topologi",
+        why="test", scope_src="user_model", scope_tgt="user_model",
+    )
+    task = _predictive_surprise_seed_task(
+        [{"domain_a": "topologi", "domain_b": "musikteori"}], 0.5, 0.8,
+        threshold=0.75, field=field,
+    )
+    assert task["priority"] > 0.8
+    assert "Björn-relevans-boost" in task["rationale"]
+
+
+def test_seed_task_no_boost_when_domains_unrelated_to_user_model(tmp_path: Path):
+    field = FieldSurface(db_path=tmp_path / "field.sqlite", read_only=False)
+    field.add_relation(
+        "Björn Wikström", "arbetssätt", "helt annan sak",
+        why="test", scope_src="user_model", scope_tgt="user_model",
+    )
+    task = _predictive_surprise_seed_task(
+        [{"domain_a": "topologi", "domain_b": "musikteori"}], 0.5, 0.8,
+        threshold=0.75, field=field,
+    )
+    assert task["priority"] == 0.8
 
 
 def test_end_to_end_seed_task_becomes_a_pending_hitl_interrupt(monkeypatch, tmp_path: Path):

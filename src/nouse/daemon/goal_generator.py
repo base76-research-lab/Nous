@@ -14,6 +14,11 @@ Prioritetsberäkning väger:
   - eval_trend_signal (sjunkande trend → högre prioritet)
   - drive_alignment (match med living_core active drive)
   - operator_feedback (negativ feedback → högre prioritet)
+  - user_relevance (närhet till scope="user_model"-subgrafen, se
+    daemon/user_model_seed.py — 2026-08-24-konversation: "systemet bör
+    känna mig till punkt och pricka för att kunna vara mig behjälplig,
+    prediktiv". Curiosity/mål ska väga mot Björns faktiska sammanhang,
+    inte bara mot vad som råkar vara topologiskt intressant i grafen.)
 
 Deduplicering: om mål för samma concepts+kind redan finns → uppdatera prioritet.
 """
@@ -48,23 +53,61 @@ def compute_priority(
     eval_trend_signal: float = 0.0,
     drive_alignment: float = 0.0,
     operator_feedback: float = 0.0,
+    user_relevance: float = 0.0,
 ) -> float:
     """
     Beräkna målprioritet (0.0–1.0) som vägt summa av signaler.
 
-    Vikter:
-      0.35 * topological_urgency  — grad * (1 - evidence) för mål-koncept
-      0.25 * eval_trend_signal     — sjunkande trend → högre prioritet
-      0.20 * drive_alignment       — match med living_core active drive
-      0.20 * operator_feedback     — negativ feedback → högre prioritet
+    Vikter (2026-08-24: user_relevance tillagd, övriga ombalanserade
+    proportionellt så summan förblir 1.0 — se _user_relevance()):
+      0.30 * topological_urgency  — grad * (1 - evidence) för mål-koncept
+      0.20 * eval_trend_signal     — sjunkande trend → högre prioritet
+      0.15 * drive_alignment       — match med living_core active drive
+      0.15 * operator_feedback     — negativ feedback → högre prioritet
+      0.20 * user_relevance        — närhet till Björns profil-subgraf
     """
     raw = (
-        0.35 * topological_urgency
-      + 0.25 * eval_trend_signal
-      + 0.20 * drive_alignment
-      + 0.20 * operator_feedback
+        0.30 * topological_urgency
+      + 0.20 * eval_trend_signal
+      + 0.15 * drive_alignment
+      + 0.15 * operator_feedback
+      + 0.20 * user_relevance
     )
     return max(0.0, min(1.0, raw))
+
+
+def _user_relevance(field: Any, concepts: list[str]) -> float:
+    """
+    Andel av `concepts` som ligger inom 1 hopp (bidirektionellt) från
+    scope="user_model"-subgrafen (se daemon/user_model_seed.py) — dvs.
+    koncept som antingen ÄR en del av Björns profil eller direkt kopplar
+    till den. 0.0 om inga koncept ges eller profilen saknas (grafen inte
+    seedad än) — degraderar säkert till "ingen bonus", inte ett fel.
+    """
+    if not concepts:
+        return 0.0
+    try:
+        rows = field._sql.execute(
+            "SELECT name FROM concept WHERE scope = 'user_model'"
+        ).fetchall()
+    except Exception:
+        return 0.0
+    user_model_concepts = {r["name"] for r in rows}
+    if not user_model_concepts:
+        return 0.0
+
+    hits = 0
+    for concept in concepts:
+        if concept in user_model_concepts:
+            hits += 1
+            continue
+        try:
+            nbrs = set(field.neighbors(concept, limit=50, bidirectional=True))
+        except Exception:
+            nbrs = set()
+        if nbrs & user_model_concepts:
+            hits += 1
+    return hits / len(concepts)
 
 
 def _topological_urgency(field: Any, concepts: list[str]) -> float:
@@ -218,6 +261,7 @@ def generate_from_gap_map(
                 topological_urgency=urgency,
                 eval_trend_signal=0.1,
                 drive_alignment=_drive_alignment(KIND_EVIDENCE_GAP),
+                user_relevance=_user_relevance(field, [node_id]),
             )
             if new_priority > existing_goal.priority:
                 existing_goal.priority = new_priority
@@ -238,6 +282,7 @@ def generate_from_gap_map(
             topological_urgency=urgency,
             eval_trend_signal=0.1,
             drive_alignment=_drive_alignment(KIND_EVIDENCE_GAP),
+            user_relevance=_user_relevance(field, [node_id]),
         )
 
         if priority < 0.2:
@@ -327,6 +372,7 @@ def generate_from_contradictions(
             topological_urgency=0.7,
             eval_trend_signal=0.3,
             drive_alignment=_drive_alignment(KIND_CONTRADICTION_RESOLVE),
+            user_relevance=_user_relevance(field, [concept]),
         )
 
         goal = create_goal(
@@ -513,6 +559,7 @@ def generate_from_dangling(
         priority = compute_priority(
             topological_urgency=min(0.9, 0.3 + dangling_scores.get(target, 1) * 0.1),
             drive_alignment=_drive_alignment(KIND_DOMAIN_EXPAND),
+            user_relevance=_user_relevance(field, [target]),
         )
 
         goal = create_goal(
