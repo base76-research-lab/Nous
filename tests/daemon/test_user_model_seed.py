@@ -136,6 +136,28 @@ def test_seed_user_model_writes_scoped_relations(tmp_path):
     assert concept_scope["scope"] == "user_model"
 
 
+def test_seed_user_model_reclassifies_a_preexisting_subject_concept(tmp_path):
+    """Regression: found seeding the real production graph 2026-08-24 —
+    'Björn Wikström' already existed (scope='general', from ordinary file
+    ingestion before this scope existed). add_concept()'s INSERT OR IGNORE
+    silently skips the scope update for a concept that already exists, so
+    add_relation() alone left the hub node unprotected even though its new
+    bullet-target concepts got scope='user_model' correctly."""
+    field = FieldSurface(db_path=tmp_path / "field.sqlite", read_only=False)
+    field.add_concept("Björn Wikström", domain="misc", scope="general")
+    pre = field._sql.execute(
+        "SELECT scope FROM concept WHERE name = 'Björn Wikström'"
+    ).fetchone()
+    assert pre["scope"] == "general"
+
+    seed_user_model(field, _mk_person_md(tmp_path), _mk_memory_dir(tmp_path))
+
+    post = field._sql.execute(
+        "SELECT scope FROM concept WHERE name = 'Björn Wikström'"
+    ).fetchone()
+    assert post["scope"] == "user_model"
+
+
 def test_seed_user_model_is_idempotent(tmp_path):
     field = FieldSurface(db_path=tmp_path / "field.sqlite", read_only=False)
     person_md = _mk_person_md(tmp_path)

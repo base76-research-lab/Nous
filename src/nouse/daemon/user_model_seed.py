@@ -177,4 +177,13 @@ def seed_user_model(
             scope_tgt="user_model",
         )
         added += 1
+
+    # add_concept() är INSERT OR IGNORE — om SUBJECT redan fanns i grafen
+    # (t.ex. genom vanlig fil-ingestion innan detta scope existerade)
+    # sätts INTE dess scope av add_relation() ovan. Tvinga igenom det
+    # explicit så hubb-noden faktiskt skyddas, inte bara de nya
+    # bullet-koncepten den pekar mot.
+    if rows:
+        field.set_concept_scope(SUBJECT, "user_model")
+
     return {"added": added, "skipped": skipped}
