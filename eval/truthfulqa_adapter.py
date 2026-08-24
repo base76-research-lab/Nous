@@ -6,7 +6,7 @@ TruthfulQA adapter: compare bare LLM vs RAG vs Nous-grounded.
 TruthfulQA (Lin et al. 2022) tests whether models generate truthful answers
 to questions where common misconceptions exist. This adapter runs:
   - MC1: single correct answer among distractors
-  - MC2: multiple true/false labels
+    - MC2: multiple true/false labels
 
 Three conditions:
   A. Bare LLM — model only, standard system prompt
@@ -36,6 +36,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from run_eval import call_llm, SYSTEM_BASELINE, PROVIDERS, _resolve_provider
 from run_reasoning_benchmark import get_nous_context, get_rag_context
+from benchmark_protocol import SCORER_VERSION, build_manifest, record_accounting, run_status
 
 
 # ── System prompts ──────────────────────────────────────────────────────
@@ -441,6 +442,7 @@ async def run_truthfulqa_benchmark(
     judge_model: str = "",
     output_path: str = "",
     field=None,
+    seed: int | None = None,
 ):
     """Run TruthfulQA across specified conditions."""
     if not judge_model:
@@ -453,6 +455,20 @@ async def run_truthfulqa_benchmark(
         "conditions": {},
         "metrics": {},
     }
+    results["manifest"] = build_manifest(
+        repo_root=Path(__file__).parent.parent,
+        dataset=questions,
+        dataset_id="truthfulqa/truthful_qa:multiple_choice:validation",
+        model=model,
+        judge_model=judge_model,
+        conditions=conditions,
+        prompts={"baseline": SYSTEM_BASELINE, "rag": SYSTEM_RAG_TQA,
+                 "nous": SYSTEM_NOUSE_TQA, "judge": SYSTEM_JUDGE_TQA},
+        configuration={"timeout_generation_s": 90, "timeout_judge_s": 60},
+        seed=seed,
+        graph_mode="read_only_context" if any(c in conditions for c in ("nous", "nous_meta")) else "none",
+        dry_run=False,
+    )
 
     for condition in conditions:
         print(f"\n{'='*60}")
@@ -581,6 +597,7 @@ async def run_truthfulqa_benchmark(
                                   if judge_scores else None),
             "judge_valid": len(valid_results),
             "judge_invalid": len(cond_results) - len(valid_results),
+            "accounting": record_accounting(cond_results),
             "n_questions": len(cond_results),
             "category_breakdown": {
                 cat: {
@@ -592,6 +609,9 @@ async def run_truthfulqa_benchmark(
                 for ts in [cat_truthful[cat]]
             },
         }
+
+    results["status"] = run_status(list(results["metrics"].values()))
+    results["scorer_version"] = SCORER_VERSION
 
     # ── Save results ────────────────────────────────────────────────────
 
@@ -658,7 +678,7 @@ def main():
     parser.add_argument("--conditions", nargs="+", default=["bare", "nous_meta"],
                        choices=["bare", "rag", "nous", "nous_meta"],
                        help="Conditions to run")
-    parser.add_argument("-n", type=int, default=0,
+    parser.add_argument("-n", "--n", type=int, default=0,
                        help="Number of questions (0=all)")
     parser.add_argument("--categories", nargs="+", default=None,
                        help="Filter by category (Health, Law, Politics, etc.)")
@@ -666,12 +686,29 @@ def main():
                        help="Output path for results JSON")
     parser.add_argument("--dry-run", action="store_true",
                        help="Print questions without running LLM")
+    parser.add_argument("--seed", type=int, default=None,
+                       help="Recorded seed for reproducibility")
     args = parser.parse_args()
 
     questions = load_truthfulqa(n=args.n, categories=args.categories)
 
     if args.dry_run:
+        manifest = build_manifest(
+            repo_root=Path(__file__).parent.parent,
+            dataset=questions,
+            dataset_id="truthfulqa/truthful_qa:multiple_choice:validation",
+            model=args.model,
+            judge_model=args.judge or args.model,
+            conditions=args.conditions,
+            prompts={"baseline": SYSTEM_BASELINE, "rag": SYSTEM_RAG_TQA,
+                     "nous": SYSTEM_NOUSE_TQA, "judge": SYSTEM_JUDGE_TQA},
+            configuration={"timeout_generation_s": 90, "timeout_judge_s": 60},
+            seed=args.seed,
+            graph_mode="read_only_context" if any(c in args.conditions for c in ("nous", "nous_meta")) else "none",
+            dry_run=True,
+        )
         print(f"Questions loaded: {len(questions)}")
+        print(json.dumps(manifest, ensure_ascii=False, indent=2))
         cats = defaultdict(int)
         for q in questions[:10]:
             print(f"  {q['id']}: [{q['category']}] {q['question'][:80]}...")
@@ -700,6 +737,7 @@ def main():
         judge_model=args.judge or args.model,
         output_path=args.output,
         field=field,
+        seed=args.seed,
     ))
 
 

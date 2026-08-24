@@ -1,5 +1,18 @@
 # Nous — status
 
+**2026-08-25, benchmark v1 protocol setup completed, awaiting review:**
+
+- Added `eval/benchmark_protocol.py` and wired it into
+  `eval/truthfulqa_adapter.py`. The protocol records dataset hash, full commit,
+  package version, model/provider, prompts/configuration, seed, graph mode, and
+  scorer version; it separates valid scored records, invalid judges,
+  generation errors/timeouts, and missing MC1 choices.
+- Dry-run stays before field loading and model execution. No paid run, daemon,
+  production-graph write, external service, commit, or push was performed.
+- Verified: focused eval tests `7 passed`; full suite `415 passed, 559 warnings`
+  (existing datetime deprecations); changed files compile and `git diff --check`
+  passes. Task card is in `review` pending protocol and cost approval.
+
 **2026-08-25, deterministisk golden path verifierad:**
 
 - `examples/grounded_memory.py` använder en isolerad temporär databas, lägger
