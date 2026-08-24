@@ -82,6 +82,63 @@ byggandet. Historik (senaste överst):
       `strength_fast_updated` (kolumn 13); alla 7056 befintliga relationer
       backfyllda (0 NULL). Inga fel i loggen efter omstart.
 
+## Underhålls-timers — revision 2026-08-24
+
+Björn bad om en genomgång av tre `failed`-timers (`systemctl --user
+list-units --all`). Tre olika rotorsaker, olika allvar:
+
+- [x] **`nouse-backup` — trasig sen KuzuDB→SQLite-migrationen
+      (`c546041`, 2026-04-05), åtgärdad 2026-08-24 12:37.** Enheten körde
+      `cp field.kuzu → backups/`, men grafen bytte backend till
+      `field.sqlite` i april — ingen uppdaterade backup-scriptet.
+      `backups/`-mappen fanns inte ens; produktionsgrafen (116 MB, 9184
+      koncept) hade **ingen fungerande automatisk backup sen april**.
+      Fix: `ExecStart` byter till `sqlite3 ... .backup` (online-safe
+      backup-API, korrekt för en levande WAL-databas — ett rått `cp`
+      riskerar en trasig/inkonsekvent snapshot mitt i skrivning). Både
+      den installerade enheten (`~/.config/systemd/user/`) och repots
+      spårade mall (`systemd/nouse-backup.service`) uppdaterade.
+      Verifierat: manuell körning gav en giltig 116 MB-backup
+      (9184 koncept, 10649 relationer, matchar produktionsgrafen).
+      Ingen retention/pruning tillagd — daglig timer ackumulerar filer
+      obegränsat, inte åtgärdat nu (utanför scope för denna fix).
+
+- [ ] **`nouse-eval` — trace-probe-delen är en aldrig färdigbyggd
+      CLI-stub, inte en bugg i eval-scriptet.** `nouse trace-probe`
+      (`src/nouse/cli/main.py:4610`) läser testsetet och skriver ut
+      `available=X planned=Y` — och gör sen ingenting mer: ingen faktisk
+      probe körs mot daemonens API, ingen `trace_probe_*.json` skrivs.
+      `scripts/nouse_nightly_eval.py` förväntar sig den filen och
+      avslutar med exit 2 när den saknas (rad 413–415) — själva
+      kvalitetsrapporten och mission-scorecarden skrivs korrekt ändå
+      (syns i `results/metrics/nightly_quality_latest.md` m.fl.), det är
+      bara trace-observability-delen som är ett tomt skal. Kräver att
+      `trace_probe_cmd` faktiskt implementeras: köra varje rad i
+      `results/eval_set_trace_observability.yaml` mot en riktig
+      fråga/API-anrop, mäta trace-täckning, och skriva resultatet till
+      `results/metrics/trace_probe_<stamp>.json` i det format
+      `_trace_summary()`/`_latest_probe_json()` redan förväntar sig.
+      **Status: ej byggt, ej Björns "kör" än.**
+
+- [ ] **`nouse-watchdog` — scriptet finns aldrig i repot.**
+      `scripts/nouse_watchdog.py` refereras av
+      `nouse-watchdog.service`/`.timer`, men filen har **aldrig
+      committats** — bara enhetsfilerna kom med i migrationscommit
+      `f6f4305` ("nouse v0.2.0 — full cognitive substrate framework
+      migrated from b76"). `git log --follow` på sökvägen ger noll
+      träffar. `daemon/main.py` rad 686 har en kommentar om att skriva
+      en initial heartbeat "så externa watchdogs" kan läsa den —
+      avsikten fanns, men själva konsument-scriptet blev aldrig skrivet.
+      Ett riktigt watchdog-script skulle behöva: läsa heartbeat/PID-fil,
+      kontrollera att `nouse-daemon` faktiskt gör framsteg (t.ex. att
+      `status.json`s `cycle`/`updated` rör sig, inte bara att processen
+      lever), och trigga en self-heal-omstart (`systemctl --user restart
+      nouse-daemon`) om den fastnat — plus loggning så en hängning syns
+      utan att behöva gräva i journalen manuellt. **Status: ej byggt, ej
+      Björns "kör" än** — och eftersom en trasig watchdog i värsta fall
+      själv startar om en frisk daemon i onödan, bör den byggas och
+      testas isolerat innan den aktiveras mot den levande enheten.
+
 ## Nuläge (2026-08-24)
 
 **Fas 1 av `NOUS_NEXT_GENERATION_PLAN.md` är klar** (temporal giltighet,

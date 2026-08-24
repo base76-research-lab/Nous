@@ -1,10 +1,10 @@
 [Unit]
-Description=nouse KuzuDB Backup
+Description=nouse SQLite Backup
 After=nouse-daemon.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/sh -c 'cp -r %h/.local/share/nouse/field.kuzu %h/.local/share/nouse/backups/field_$(date +%%Y%%m%%d_%%H%%M%%S).kuzu'
+ExecStart=/bin/sh -c 'mkdir -p %h/.local/share/nouse/backups && sqlite3 %h/.local/share/nouse/field.sqlite ".backup '"'"'%h/.local/share/nouse/backups/field_$(date +%%Y%%m%%d_%%H%%M%%S).sqlite'"'"'"'
 WorkingDirectory=/home/bjorn
 
 [Install]
