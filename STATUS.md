@@ -1,5 +1,13 @@
 # Nous — status
 
+**2026-08-24, public explainer linked from the project README:**
+
+- Added a prominent `79-Second Explainer` section after the quick start,
+  with a locally stored `IMG/nous-explainer-thumbnail.png` poster linking to
+  the published YouTube video (`SLDbJbEXI1g`). The top README navigation now
+  includes the explainer. This is a documentation/media-only change; runtime,
+  daemon, graph, and package behavior are untouched.
+
 **2026-08-24, integritet, watchdog och MCP 2.0 stabiliserade:**
 
 - Daemonens relationsextraktor har nu en hård lokalmodellspärr för
