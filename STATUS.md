@@ -25,26 +25,28 @@ kräver daemon-omstart just nu.
 från Björn i sessionen — även när "fria händer" gäller för själva
 byggandet. Historik (senaste överst):
 
-- [ ] **Lägg till `groq/qwen/qwen3.6-27b` som extraktionskandidat i produktion.**
-      - **Vad:** sätt `NOUSE_MODEL_CANDIDATES_EXTRACT=groq/qwen/qwen3.6-27b,gemma4:e2b,dolphin3:8b`
-        i `systemd/nouse-daemon.service` (eller motsvarande env-fil) +
-        starta om daemonen.
+- [x] **Lägg till `groq/qwen/qwen3.6-27b` som extraktionskandidat i produktion
+      — klar 2026-08-24 12:26, PID 1105428.** Körd på Björns explicita "kör".
+      - **Vad:** satte `NOUSE_MODEL_CANDIDATES_EXTRACT=groq/qwen/qwen3.6-27b,gemma4:e2b,dolphin3:8b`
+        i den installerade enheten (`~/.config/systemd/user/nouse-daemon.service`
+        — inte repots `systemd/nouse-daemon.service`-mall, som pekar på en
+        annan, oanvänd sökväg/modelluppsättning och inte är den som körs)
+        + `daemon-reload` + omstart.
       - **Varför:** verifierat end-to-end mot skarpt Groq-API (commit
-        `9f61973`) — kvalitet 0,967, högre än `gemma4:e2b`s 0,927,
-        gratis, snabbt (275 ms–4 s). Skulle ge daemonen en molnbaserad
-        förstahandskandidat med lokala modeller som fallback om Groqs
-        gratisnivå (30 anrop/min, 14 400/dag) tar slut.
-      - **Risk:** medel. Fungerar isolerat och i enstaka smoke-tester,
-        men **aldrig körd under den körande daemonens faktiska
-        cykel-belastning** (dussintals anrop/cykel) — okänt om
-        30 anrop/min räcker, eller om det behövs en throttle liknande den
-        som redan finns i `eval/longmemeval_adapter.py` för OpenRouter.
-        Data lämnar maskinen till Groqs API — värt att bekräfta att inget
-        `scope="personal_health"`/`"user_model"`-skyddat innehåll läcker
-        dit (bör redan vara skyddat via `SENSITIVE_SCOPES`-filtrering,
-        men inte uttryckligen testat i den här specifika vägen).
-      - **Status:** ej gjord. Björns beslut — inte en självklar "kör"
-        givet den okända anropsvolymen mot en gratis-gräns.
+        `9f61973`) — kvalitet 0,967, högre än `gemma4:e2b`s 0,927, gratis,
+        snabbt (275 ms–4 s). Ger daemonen en molnbaserad förstahandskandidat
+        med lokala modeller (`gemma4:e2b`, `dolphin3:8b`) som fallback om
+        Groqs gratisnivå (30 anrop/min, 14 400/dag) tar slut.
+      - **Verifiering efter omstart:** `GROQ_API_KEY` bekräftad i `.env`,
+        `dolphin3:8b` bekräftad installerad i Ollama innan omstart. Efter
+        omstart: `POST https://api.groq.com/openai/v1/chat/completions`
+        → `200 OK` (12:27:22), full cykel (#25) slutförd utan fel
+        (`Limbic [cykel 25]`, 12:30:44), ingen Traceback/Error i journalen.
+      - **Ej verifierat i det här passet:** anropsvolym mot 30/min-gränsen
+        under sustained multi-timmars drift, och att `SENSITIVE_SCOPES`
+        (`personal_health`/`user_model`) faktiskt exkluderas från denna
+        specifika molnväg — bör antas skyddat via befintligt filter men inte
+        explicit testat här. Håll ett öga på loggen för 429:or.
 
 - [x] **Starta om `nouse-daemon` för att köra user_relevance-viktningen
       (curiosity + predictive-surprise, commit `378c1a2`) — klar
