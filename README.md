@@ -23,7 +23,7 @@
 </p>
 
 <p align="center">
-  <img src="IMG/nous-graph-hero.png" alt="The Nous knowledge graph — typed, evidence-scored relations, with a visible boundary of what is not yet known" width="900">
+  <img src="IMG/nous-graph-hero-animated.gif" alt="The Nous knowledge graph building up — typed, evidence-scored relations, with a visible boundary of what is not yet known" width="900">
 </p>
 
 ---
