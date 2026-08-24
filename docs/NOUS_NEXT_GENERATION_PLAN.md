@@ -47,7 +47,22 @@ väntar fortfarande på egna beslutstillfällen.
 
 ### Fas 3 — Den verkliga arkitektoniska visionen (större, senare)
 7. **Full konkurrerande arbitrering** (Global Workspace): de beskrivna `TypedProcessor`/`TypedGlobalWorkspace`-komponenterna aktiveras på riktigt, inte bara den enklare extraktionsloopen som körs idag.
-8. **Predictive coding driver faktiska beslut**, inte bara UI: när ett nytt faktum starkt överraskar (hög `arousal`), trigga automatiskt en HITL-forskningsuppgift — arousal blir en åtgärdsutlösare, inte bara en glödeffekt.
+8. [x] **Predictive coding driver faktiska beslut, inte bara UI — klar
+   2026-08-24 i kod, INTE live än.** Tidigare drev noradrenalin (surprise)
+   bara `limbic_spike_event` — ett UI-glöd, inget beslut
+   (`daemon/main.py` "brain_sync"-blocket). Ny logik i `daemon/main.py`
+   direkt efter limbic-cykeln: vid en **stigande flank** (inte "fortsatt
+   högt" — noradrenalin decayar bara 20%/cykel, skulle annars trigga om
+   och om igen) över `NOUSE_PREDICTIVE_SURPRISE_THRESHOLD` (default 0.75)
+   byggs en seed-task av de domän-par som faktiskt utgjorde cykelns
+   bisociation-kandidater (`_predictive_surprise_seed_task()`), köas via
+   befintliga `enqueue_gap_tasks(..., detect_gaps=False)`, och en riktig
+   HITL-interrupt skapas (`create_interrupt()` + `pause_task_for_hitl()`)
+   — samma väg curiosity-loopen redan använder, inte en ny mekanism.
+   Rent additivt: rör inte det befintliga `limbic_spike_event`-blocket.
+   8 nya tester (`tests/daemon/test_predictive_surprise.py`), 328 tester
+   gröna totalt (inga regressioner). **Kräver omstart av daemonen för att
+   plockas upp — se STATUS.md "Planerade actions".**
 9. [x] **Multi-timescale synaptisk styrka, slice 1 — klar 2026-08-24**
    (tillagd som kandidat 2026-08-23 efter genomläsning av Björns
    hjärndokument, se `docs/lab-notes/2026-08-23-brain-document-synthesis.md`).

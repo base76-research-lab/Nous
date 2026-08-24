@@ -170,6 +170,56 @@ BISOC_SOLVER_MAX_PAIRS = max(1, int(os.getenv("NOUSE_BISOC_SOLVER_MAX_PAIRS", "1
 # cykel-modulon, hoppa över bisociation-passet (extra LLM-anrop) om
 # energibudgeten redan är tömd av den här cykelns övriga anrop.
 BISOC_SOLVER_MIN_ENERGY_BUDGET = float(os.getenv("NOUSE_BISOC_SOLVER_MIN_ENERGY_BUDGET", "0.15"))
+# Fas 3 punkt 8 (predictive coding som beslutsdrivare,
+# docs/NOUS_NEXT_GENERATION_PLAN.md): noradrenalin (surprise) fick
+# tidigare bara driva ett UI-glöd (limbic_spike_event nedan) — inget
+# faktiskt beslut. Vid en stigande flank över tröskeln triggas nu en
+# riktig HITL-forskningsuppgift om vad som överraskade systemet.
+PREDICTIVE_SURPRISE_ENABLED = str(
+    os.getenv("NOUSE_PREDICTIVE_SURPRISE_ENABLED", "1")
+).strip().lower() in _BOOL_TRUE
+PREDICTIVE_SURPRISE_THRESHOLD = float(os.getenv("NOUSE_PREDICTIVE_SURPRISE_THRESHOLD", "0.75"))
+
+
+def _predictive_surprise_should_trigger(
+    prev_noradrenaline: float, current_noradrenaline: float, threshold: float,
+) -> bool:
+    """Stigande flank över tröskeln, inte "fortsatt högt" — annars triggar
+    varje cykel om noradrenalin dröjer sig kvar över tröskeln (decay är
+    bara 20%/cykel, se limbic/signals.py NORADRENALINE_DECAY)."""
+    return prev_noradrenaline <= threshold < current_noradrenaline
+
+
+def _predictive_surprise_seed_task(
+    candidates: list[dict], prev_noradrenaline: float, current_noradrenaline: float,
+    threshold: float,
+) -> dict:
+    """Bygg seed-task-dicten för enqueue_gap_tasks() från vilka
+    domän-par som utgjorde denna cykels bisociation-kandidater — det som
+    faktiskt överraskade systemet, inte bara att något gjorde det."""
+    surprising_domains = list(dict.fromkeys(
+        d
+        for c in candidates[:5]
+        for d in (c.get("domain_a"), c.get("domain_b"))
+        if d
+    ))
+    return {
+        "domain": surprising_domains[0] if surprising_domains else "okänd",
+        "concepts": surprising_domains[:6],
+        "gap_type": "predictive_surprise",
+        "priority": min(1.0, float(current_noradrenaline)),
+        "query": (
+            "Varför överraskade dessa domäner systemet just nu: "
+            f"{', '.join(surprising_domains) or 'okänt'}?"
+        ),
+        "rationale": (
+            f"Predictive coding (Fas 3 punkt 8): noradrenalin steg från "
+            f"{prev_noradrenaline:.2f} till {current_noradrenaline:.2f} "
+            f"(surprise-tröskel {threshold}), "
+            f"{len(candidates)} bisociation-kandidater denna cykel."
+        ),
+        "source": "predictive_surprise_v1",
+    }
 DORMANCY_CONSOLIDATION_ENABLED = str(
     os.getenv("NOUSE_DORMANCY_CONSOLIDATION_ENABLED", "1")
 ).strip().lower() in _BOOL_TRUE
@@ -1160,6 +1210,7 @@ async def brain_loop(
                     log.warning(f"Bridge discovery (bisociation): {_be}")
 
             # ── 5: Limbic Layer ────────────────────────────────────────────────
+            _prev_noradrenaline = limbic_state.noradrenaline
             limbic_state = run_limbic_cycle(
                 limbic_state,
                 new_relations=new_rel,
@@ -1169,7 +1220,55 @@ async def brain_loop(
                 active_domains=len(domains),
                 llm_calls=sum(source_attempted_models.values()),
             )
-            
+
+            # ── 5b: Predictive coding som beslutsdrivare (Fas 3 punkt 8) ────
+            # Stigande flank över tröskeln = ett nytt faktum överraskade
+            # systemet just nu (inte bara "fortsatt högt") — trigga en
+            # riktig HITL-forskningsuppgift om VAD, inte bara ett UI-glöd.
+            if PREDICTIVE_SURPRISE_ENABLED and _predictive_surprise_should_trigger(
+                _prev_noradrenaline, limbic_state.noradrenaline, PREDICTIVE_SURPRISE_THRESHOLD,
+            ):
+                try:
+                    seed_task = _predictive_surprise_seed_task(
+                        candidates, _prev_noradrenaline, limbic_state.noradrenaline,
+                        PREDICTIVE_SURPRISE_THRESHOLD,
+                    )
+                    new_tasks = enqueue_gap_tasks(
+                        field, max_new=1, seed_tasks=[seed_task], detect_gaps=False,
+                    )
+                    if new_tasks:
+                        surprise_task = new_tasks[0]
+                        surprise_reason = (
+                            f"Predictive surprise: noradrenalin {_prev_noradrenaline:.2f} → "
+                            f"{limbic_state.noradrenaline:.2f} (tröskel {PREDICTIVE_SURPRISE_THRESHOLD})"
+                        )
+                        surprise_interrupt = create_interrupt(
+                            task=surprise_task,
+                            reason=surprise_reason,
+                            category="predictive_surprise",
+                            payload={
+                                "mode": "approve_resume",
+                                "hint": (
+                                    "Kör `b76 hitl status` och godkänn med "
+                                    "interrupt-id: `b76 hitl approve --id <interrupt_id>`."
+                                ),
+                            },
+                        )
+                        pause_task_for_hitl(
+                            int(surprise_task["id"]),
+                            interrupt_id=int(surprise_interrupt["id"]),
+                            reason=surprise_reason,
+                        )
+                        log.warning(
+                            "  Predictive surprise: HITL-interrupt #%d skapad "
+                            "(task #%d, %s)",
+                            int(surprise_interrupt["id"]),
+                            int(surprise_task["id"]),
+                            surprise_reason,
+                        )
+                except Exception as _pred_err:
+                    log.debug(f"  Predictive surprise-hantering (non-fatal): {_pred_err}")
+
             # ── brain_sync: Limbic Spike Event ───────────────────────────────
             if BRAIN_SYNC_ENABLED and BRAIN_TRANSPORTER:
                 # Skicka limbic spike event för höga neuromodulator-signaler

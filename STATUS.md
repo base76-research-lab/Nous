@@ -16,6 +16,26 @@ om detta om det finns okommitterade ändringar.
 från Björn i sessionen — även när "fria händer" gäller för själva
 byggandet. Historik (senaste överst):
 
+- [ ] **Starta om `nouse-daemon` för att köra Fas 3 punkt 8 (predictive
+      surprise → HITL-task) på riktigt.**
+      - **Vad:** kör `systemctl --user restart nouse-daemon`.
+      - **Varför:** ren kodändring i `daemon/main.py` (ingen
+        schemamigration den här gången) — daemonen måste starta om för
+        att köra den nya modulen.
+      - **Risk:** låg-medel. Additivt block, testat isolerat (8 tester),
+        men det är första gången den faktiskt körs mot den levande
+        curiosity-kön/HITL-kön (`research_queue.json`, `hitl_interrupts.json`)
+        under verklig belastning, inte bara i tester. Om
+        `NOUSE_PREDICTIVE_SURPRISE_THRESHOLD` (default 0.75) visar sig
+        för lågt kan det skapa fler HITL-interrupts än väntat — enkelt
+        att justera via env eller stänga av (`NOUSE_PREDICTIVE_SURPRISE_ENABLED=0`)
+        utan kodändring.
+      - **Verifiering efter omstart:** `journalctl --user -u nouse-daemon -f`
+        tills en cykel loggas felfritt; håll ett öga på
+        `hitl_interrupts.json` de första timmarna för att se om tröskeln
+        känns rätt kalibrerad.
+      - **Status:** ej gjord. Säg till när du vill köra den.
+
 - [x] **Starta om `nouse-daemon` för att köra multi-timescale-migrationen
       (Fas 3 punkt 9, slice 1) — klar 2026-08-24 02:45, PID 931901.**
       Körd på Björns explicita "kör". Migrationen bekräftad:
@@ -74,7 +94,13 @@ av Björn. Byggordning: 10 → 9 → 8 → 7.**
   additiv/observationell (rör inte `strength` eller några befintliga
   beslut som dormancy/pruning/ranking — det är slice 2, medvetet
   uppskjutet). 320 tester gröna totalt, inga regressioner.
-- Punkt 8 och 7 väntar på 9 respektive 8–10, som planerat.
+- **Punkt 8 (predictive coding som beslutsdrivare) — klar 2026-08-24 i
+  kod, INTE live än.** Stigande flank i noradrenalin över tröskeln
+  (0.75 default) skapar nu en riktig HITL-forskningsuppgift om vilka
+  domän-par som överraskade systemet, via samma kö/interrupt-mekanism
+  curiosity-loopen redan använder. 8 nya tester, 328 gröna totalt. Se
+  "Planerade actions" ovan för omstart.
+- Punkt 7 väntar på 8, som planerat.
 
 ## Körande processer
 
