@@ -109,15 +109,23 @@ PROVIDERS = {
     # None som base_url = Ollama native /api/chat (hanterar thinking-mode korrekt)
     "cerebras/":   ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY"),
     "groq/":       ("https://api.groq.com/openai/v1", "GROQ_API_KEY"),
+    "nvidia/":     ("https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY"),
     "openrouter/": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "ollama/":     (None, None),   # native API — undviker tom content vid thinking-mode
 }
 
 def _resolve_provider(model: str) -> tuple[str | None, str, dict]:
-    """Return (base_url, real_model, headers). base_url=None → Ollama native."""
+    """Return (base_url, real_model, headers). base_url=None → Ollama native.
+
+    NVIDIA NIM's own catalog IDs are already org-qualified
+    (`nvidia/nemotron-...`) — stripping our `nvidia/` routing prefix like
+    the other providers would send a bare `nemotron-...` model name and
+    404. Verified 2026-08-24: `nvidia/nemotron-3.5-lightning-30b-a3b` is
+    the literal string the API expects in the `model` field.
+    """
     for prefix, (base_url, key_env) in PROVIDERS.items():
         if model.startswith(prefix):
-            real_model = model[len(prefix):]
+            real_model = model if prefix == "nvidia/" else model[len(prefix):]
             headers = {}
             if key_env:
                 api_key = os.getenv(key_env, "")
@@ -127,11 +135,29 @@ def _resolve_provider(model: str) -> tuple[str | None, str, dict]:
     return None, model, {}
 
 
+_shared_httpx_client: "object | None" = None  # lazily-created httpx.AsyncClient, reused for the process lifetime
+
+
+def _get_shared_httpx_client():
+    """One long-lived client instead of a fresh `httpx.AsyncClient()` per
+    call. Creating+tearing down a client on every single request was the
+    actual cause of a hang reproduced 2026-08-24: after ~10-30 sequential
+    calls (Groq AND NVIDIA both reproduced it — not provider-specific),
+    the process went to ~0% CPU with sockets stuck CLOSE_WAIT and never
+    recovered, even under `asyncio.wait_for`. A shared client avoids the
+    per-call connection/TLS/selector churn that pattern causes under
+    sustained sequential async load."""
+    import httpx
+    global _shared_httpx_client
+    if _shared_httpx_client is None or _shared_httpx_client.is_closed:
+        _shared_httpx_client = httpx.AsyncClient()
+    return _shared_httpx_client
+
+
 async def call_llm(client, model: str, system: str, user: str,
                    timeout: float = 60.0) -> str:
     """Calls Ollama native API or OpenAI-compatible API based on model prefix."""
-    import httpx
-
+    hx = _get_shared_httpx_client()
     base_url, real_model, headers = _resolve_provider(model)
 
     if base_url is None:
@@ -146,12 +172,11 @@ async def call_llm(client, model: str, system: str, user: str,
             ],
         }
         try:
-            async with httpx.AsyncClient(timeout=timeout) as hx:
-                r = await hx.post(f"{ollama_base}/api/chat", json=payload)
-                r.raise_for_status()
-                data = r.json()
-                return data.get("message", {}).get("content", "") or ""
-        except asyncio.TimeoutError:
+            r = await asyncio.wait_for(hx.post(f"{ollama_base}/api/chat", json=payload, timeout=timeout), timeout=timeout + 15.0)
+            r.raise_for_status()
+            data = r.json()
+            return data.get("message", {}).get("content", "") or ""
+        except (asyncio.TimeoutError, TimeoutError):
             return "[TIMEOUT]"
         except Exception as e:
             return f"[ERROR: {e}]"
@@ -165,25 +190,29 @@ async def call_llm(client, model: str, system: str, user: str,
             ],
             "max_tokens": EVAL_CLOUD_MAX_TOKENS,
         }
+        async def _one_request() -> tuple[int, dict | None, str]:
+            r = await hx.post(f"{base_url}/chat/completions", json=payload, headers=headers, timeout=timeout)
+            if r.status_code == 429:
+                return 429, None, r.headers.get("retry-after", "")
+            r.raise_for_status()
+            return r.status_code, r.json(), ""
+
         max_retries = 4
+        hard_timeout = timeout + 15.0
         for attempt in range(max_retries + 1):
             await _throttle_provider(base_url)
             try:
-                async with httpx.AsyncClient(timeout=timeout, headers=headers) as hx:
-                    r = await hx.post(f"{base_url}/chat/completions", json=payload)
-                    if r.status_code == 429 and attempt < max_retries:
-                        retry_after = r.headers.get("retry-after")
-                        try:
-                            delay = max(1.0, float(retry_after)) if retry_after else 2.0 ** (attempt + 1)
-                        except ValueError:
-                            delay = 2.0 ** (attempt + 1)
-                        await asyncio.sleep(delay)
-                        continue
-                    r.raise_for_status()
-                    data = r.json()
-                    content = data["choices"][0]["message"]["content"] or ""
-                    return _THINK_BLOCK_RE.sub("", content).strip()
-            except asyncio.TimeoutError:
+                status, data, retry_after = await asyncio.wait_for(_one_request(), timeout=hard_timeout)
+                if status == 429 and attempt < max_retries:
+                    try:
+                        delay = max(1.0, float(retry_after)) if retry_after else 2.0 ** (attempt + 1)
+                    except ValueError:
+                        delay = 2.0 ** (attempt + 1)
+                    await asyncio.sleep(delay)
+                    continue
+                content = data["choices"][0]["message"]["content"] or ""
+                return _THINK_BLOCK_RE.sub("", content).strip()
+            except (asyncio.TimeoutError, TimeoutError):
                 return "[TIMEOUT]"
             except Exception as e:
                 return f"[ERROR: {e}]"
