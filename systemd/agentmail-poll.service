@@ -1,0 +1,15 @@
+[Unit]
+Description=nouse AgentMail poll — read-only check of nouse@agentmail.to
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/bjornwikstrom/Work/nous
+ExecStart=/home/bjornwikstrom/Work/nous/.venv/bin/python /home/bjornwikstrom/Work/nous/scripts/agentmail_poll.py
+Environment=PYTHONUNBUFFERED=1
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=agentmail-poll
+
+[Install]
+WantedBy=default.target

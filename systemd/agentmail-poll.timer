@@ -1,0 +1,10 @@
+[Unit]
+Description=nouse AgentMail poll timer (read-only, every 10 min)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=10min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

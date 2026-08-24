@@ -35,6 +35,32 @@ enligt det kontraktet, inte uppfunnet från scratch.
   `RESEARCH_LOCAL_VIOLATION`, blockerad oavsett uppdragsstorlek. Läcksökning
   bekräftad: noll träffar på "bjorn/IIC/02_LIBRARY" i något publikt-sidigt
   filträd.
+- **AgentMail-poller byggd, testad, INTE aktiverad än.** Björn hade redan
+  testat send/receive mot `nouse@agentmail.to` manuellt 2026-08-23 (finns
+  äkta korrespondens i inkorgen, inklusive en upptäckt: en tidigare session
+  hade autonomt godkänt fyra forskningsbeslut och svarat självständigt,
+  signerat "/Claude" — det mönstret fortsätts INTE här, bekräftat med
+  Björn 2026-08-24: varje faktiskt svar från den här kanalen kräver
+  explicit "kör", ingen auto-reply.). Nytt: `src/nouse/agent_system/mcp_client.py`
+  (Nous första MCP-**klient** — tidigare har Nous bara varit MCP-server;
+  byggd på det redan installerade officiella `mcp`-SDK:t, HTTP-transport
+  via `streamable_http_client`). `scripts/agentmail_poll.py`: läser bara,
+  loggar nya olästa mejl till Nous minne (`kernel_write_episode`) och en
+  pending-review-kö, uppdaterar `last_checked`, ringer ALDRIG
+  `send_message`/`reply_to_message`. Första körningen sätter baslinjen
+  till "nu", backfyller inte 2026-08-23-historiken automatiskt (inklusive
+  ett fortfarande obesvarat mejl "nu ska jag visa" — kvar för Björn/en
+  session att hantera manuellt om han vill). Verifierat manuellt två
+  gånger: normal körning (inget nytt), och en tillfällig bakåtflyttad
+  baslinje som bekräftade att alla 5 existerande olästa mejl hittas,
+  loggas och köas korrekt (state återställd efteråt, ingen data kvar
+  felaktigt). `systemd/agentmail-poll.{service,timer}` skrivna (10 min
+  intervall, matchar `nouse-watchdog`-mönstret) men **inte installerade/
+  aktiverade** — det gör pollningen till en stående bakgrundsprocess,
+  väntar på Björns separata "kör" för det steget.
+- Nytt privat agentkort: `IIC/04_SYSTEM/agents/agent-mail/AGENT.md` —
+  `forbidden` nämner uttryckligen 2026-08-23-precedensen och att den inte
+  fortsätts.
 - **Headless-eskalering nu riktigt inkopplad (samma session, senare pass).**
   Björn auktoriserade `claude -p --permission-mode plan`, körd som en
   detached process (`subprocess.Popen(..., start_new_session=True)`) så den
