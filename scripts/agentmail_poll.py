@@ -168,10 +168,21 @@ async def _draft_and_send_reply(*, message_id: str, sender: str, subject: str, p
         "det relevant."
     )
     draft = await call_model_executor(
-        executor="gemma4:e2b",
+        # Open-ended, interpretive reply-drafting - not the structured
+        # JSON-extraction/routing work gemma4:e2b is actually good at (see
+        # front_model_bench.py and STATUS.md's 2026-08-24 finding: it
+        # needs explicit dictation, not inference). Compared live
+        # 2026-08-24 against groq/qwen/qwen3.6-27b (good answer but a
+        # reasoning model - its <think> trace leaks straight into
+        # `content` with no separate field to strip, so it would have
+        # been mailed verbatim) and nvidia/meta/llama-3.3-70b-instruct
+        # (503, unavailable). This non-reasoning Llama won cleanly: 0.6s
+        # vs Groq's 3.3s, no think-leak to clean up, and a correct,
+        # naturally-phrased answer to both questions asked.
+        executor="nvidia/meta/llama-3.1-8b-instruct",
         system_prompt=system_prompt,
         user_text=f"Ämne: {subject}\nFrån: {sender}\nInnehåll: {preview}",
-        executor_options={"think": False},
+        executor_options={"max_tokens": 1024},
     )
     if not draft["ok"] or not draft["content"]:
         _log(f"  reply skipped (draft failed): {draft.get('error')}")

@@ -1,5 +1,5 @@
 [Unit]
-Description=nouse AgentMail poll — read-only check of nouse@agentmail.to
+Description=nouse AgentMail poll — check nouse@agentmail.to, log, and auto-reply (standing send authority)
 After=network-online.target
 
 [Service]
@@ -7,6 +7,7 @@ Type=oneshot
 WorkingDirectory=/home/bjornwikstrom/Work/nous
 ExecStart=/home/bjornwikstrom/Work/nous/.venv/bin/python /home/bjornwikstrom/Work/nous/scripts/agentmail_poll.py
 Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=-/home/bjornwikstrom/Work/nous/.env
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=agentmail-poll
