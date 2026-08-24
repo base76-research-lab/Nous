@@ -109,6 +109,10 @@ We call this the **Intent Disambiguation Effect**.
 | Confidence-aware retrieval | Returns what is known, with evidence and uncertainty attached |
 | Gap awareness | Surfaces where knowledge ends instead of bluffing through it |
 | Continuous learning | Strengthens or weakens graph paths over time via Hebbian plasticity |
+| Multi-timescale plasticity | A fast-decaying strength signal (6h half-life) layered on top of long-term Hebbian weights — recent relevance and long-term structure are tracked separately |
+| Energy-gated cognition | An internal energy budget gates the bisociation engine's cycles, so exploration is metabolically bounded rather than unconstrained |
+| Predictive-surprise tasking | Sustained rises in a noradrenaline-like surprise signal spawn human-in-the-loop research tasks about what surprised the system, and why |
+| Personalization (`user_model`) | A sensitive, scoped subgraph tracks how *you* communicate, learn, and work — seeded from your own notes, never mixed into general recall |
 | Local-first runtime | Runs as a local graph and daemon, then injects context into any LLM |
 
 ---
@@ -143,6 +147,42 @@ and what it is guessing.
 
 It **learns continuously**. Every interaction strengthens or weakens connections (Hebbian plasticity).
 There is no retraining. No gradient descent. The graph grows — and the gaps become visible.
+
+---
+
+## Brain-Inspired Dynamics
+
+Nous does not just accumulate relations — it runs a continuous cognitive cycle with mechanisms
+borrowed from neuroscience, not as metaphor but as working control signals:
+
+- **Energy budget.** A finite, replenishing energy pool gates how much the bisociation engine
+  (the process that searches for non-obvious cross-domain connections) can do per cycle.
+  Exploration is bounded the way biological cognition is bounded — not unlimited compute per tick.
+- **Multi-timescale relation strength.** Every relation now carries two decay signals: the
+  original long-term Hebbian weight, and a fast-decaying strength (~6h half-life) layered on top,
+  additive and purely observational. Recent relevance and durable structure are tracked
+  separately instead of being collapsed into one number.
+- **Predictive coding as a decision driver.** A rising-edge surprise signal (modeled after
+  noradrenergic arousal) crossing a threshold spawns a real human-in-the-loop research task about
+  *which* domain pair surprised the system and why — routed through the same interrupt/queue
+  mechanism the curiosity loop already uses.
+
+These are additive to the existing Hebbian graph — none of them touch existing ranking, pruning,
+or dormancy logic.
+
+---
+
+## Personalization — `user_model`
+
+Nous can maintain a structured model of the person it works with, kept in a dedicated,
+access-scoped subgraph (`scope="user_model"`, treated with the same sensitivity as
+`personal_health`). It is seeded by **structured parsing**, not free-form LLM extraction — precise
+statements about communication style, learning style, cognitive needs, and working patterns are
+not diluted into vague thematic relations the way ordinary document ingestion is.
+
+This keeps two failure modes apart: general knowledge extraction (thematic, approximate, meant to
+be revised) and personalization data (precise, sourced from explicit self-description, meant to
+stay exact).
 
 ---
 
@@ -460,9 +500,11 @@ Requires Python 3.11+. Graph stored in `~/.local/share/nouse/`.
 | Phase | Status | Description |
 | --- | :---: | --- |
 | **Core engine** | ✅ | SQLite WAL + NetworkX + Hebbian plasticity + TDA gap detection |
-| **Multi-provider** | ✅ | OpenAI, Anthropic, Ollama, Groq, Cerebras |
+| **Multi-provider** | ✅ | OpenAI, Anthropic, Ollama, Groq, Cerebras — per-provider routing with dedicated base URLs/keys |
 | **MCP integration** | ✅ | Model Context Protocol server for Claude and compatible clients |
-| **Cross-domain benchmarks** | 🔄 | Validating on external datasets beyond internal domain |
+| **Brain-inspired dynamics** | ✅ | Energy budget, multi-timescale relation strength, predictive-surprise tasking |
+| **Personalization (`user_model`)** | ✅ | Scoped, sensitive subgraph modeling how a specific user communicates, learns, and works |
+| **Cross-domain benchmarks** | 🔄 | LongMemEval tested (negative but diagnostic result — Nous targets thematic/conceptual relations, not atomic personal facts); FNC-Bench and TruthfulQA remain the primary external validation targets |
 | **Docker support** | 📋 | One-command deployment for teams |
 | **Managed cloud** | 📋 | `nouse.attach(api_key="nouse_sk_...")` — hosted brain for teams |
 | **Multi-tenant API** | 📋 | Shared project memory, team collaboration, SLAs |

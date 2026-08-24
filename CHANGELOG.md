@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 2026-08-24 — Brain-inspired dynamics, personalization, multi-provider routing
+
+- **Energy budget:** finite, replenishing energy pool now gates the bisociation engine's
+  cycle-passes in addition to the existing modulo throttle.
+- **Multi-timescale relation strength (slice 1):** new fast-decaying `strength_fast` signal
+  (~6h half-life) layered additively on top of long-term Hebbian `strength` — observational only,
+  does not touch ranking, pruning, or dormancy.
+- **Predictive coding as a decision driver:** sustained rise in a noradrenaline-modeled surprise
+  signal above threshold now spawns a human-in-the-loop research task about which domain pair
+  surprised the system, via the existing curiosity interrupt/queue mechanism.
+- **Personalization (`user_model`):** new sensitive scope, seeded via structured parsing (not LLM
+  extraction) of user self-description into typed relations (communication style, learning style,
+  cognitive needs, working patterns). Wired into `goal_generator.py`'s priority scoring as a fifth
+  signal.
+- **Multi-provider routing:** dedicated base-URL/API-key handling per cloud provider (Groq,
+  OpenRouter, Cerebras) instead of one shared global config; verified against a live Groq API,
+  including a `max_tokens` fix for reasoning models that were truncating JSON output mid-response.
+- **LongMemEval adapter:** external benchmark integration built and run to completion. Result:
+  0% on the Nous condition vs. 4.2% bare baseline — root-caused to a category mismatch (Nous's
+  relation vocabulary targets thematic/conceptual connections; LongMemEval's knowledge-update
+  questions require atomic personal facts). Documented as a scoping decision, not treated as a
+  regression to chase.
+- Local model comparison for the extraction pipeline (`gemma4:e2b` and `dolphin3:8b` viable;
+  `qwen3.5:9b` and `lfm2.5` time out consistently on this hardware).
+
 ### 2026-04-09 — Sync Wave (Non-Docker)
 
 #### Fix #24 — Web ingest provenance metadata ([PR #32](https://github.com/base76-research-lab/Nous/pull/32), [Issue #24](https://github.com/base76-research-lab/Nous/issues/24))
