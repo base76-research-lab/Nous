@@ -262,7 +262,7 @@ def _rows_to_axioms(src_name: str, rows: list[dict]) -> list[Axiom]:
             ev = min(0.95, 0.45 + (strength - 1.0) * 0.25)
 
         out.append(Axiom(
-            src=src_name,
+            src=str(r.get("source") or src_name),
             rel=str(r.get("type") or "related_to"),
             tgt=str(r.get("target") or ""),
             evidence=ev,
@@ -312,6 +312,7 @@ class NouseBrain:
             try:
                 rows = self._field.out_relations(name)
                 axioms.extend(_rows_to_axioms(name, rows))
+                axioms.extend(_rows_to_axioms(name, self._field.in_relations(name)))
             except Exception:
                 pass
         axioms.sort(key=lambda a: -a.evidence)
@@ -355,6 +356,7 @@ class NouseBrain:
             k = self._field.concept_knowledge(name)
             try:
                 rel_rows = self._field.out_relations(name)
+                rel_rows += self._field.in_relations(name)
                 node_axioms = _rows_to_axioms(name, rel_rows)
             except Exception:
                 node_axioms = []
@@ -861,13 +863,11 @@ class NouseBrainHTTP:
         )
 
     def learn(self, prompt: str, response: str, source: str = "conversation") -> None:
-        try:
-            self._client.post(
-                f"{self._base}/api/brain/learn",
-                json={"prompt": prompt, "response": response, "source": source},
-            )
-        except Exception:
-            pass
+        result = self._client.post(
+            f"{self._base}/api/brain/learn",
+            json={"prompt": prompt, "response": response, "source": source},
+        )
+        result.raise_for_status()
 
     def add(
         self,
@@ -878,14 +878,12 @@ class NouseBrainHTTP:
         why: str = "",
         evidence_score: float = 0.6,
     ) -> None:
-        try:
-            self._client.post(
-                f"{self._base}/api/brain/add",
-                json={"src": src, "rel_type": rel_type, "tgt": tgt,
-                      "why": why, "evidence_score": evidence_score},
-            )
-        except Exception:
-            pass
+        result = self._client.post(
+            f"{self._base}/api/brain/add",
+            json={"src": src, "rel_type": rel_type, "tgt": tgt,
+                  "why": why, "evidence_score": evidence_score},
+        )
+        result.raise_for_status()
 
     # ── Misc ──────────────────────────────────────────────────────────────────
 

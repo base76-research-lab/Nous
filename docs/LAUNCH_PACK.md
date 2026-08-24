@@ -4,7 +4,7 @@ Use this when publishing Nous publicly. The goal is simple: make people understa
 
 ## One-line pitch
 
-Nous gives LLM agents a persistent epistemic substrate that knows what it knows, how confidently it knows it, and where knowledge runs out.
+Nous gives LLM agents a persistent epistemic substrate that represents relations, evidence, uncertainty, and gaps in knowledge.
 
 ## Short pitch
 
@@ -23,7 +23,7 @@ Nous is a local-first epistemic substrate that knows:
 - how confidently it knows it
 - where knowledge runs out
 
-It stores typed relations with evidence and uncertainty, then injects a grounded context block into any model.
+It stores typed relations with evidence and uncertainty, then injects a grounded context block into a compatible model API.
 
 ```bash
 pip install nouse
@@ -98,7 +98,7 @@ Most LLM agents do not know what they know, how confidently they know it, or whe
 
 That is what Nous is trying to solve.
 
-Nous is a local-first epistemic substrate. Instead of storing only chunks or chat history, it stores typed relations with evidence and uncertainty, then injects a grounded context block into any model before it answers.
+Nous is a local-first epistemic substrate. Instead of storing only chunks or chat history, it stores typed relations with evidence and uncertainty, then injects a grounded context block into a compatible model before it answers.
 
 The shape of the idea is simple:
 

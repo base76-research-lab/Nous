@@ -27,6 +27,20 @@
 - En ny, saklig explainer-video är kvar som planerad task och ska länkas först
   när den är inspelad och granskad mot aktuell evidens.
 
+**2026-08-25, kärn-API och claims granskade:**
+
+- `NouseBrain.query()` hämtar nu både inkommande och utgående relationer. Ett
+  målkoncept kan därför visa vilken källa som stöder eller motsäger det.
+- HTTP-skrivningar i `NouseBrainHTTP.learn()` och `.add()` propagerar nu
+  serverfel i stället för att tyst rapportera framgång.
+- Nytt deterministiskt exempel: `examples/grounded_memory.py`. Det kräver
+  ingen daemon, modell, API-nyckel eller produktionsgraf och visar relationer,
+  evidens och contradiction handling i en isolerad databas.
+- Produkt- och strategidokumentens universella kompatibilitets-, skala- och
+  neuroscience-claims har tonats ned till verifierbara beskrivningar.
+- Verifierat: `409 passed, 1 skipped`, full Python-kompilering, package build
+  och det isolerade grounded-memory-demot.
+
 **2026-08-24, isolerad VS Code Build-arbetsyta tillagd:**
 
 - `.vscode/` rekommenderar Python, Ruff, rust-analyzer och TOML-stöd och

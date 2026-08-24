@@ -1168,6 +1168,19 @@ class FieldSurface:
         _queue_indications(name, rows)
         return rows
 
+    def in_relations(self, name):
+        if name not in self._G:
+            return []
+        rows = []
+        for src, _, data in self._G.in_edges(name, data=True):
+            rows.append({
+                "source": src, "target": name, "type": data.get("type"),
+                "why": data.get("why"), "strength": data.get("strength"),
+                "evidence_score": data.get("evidence_score"),
+                "assumption_flag": data.get("assumption_flag"),
+            })
+        return rows
+
     def domains(self):
         rows = self._sql.execute("SELECT DISTINCT domain FROM concept").fetchall()
         return [row["domain"] for row in rows]

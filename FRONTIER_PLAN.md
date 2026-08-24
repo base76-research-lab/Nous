@@ -79,7 +79,8 @@ Allt annat (ESA, konferens, HuggingFace) är amplifiering. Dessa tre är grunden
 
 ### 1c. GitHub: gör Nous publikt och presentabelt
 
-- README ska börja med: *"Epistemic grounding for LLMs. Works with any model."*
+- README ska börja med en verifierbar beskrivning av epistemic grounding och
+        ange testade modellintegrationer utan universalclaim.
 - Lägg till en 4-rad "What it is / What it is NOT" sektion
 - Badge: `pip install nouse-kernel`
 - Länka till Zenodo DOI:erna direkt i README (DOI är mer stabilt än arXiv-länk)
@@ -115,7 +116,7 @@ lm_eval --model nouse_augmented --model_args pretrained=meta-llama/Llama-3.1-8B-
 
 **Vad vi letar efter:**
 - Primär: MC1/MC2 accuracy stiger med ≥5 procentenheter
-- Sekundär: Nous + 8B > baseline 70B (möjlig framtida jämförelse, inte rubrik i nuläget)
+- Sekundär: jämförelse mot större baseline (möjlig framtida analys, inte rubrik i nuläget)
 - Tertiär: Error-analys — vilka frågetyper förbättras, vilka inte
 
 **Om resultaten är positiva:**

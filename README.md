@@ -139,7 +139,8 @@ Your documents, conversations, research
       — what is NOT known (gap map from TDA)
 ```
 
-It is **not** a RAG system. RAG retrieves chunks. Nous extracts *relations* — typed, weighted,
+It is primarily relation-based rather than chunk-retrieval-based. Conventional RAG retrieves
+chunks; Nous extracts *relations* — typed, weighted,
 evidence-scored connections between concepts — and injects a compact, structured context block.
 
 It is **not** just a memory system. Memory stores and retrieves. Nous maintains an epistemic
@@ -233,7 +234,7 @@ print(result.strong_axioms())
 
 If the daemon is running, `attach()` connects over HTTP. Otherwise it falls back to direct local graph access. The same code works either way.
 
-Works with any provider — OpenAI, Anthropic, Groq, Cerebras, Ollama:
+The context block is designed for compatible providers. Tested integrations include OpenAI, Anthropic, Groq, Cerebras, and Ollama:
 
 ```python
 # You handle the LLM call. Nous handles the memory.
@@ -462,11 +463,12 @@ nouse/
 ## The hypothesis (work in progress)
 
 ```text
-small model + Nous[domain]  >  large model without Nous
+Hypothesis: structured Nous context may improve reliability in domain-specific tasks.
 ```
 
-We have evidence for this in our benchmark. The next step is to test across
-more domains, more models, and with an LLM judge instead of keyword scoring.
+This is an explicit research hypothesis, not an established result. Current
+repository runs do not demonstrate this effect. The next step is to test across
+more domains and models with complete, independently scored runs.
 
 Contributions welcome — especially domain-specific question banks.
 

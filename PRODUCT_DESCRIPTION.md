@@ -7,7 +7,7 @@
 
 ## What Is Nous?
 
-Nous is not RAG. Nous is not a graph database. Nous is not a smarter prompt.
+Nous is primarily relation-based rather than chunk-retrieval-based. It uses a graph substrate and returns context for a model prompt.
 
 Nous is a **plastic metacognitive layer** — a persistent epistemic substrate that attaches to any LLM and provides what LLMs structurally lack: the ability to know what they know, with what confidence, and what they do not know.
 
@@ -54,11 +54,11 @@ Pass 3 — LLM refines with epistemic grounding: corrects hallucinations, expres
 │  │  │ SQLite  │  │ NetworkX │  │    TDA    │  │Embeddin│ │    │
 │  │  │  WAL    │  │ In-Memory│  │  (Betti)  │  │  gs    │ │    │
 │  │  └─────────┘  └──────────┘  └───────────┘  └────────┘ │    │
-│  │  22,000+ concepts | 24,000+ relations | 1,600 domains  │    │
+│  │  Deployment-sized graph; counts vary by data and run    │    │
 │  └────────────────────────────────────────────────────────┘    │
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │                    REST API (55 endpoints)              │    │
+│  │                    REST API and local CLI               │    │
 │  │  /api/ingest  /api/context  /api/bisociate  /api/graph  │    │
 │  │  /api/nightrun/now  /api/limbic  /api/status  ...       │    │
 │  └─────────────────────────────────────────────────────────┘    │
@@ -169,7 +169,7 @@ NOUSE_LEARN_CONFIDENCE_GATE = 0.65  # Threshold to clear assumption flag
 
 #### STDP (Spike-Timing-Dependent Plasticity)
 
-Neuroscience-grade temporal learning. Uses Brian2 (Rust backend) with Python fallback.
+Neuroscience-inspired temporal learning signals. Uses Brian2 (Rust backend) with Python fallback; biological correspondence is not established.
 
 **STDP Window (exponential):**
 - `Δt > 0` (pre before post): **LTP** (Long-Term Potentiation) — strengthen
@@ -419,7 +419,7 @@ NOUSE_HITL_PRIORITY_THRESHOLD = 0.98
 
 ---
 
-### 13. Metacognition — Self-Awareness
+### 13. Metacognition — Self-Monitoring
 
 - **Snapshots** — Frozen copies of entire system state (graph + limbic + TDA profiles)
 - **Genesis** — Self-modifying tool creation (`create_new_tool(name, description, code)`)
@@ -436,7 +436,7 @@ Goal-directed knowledge acquisition:
 
 ---
 
-## REST API — 55 Endpoints
+## REST API
 
 ### Status & System
 | Endpoint | Method | Description |
@@ -517,9 +517,9 @@ Pre-populate graph with universal primitives by running decomposition on top hub
 | Spec | Value |
 |------|-------|
 | Language | Python 3.13+ |
-| Codebase | ~39,000 lines, 150 modules |
+| Codebase | Python graph, daemon, API, and evaluation components |
 | Database | SQLite WAL + NetworkX in-memory |
-| API | FastAPI + Uvicorn (55 endpoints) |
+| API | FastAPI + Uvicorn |
 | LLM Backend | Ollama (local), Cerebras, Groq (cloud) |
 | Embedding | nomic-embed-text-v2-moe, qwen3-embedding:4b |
 | TDA Engine | Rust (fast) / Python scipy (fallback) |
@@ -557,7 +557,7 @@ general improvement. See `eval/RESULTS_INDEX.md` for the evidence status.
 | **Scaling property** | More docs → more retrieval hits | More vectors → more matches | More input → richer topology → better metacognition |
 | **Autonomy** | Query-response | Query-response | 18-step autonomous brain loop |
 | **Cross-domain** | None | None | Automatic bridge synthesis |
-| **Metacognition** | None | None | Knows what it knows, with what confidence |
+| **Metacognition** | None | None | Represents evidence and uncertainty metadata; calibration remains an open research question |
 
 ---
 
@@ -580,4 +580,4 @@ The system is built around Arthur Koestler's concept of **bisociation**: the cre
 ---
 
 *Built by Björn Wikström at Base76 Research Lab*
-*22,000+ concepts | 24,000+ relations | 1,600+ domains | Growing autonomously*
+*Graph size depends on the deployment and its ingested data.*

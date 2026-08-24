@@ -1,12 +1,12 @@
 """
-nouse.daemon.evidence — Bayesiansk evidensmodell + aktiveringsackumulator
+nouse.daemon.evidence — heuristic evidence model + activation accumulator
 =========================================================================
 Ger varje föreslagen relation:
-  - evidence_score (0..1)  — kalibrerad Bayesiansk posterior
+    - evidence_score (0..1)  — heuristic score inspired by Bayesian updating
   - trust_tier             — hypotes | indikation | validerad
   - rationale              — spårbar motiveringskedja
 
-Bayesiansk modell:
+Bayesian-inspired heuristic model:
   Prior P(true) baseras på strukturella signaler (har motivering, domänkorsning, etc.)
   Likelihood-uppdatering med bekräftande och motstridiiga relationer i grafen:
     P(true | k bekräftningar, m motstridigheter) ∝ prior × LR^k × (1-LR)^m
@@ -110,7 +110,7 @@ def _bayesian_update(
     contradicting: int,
 ) -> tuple[float, list[str]]:
     """
-    Uppdatera prior med Bayesiansk likelihood-ratio.
+    Uppdatera prior med handvalda likelihood-ratio-vikter.
 
     Använder log-odds representation för numerisk stabilitet:
       log_odds_posterior = log_odds_prior + k*log(LR_c) + m*log(LR_m)
@@ -143,7 +143,7 @@ def assess_relation(
     contradicting_relations: int = 0,
 ) -> EvidenceAssessment:
     """
-    Bayesiansk evidensbedömning för en föreslagen relation.
+    Bayesian-inspired heuristic assessment for a proposed relation.
 
     Args:
         relation:               Relationsdict med src, tgt, type, why, domain_src, domain_tgt.
@@ -222,12 +222,10 @@ def activate_relation(
     src: str,
     tgt: str,
     *,
-    rel_type: str | None = None,
     source: str = "query",
 ) -> bool:
     """
     Styrk en relation vid aktivering (query-träff, bisociation, etc.).
-
     w_delta = +0.02 (Hebbisk förstärkning)
     ev_delta = +0.01 (liten evidensboost)
     """

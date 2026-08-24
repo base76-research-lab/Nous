@@ -1,16 +1,16 @@
 # Nous — Video Script
-### "The AI Memory That Makes Small Models Beat Big Ones"
+### "An Experimental Epistemic Memory Layer for AI Agents"
 **Format:** Text-to-video (AI narration)
 **Duration:** ~90 seconds
-**Tone:** Calm, technical confidence — no hype
+**Tone:** Calm, technical, evidence-led
 
 ---
 
 ## Scene 1 — Hook
 
-**Visual:** Dark screen. Two numbers appear: `8B` vs `70B`
+**Visual:** Dark screen. A question appears beside a structured graph
 
-> What if a tiny 8-billion parameter model could consistently outperform a 70-billion parameter model? Not with better training. Not with fine-tuning. Just by giving it memory.
+> Long-running AI agents need more than a larger context window. They need a memory layer that can represent evidence, uncertainty, contradiction and change over time.
 
 ---
 
@@ -26,7 +26,7 @@
 
 **Visual:** Logo animation — "Nous" — Greek letters νοῦς fade in
 
-> Meet Nous. Named after the Greek word for mind. Nous is a persistent, self-growing knowledge graph that attaches to any language model as a memory substrate. It works with OpenAI, Anthropic, Groq, Ollama — any model you already use.
+> Meet Nous. Named after the Greek word for mind. Nous is a persistent, self-growing knowledge graph that attaches to a compatible language model as a memory substrate. Tested integrations are documented in the repository.
 
 ---
 
@@ -83,7 +83,7 @@ context = brain.query("transformer attention").context_block()
 # inject context into any LLM prompt
 ```
 
-> Three lines of code. Query your memory graph, get back a structured context block, inject it into any LLM call. You keep your existing setup. Nous just makes it smarter.
+> Query the memory graph, get back a structured context block, and pass it to your existing model call. Nous is an experimental substrate, not a claim that every model will improve.
 
 ---
 
@@ -91,7 +91,7 @@ context = brain.query("transformer attention").context_block()
 
 **Visual:** Clean typography on dark background
 
-> This is not about retrieval. It's about disambiguation. A small, precise memory signal redirects the model's existing knowledge onto the correct frame. We call this the **Intent Disambiguation Effect**.
+> The research question is whether relation-based context can improve disambiguation and reliability compared with ordinary retrieval. That effect remains a hypothesis under evaluation.
 
 ---
 
@@ -99,7 +99,7 @@ context = brain.query("transformer attention").context_block()
 
 **Visual:** GitHub URL + PyPI badge on screen
 
-> Nous is open source, MIT licensed, and available today. Install with pip, run the benchmark yourself, or contribute your own domain question bank. The hypothesis is clear — small model plus Nous beats big model alone. Help us prove it at scale.
+> Nous is open source, MIT licensed, and available today. Install it, inspect the implementation, run the benchmarks, and challenge the hypothesis with your own data.
 
 ```
 pip install nouse

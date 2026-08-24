@@ -22,7 +22,7 @@ Nous is a persistent, self-growing knowledge graph that attaches to any LLM as a
 → Learns continuously via Hebbian plasticity — no retraining, no gradient descent
 → Injects a structured context block into any LLM prompt at query time
 
-**It works with any model. Any provider.**
+**It provides provider-independent context for compatible model APIs.**
 
 ```
 pip install nouse
@@ -36,7 +36,7 @@ context = brain.query("your question").context_block()
 
 The hypothesis is simple:
 
-> **small model + Nous[domain] > large model without Nous**
+> The research hypothesis: structured epistemic context may improve reliability in domain-specific work.
 
 We have evidence. We need more domains, more models, more contributors to stress-test it.
 
