@@ -1,5 +1,16 @@
 # Nous — status
 
+**2026-08-25, deterministisk golden path verifierad:**
+
+- `examples/grounded_memory.py` använder en isolerad temporär databas, lägger
+  till explicita strukturerade relationer, frågar både källa och mål, skriver
+  `context_block()` och visar contradiction check utan daemon, modell eller API.
+- Dokumenterad körning: `pip install -e .` följt av
+  `python examples/grounded_memory.py`.
+- Verifierat: fokustestet passerar, demot skriver båda kontextblocken och
+  `recommendation: flag` / `has_conflict: True`; full suite `411 passed,
+  1 skipped`. Endast befintliga `datetime.utcnow()`-deprecation warnings.
+
 **2026-08-25, evidens och publikt kontrakt ombyggt:**
 
 - README, produktbeskrivning, roadmap, LinkedIn-text och videoscript använder

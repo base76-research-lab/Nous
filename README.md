@@ -66,6 +66,14 @@ If that output feels more useful than plain chat history or chunk retrieval, the
 
 ---
 
+For a deterministic local golden path with explicit relations, source and target
+queries, context blocks, and contradiction checking:
+
+```bash
+pip install -e .
+python examples/grounded_memory.py
+```
+
 ---
 
 ## Why It Matters
