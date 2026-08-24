@@ -89,7 +89,9 @@ Allt annat (ESA, konferens, HuggingFace) är amplifiering. Dessa tre är grunden
 
 ## Fas 2: Det enda som verkligen avgör (vecka 2–4)
 
-**Mål:** Extern benchmark som visar att Nous ger kvantitativ förbättring.
+**Mål:** Extern benchmark som kan falsifiera eller stödja att Nous ger
+kvantitativ förbättring. Ingen effektclaim publiceras innan körningen är
+fullständigt auditerbar.
 
 ### TruthfulQA benchmark (kritisk väg)
 
@@ -113,7 +115,7 @@ lm_eval --model nouse_augmented --model_args pretrained=meta-llama/Llama-3.1-8B-
 
 **Vad vi letar efter:**
 - Primär: MC1/MC2 accuracy stiger med ≥5 procentenheter
-- Sekundär: Nous + 8B > baseline 70B (detta är rubriken)
+- Sekundär: Nous + 8B > baseline 70B (möjlig framtida jämförelse, inte rubrik i nuläget)
 - Tertiär: Error-analys — vilka frågetyper förbättras, vilka inte
 
 **Om resultaten är positiva:**
@@ -191,7 +193,7 @@ Om TruthfulQA-resultaten är starka:
 |-----|-----------|---------------------------|
 | 0 | Systemet fungerar | `pytest tests/` passerar |
 | 1 | Intellektuell prioritet | ✅ Zenodo DOI + PhilPapers (2026-04-18) |
-| 2 | Empirisk validering | MC1 +5pp, eller 8B > 70B baseline |
+| 2 | Empirisk validering | Komplett, oberoende och reproducerbar mätning med fördefinierad analys |
 | 3 | Institutionell närvaro | ESA draft + HF Space live |
 | 4 | Frontier-radar | 1+ inbound från researcher/company |
 

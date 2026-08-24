@@ -88,8 +88,9 @@ Created `src/nouse/persona.py` stub with sensible defaults:
   - sub: sister paper (Creative Free Energy / F_bisoc) — pending
   - sub: GitHub README presentation — pending
 - [ ] Fas 2: Empirical validation — TruthfulQA benchmark
-  - 8B without Nous: ~46% | 8B with Nous: ~96% (small test set, not universal)
-  - need: lm-eval integration, proper benchmark run
+  - TruthfulQA pilot (40 questions): bare 50.0% | RAG 50.0% | Nous-meta 47.5%
+  - status: exploratory only; judge records incomplete, no established gain
+  - need: immutable run manifest, independent scoring, controlled ablations
 - [ ] Fas 3: Institutional presence — ESA paper + HuggingFace Space
 - [ ] Fas 4: Frontier radar — conference submission, researcher outreach
 

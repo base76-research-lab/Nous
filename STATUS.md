@@ -1,5 +1,24 @@
 # Nous — status
 
+**2026-08-25, evidens och publikt kontrakt ombyggt:**
+
+- README, produktbeskrivning, roadmap, LinkedIn-text och videoscript använder
+  inte längre den historiska 96%-claimen som aktuell evidens. README redovisar
+  i stället TruthfulQA-piloten (bare 50.0%, RAG 50.0%, Nous-meta 47.5%) som
+  explorativ och ofullständigt bedömd.
+- `eval/RESULTS_INDEX.md` tillagd som manifest för auditerbara, explorativa och
+  historiska körningar. Den saknade manifestfilen för `run_20260403_094211`
+  gör att den gamla 96%-claimen inte längre behandlas som verifierad.
+- TruthfulQA-joiningen markerar nu varje judge-resultat med `judge_valid`,
+  sparar rå judge-output och räknar ogiltiga domar separat i metrics. Tre nya
+  parser-tester täcker komplett JSON, saknat skäl och ogiltigt scoreintervall.
+- Python-kontraktet är konsekvent `3.13+` i metadata, CI, README och
+  produktgrafik; GitHub-URL:erna pekar på `Nous`.
+- Verifierat: `407 passed, 1 skipped`, `uv lock --check` och `git diff --check`.
+- Kvar: TruthfulQA-resultatfilen från 2026-08-24 är fortfarande en lokal,
+  okommitterad pilotfil; den ska inte publiceras som effektbevis innan en
+  komplett körning med oberoende scoring finns.
+
 **2026-08-24, isolerad VS Code Build-arbetsyta tillagd:**
 
 - `.vscode/` rekommenderar Python, Ruff, rust-analyzer och TOML-stöd och

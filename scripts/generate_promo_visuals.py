@@ -459,7 +459,7 @@ def plot_hero_card(concepts, relations, knowledge, embeddings):
                 ha="center", va="center", color=GRID.replace("21262d", "8b949e"))
 
     # Footer
-    ax.text(0.5, 0.03, "github.com/base76-research-lab/nouse  ·  MIT License  ·  Python 3.11+",
+    ax.text(0.5, 0.03, "github.com/base76-research-lab/Nous  ·  MIT License  ·  Python 3.13+",
             fontsize=10, ha="center", va="bottom", color=GRID, alpha=0.6)
 
     fig.tight_layout()

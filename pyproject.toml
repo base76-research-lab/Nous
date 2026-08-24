@@ -64,8 +64,8 @@ nouse-saas      = "nouse.saas.server:main"
 nouse-kernel-http = "nouse.mcp_gateway.server:run_http"
 
 [project.urls]
-Homepage   = "https://github.com/base76-research-lab/NoUse"
-Repository = "https://github.com/base76-research-lab/NoUse"
+Homepage   = "https://github.com/base76-research-lab/Nous"
+Repository = "https://github.com/base76-research-lab/Nous"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]

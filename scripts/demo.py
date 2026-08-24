@@ -306,7 +306,7 @@ def main() -> None:
     console.print(Align.center(
         "[bold white]pip install nouse[/bold white]  "
         "[dim]·[/dim]  "
-        "[cyan]github.com/base76-research-lab/NoUse[/cyan]"
+        "[cyan]github.com/base76-research-lab/Nous[/cyan]"
     ))
     console.print(Align.center(
         "[dim]νοῦς — det saknade lagret till AGI[/dim]"

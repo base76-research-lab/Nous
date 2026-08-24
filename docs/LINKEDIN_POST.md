@@ -1,16 +1,11 @@
-🧠 We just proved something uncomfortable about large language models.
+🧠 Nous is a research system for epistemic memory in long-running AI agents.
 
-An 8B model beat a 70B model. Consistently. On 60 domain-specific questions.
+The current evidence is deliberately modest: a 40-question TruthfulQA pilot
+did not establish an improvement over a bare model, and its judge records were
+incomplete. That result is being used to improve the method, not hidden.
 
-Not with fine-tuning. Not with a bigger context window. Just with **memory**.
-
-```
-llama3.1-8b   (no memory)   →  46%
-llama-3.3-70b (no memory)   →  47%
-llama3.1-8b   + Nous       →  96%
-```
-
-The gap isn't about intelligence. It's about **disambiguation**.
+The research question is whether explicit evidence, uncertainty and
+contradiction state can improve **disambiguation**.
 
 When a model doesn't know *your* domain, it generates fluent, confident answers in the wrong frame. A small, structured memory signal fixes that — redirecting the model's existing knowledge onto the correct frame.
 

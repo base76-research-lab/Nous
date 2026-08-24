@@ -37,12 +37,13 @@
 ```
 Model                          Score   Questions
 ─────────────────────────────────────────────────
-llama 3.1   8B  (no memory)     46%       60
-llama 3.3  70B  (no memory)     47%       60
-llama 3.1   8B  + Nous    →    96%       60
+TruthfulQA pilot, 2026-08-24
+bare model                    50.0%      40
+flat RAG                      50.0%      40
+Nous meta                     47.5%      40
 ```
 
-> In our benchmark — 60 domain-specific questions — the 8B model with Nous scored 96%. The 70B model without it scored 47%. Same questions. The only difference was memory.
+> This pilot did not establish an improvement. The judge records were incomplete, so the result is a research checkpoint rather than a final claim.
 
 ---
 

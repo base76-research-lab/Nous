@@ -516,7 +516,7 @@ Pre-populate graph with universal primitives by running decomposition on top hub
 
 | Spec | Value |
 |------|-------|
-| Language | Python 3.11+ |
+| Language | Python 3.13+ |
 | Codebase | ~39,000 lines, 150 modules |
 | Database | SQLite WAL + NetworkX in-memory |
 | API | FastAPI + Uvicorn (55 endpoints) |
@@ -533,9 +533,13 @@ Pre-populate graph with universal primitives by running decomposition on top hub
 
 ## Benchmark Results
 
-**TruthfulQA (retrieval-augmented):**
-- llama-3.1-8b baseline: **46%**
-- llama-3.1-8b + Nous: **96%**
+**TruthfulQA pilot (2026-08-24):**
+- bare model MC1 accuracy: **50.0%**
+- flat RAG MC1 accuracy: **50.0%**
+- Nous-meta MC1 accuracy: **47.5%**
+
+This is an exploratory run with incomplete judge records, not evidence of a
+general improvement. See `eval/RESULTS_INDEX.md` for the evidence status.
 
 ---
 

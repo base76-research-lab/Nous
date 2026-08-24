@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://pypi.org/project/nouse/"><img src="https://img.shields.io/pypi/v/nouse" alt="PyPI"></a>
   <a href="https://github.com/base76-research-lab/Nous/actions/workflows/tests.yml"><img src="https://github.com/base76-research-lab/Nous/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.13+-blue.svg" alt="Python 3.13+"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="https://github.com/base76-research-lab/Nous/wiki"><img src="https://img.shields.io/badge/wiki-nous-blue" alt="Wiki"></a>
 </p>
@@ -92,25 +92,26 @@ What is currently called AI is mostly semantic prediction.
 
 That changes agent behavior in the place that actually matters: when a model is close to hallucinating but still sounds fluent.
 
-## The Result
+## Evidence Status
 
-Reference run used for the claim below: `run_20260403_094211` (see `eval/RESULTS_INDEX.md`).
+Nous is an active research system. The repository contains working components and
+reproducible unit tests, but it does **not yet establish a general accuracy gain**
+over a bare language model.
 
-```text
-Model                               Score   Questions
-─────────────────────────────────────────────────────
-llama3.1-8b  (no memory)            46%     60
-llama-3.3-70b  (no memory)          47%     60
-llama3.1-8b  + Nous memory  →      96%     60
-```
+The latest saved TruthfulQA pilot (40 questions, NVIDIA Nemotron, 2026-08-24)
+reported MC1 accuracy of 50.0% for the bare condition, 50.0% for flat RAG, and
+47.5% for `nous_meta`. Its judge outputs were incomplete, so this is a pilot and
+not a publishable effect estimate. The full record is in
+[eval/RESULTS_INDEX.md](eval/RESULTS_INDEX.md).
 
-**In this reference run, an 8B model with Nous outperformed a 70B baseline.**
+An earlier 60-question domain-specific run reported a larger Nous effect, but its
+immutable run manifest is missing from this checkout. It remains a historical
+hypothesis, not a current product claim.
 
-The effect is not retrieval. It is *epistemic grounding* — a small, precise knowledge signal
-redirects the model's existing priors onto the correct frame, with confidence and evidence attached.
-We call this the **Intent Disambiguation Effect**.
-
-→ Full benchmark details: [eval/RESULTS.md](eval/RESULTS.md) · [eval/RESULTS_INDEX.md](eval/RESULTS_INDEX.md) · [Run it yourself](#run-the-benchmark-yourself)
+The research question is still valuable: whether explicit evidence, uncertainty,
+contradiction state, and temporal relations improve agent reliability under
+controlled conditions. New claims should be based on complete runs with fixed
+commits, datasets, prompts, models, raw outputs, and an independent scorer.
 
 ---
 
@@ -512,7 +513,7 @@ nouse run
 nouse status
 ```
 
-Requires Python 3.11+. Graph stored in `~/.local/share/nouse/`.
+Requires Python 3.13+. Graph stored in `~/.local/share/nouse/`.
 
 ---
 
