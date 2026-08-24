@@ -85,6 +85,7 @@ _KNOWN_CLOUD_PROVIDERS: dict[str, tuple[str, str]] = {
     "groq": ("https://api.groq.com/openai/v1", "GROQ_API_KEY"),
     "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
     "cerebras": ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY"),
+    "nvidia": ("https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY"),
 }
 
 _OPENAI_COMPATIBLE_PROVIDER_ALIASES = {

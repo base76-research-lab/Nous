@@ -10,7 +10,25 @@ Uppdatera den här filen **innan session slut** om något ändrats sedan
 senaste uppdateringen — se `.claude/settings.json`s Stop-hook, som påminner
 om detta om det finns okommitterade ändringar.
 
-**Session avslutad 2026-08-24 03:50.** Allt committat (`c1b9072` senast),
+**2026-08-24, senare session:** NVIDIA NIM tillagd som fjärde molnleverantör
+i `ollama_client/client.py::_KNOWN_CLOUD_PROVIDERS` (`"nvidia": ("https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY")`),
+samma mönster som Groq/OpenRouter/Cerebras. `NVIDIA_API_KEY` tillagd i
+`.env` (Björns build.nvidia.com-konto, gratis endpoint-tier). Verifierad
+mot skarpt API med `nvidia/nemotron-3.5-lightning-30b-a3b` — 200 OK,
+riktigt svar. Samma reasoning-modell-fallgrop som Groq hittades direkt:
+modellen spenderar `max_tokens` på dolt `<think>`-resonemang innan den når
+JSON/svar. **Inte fixat för NVIDIA än** — `daemon/extractor.py`s
+`NOUSE_EXTRACT_CLOUD_MAX_TOKENS`-hantering gäller idag bara Groq-vägen,
+behöver utökas eller generaliseras innan NVIDIA används för extraktion.
+Motivation: gratis exekveringskapacitet (58 gratis-endpoint-modeller,
+40 anrop/min, ingen daglig gräns) för Björns planerade Jarvis-arkitektur
+(lokal SLM-front + kod-router + NVIDIA/Groq för delegerad exekvering av
+allt som INTE är forskning — forskningen stannar lokalt/Ollama per
+uttrycklig regel). **Inte aktiverad i produktion, daemonen ej rörd.**
+Städade också bort en dubblettrad `GROQ_API_KEY=` i `.env` (ofarlig,
+samma värde två gånger).
+
+**Session avslutad 2026-08-24 03:50 (tidigare pass).** Allt committat (`c1b9072` senast),
 daemonen aktiv och frisk (PID 958535). Två öppna beslut väntar på Björn
 nästa gång, båda under "Planerade actions" nedan: (1) lägga till Groq
 (`groq/qwen/qwen3.6-27b`) i produktionens `bisoc`/`synth`-kandidater —
