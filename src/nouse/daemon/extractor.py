@@ -14,7 +14,7 @@ from typing import Any
 
 from nouse.llm.model_router import order_models_for_workload, record_model_result
 from nouse.llm.policy import resolve_model_candidates
-from nouse.ollama_client.client import AsyncOllama
+from nouse.ollama_client.client import AsyncOllama, model_uses_cloud_provider
 
 _log = logging.getLogger("nouse.extractor")
 
@@ -39,6 +39,20 @@ try:
     EXTRACT_MAX_RELATIONS = max(1, int((os.getenv("NOUSE_EXTRACT_MAX_RELATIONS") or "15").strip()))
 except ValueError:
     EXTRACT_MAX_RELATIONS = 15
+
+try:
+    # 2026-08-24: molnets resonemangsmodeller (t.ex. Groqs qwen3.6-27b,
+    # openai/gpt-oss-*) förbrukar ofta hela sin standard-max_tokens-budget
+    # (Groq default 2048) på ett synligt <think>-resonemang INNAN de når
+    # själva JSON-svaret — svaret klipps mitt i, _extract_json_array()
+    # hittar ingen giltig array. Ollamas native klient saknar en
+    # max_tokens-kwarg helt (den har options={"num_predict":N} istället)
+    # — sätts därför bara för moln-leverantörer, se model_uses_cloud_provider().
+    EXTRACT_CLOUD_MAX_TOKENS = max(
+        256, int((os.getenv("NOUSE_EXTRACT_CLOUD_MAX_TOKENS") or "4096").strip())
+    )
+except ValueError:
+    EXTRACT_CLOUD_MAX_TOKENS = 4096
 
 try:
     EXTRACT_TIMEOUT_SEC = max(
@@ -467,6 +481,9 @@ async def _extract_with_model(
     timeout_sec: float = EXTRACT_TIMEOUT_SEC,
 ) -> list[dict[str, Any]]:
     client = AsyncOllama(timeout_sec=timeout_sec)
+    extra: dict[str, Any] = {}
+    if model_uses_cloud_provider(model):
+        extra["max_tokens"] = EXTRACT_CLOUD_MAX_TOKENS
     resp = await client.chat.completions.create(
         model=model,
         messages=[
@@ -478,6 +495,7 @@ async def _extract_with_model(
             "session_id": session_id,
             "run_id": run_id,
         },
+        **extra,
     )
     raw = (resp.message.content or "").strip()
     rows = _extract_json_array(raw)

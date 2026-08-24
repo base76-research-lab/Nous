@@ -1,0 +1,236 @@
+{
+  "timestamp": "2026-08-24T01:33:00.704881",
+  "corpus": [
+    "nous_arkitektur",
+    "personlig_profil",
+    "affär_konsulting",
+    "strategisk_doktrin",
+    "frontier_plan"
+  ],
+  "models": [
+    "gemma4:e2b",
+    "qwen3.5:9b",
+    "dolphin3:8b",
+    "lfm2.5:latest"
+  ],
+  "results": {
+    "gemma4:e2b": [
+      {
+        "text": "nous_arkitektur",
+        "success": true,
+        "n_relations": 3,
+        "quality": 0.8999999999999999,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 13.79
+      },
+      {
+        "text": "personlig_profil",
+        "success": true,
+        "n_relations": 7,
+        "quality": 0.9,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 16.11
+      },
+      {
+        "text": "affär_konsulting",
+        "success": true,
+        "n_relations": 6,
+        "quality": 0.9666666666666668,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 14.36
+      },
+      {
+        "text": "strategisk_doktrin",
+        "success": false,
+        "n_relations": 0,
+        "quality": null,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 17.34
+      },
+      {
+        "text": "frontier_plan",
+        "success": true,
+        "n_relations": 7,
+        "quality": 0.942857142857143,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 17.61
+      }
+    ],
+    "qwen3.5:9b": [
+      {
+        "text": "nous_arkitektur",
+        "success": false,
+        "n_relations": 0,
+        "quality": null,
+        "timeouts": 1,
+        "used_fallback": false,
+        "elapsed_sec": 45.07
+      },
+      {
+        "text": "personlig_profil",
+        "success": true,
+        "n_relations": 1,
+        "quality": null,
+        "timeouts": 1,
+        "used_fallback": true,
+        "elapsed_sec": 45.06
+      },
+      {
+        "text": "affär_konsulting",
+        "success": true,
+        "n_relations": 1,
+        "quality": null,
+        "timeouts": 1,
+        "used_fallback": true,
+        "elapsed_sec": 45.06
+      },
+      {
+        "text": "strategisk_doktrin",
+        "success": false,
+        "n_relations": 0,
+        "quality": null,
+        "timeouts": 1,
+        "used_fallback": false,
+        "elapsed_sec": 45.06
+      },
+      {
+        "text": "frontier_plan",
+        "success": false,
+        "n_relations": 0,
+        "quality": null,
+        "timeouts": 1,
+        "used_fallback": false,
+        "elapsed_sec": 45.06
+      }
+    ],
+    "dolphin3:8b": [
+      {
+        "text": "nous_arkitektur",
+        "success": false,
+        "n_relations": 0,
+        "quality": null,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 31.51
+      },
+      {
+        "text": "personlig_profil",
+        "success": true,
+        "n_relations": 1,
+        "quality": null,
+        "timeouts": 1,
+        "used_fallback": true,
+        "elapsed_sec": 45.07
+      },
+      {
+        "text": "affär_konsulting",
+        "success": true,
+        "n_relations": 1,
+        "quality": 1.0,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 14.75
+      },
+      {
+        "text": "strategisk_doktrin",
+        "success": true,
+        "n_relations": 9,
+        "quality": 0.7888888888888889,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 29.1
+      },
+      {
+        "text": "frontier_plan",
+        "success": true,
+        "n_relations": 5,
+        "quality": 0.78,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 23.45
+      }
+    ],
+    "lfm2.5:latest": [
+      {
+        "text": "nous_arkitektur",
+        "success": false,
+        "n_relations": 0,
+        "quality": null,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 41.69
+      },
+      {
+        "text": "personlig_profil",
+        "success": true,
+        "n_relations": 1,
+        "quality": null,
+        "timeouts": 0,
+        "used_fallback": true,
+        "elapsed_sec": 2.26
+      },
+      {
+        "text": "affär_konsulting",
+        "success": true,
+        "n_relations": 1,
+        "quality": null,
+        "timeouts": 0,
+        "used_fallback": true,
+        "elapsed_sec": 39.33
+      },
+      {
+        "text": "strategisk_doktrin",
+        "success": false,
+        "n_relations": 0,
+        "quality": null,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 26.84
+      },
+      {
+        "text": "frontier_plan",
+        "success": false,
+        "n_relations": 0,
+        "quality": null,
+        "timeouts": 0,
+        "used_fallback": false,
+        "elapsed_sec": 24.91
+      }
+    ]
+  },
+  "summary": {
+    "gemma4:e2b": {
+      "success_rate": 0.8,
+      "avg_quality": 0.9273809523809524,
+      "avg_relations": 4.6,
+      "avg_elapsed_sec": 15.841999999999999,
+      "timeouts": 0
+    },
+    "qwen3.5:9b": {
+      "success_rate": 0.4,
+      "avg_quality": null,
+      "avg_relations": 0.4,
+      "avg_elapsed_sec": 45.062,
+      "timeouts": 5
+    },
+    "dolphin3:8b": {
+      "success_rate": 0.8,
+      "avg_quality": 0.8562962962962963,
+      "avg_relations": 3.2,
+      "avg_elapsed_sec": 28.776,
+      "timeouts": 1
+    },
+    "lfm2.5:latest": {
+      "success_rate": 0.4,
+      "avg_quality": null,
+      "avg_relations": 0.4,
+      "avg_elapsed_sec": 27.006,
+      "timeouts": 0
+    }
+  }
+}

@@ -73,6 +73,20 @@ _RETRYABLE_ERROR_MARKERS = (
     "gateway timeout",
 )
 
+# Namngivna moln-leverantörer med egen bas-URL + API-nyckel (2026-08-24,
+# "vilka free-modeller via API är lämpliga" — se STATUS.md). Skiljer sig
+# från den generiska "openai_compatible"-hinken nedan: de andra alias
+# (openai/anthropic/xai/...) delar EN global NOUSE_OPENAI_BASE_URL/
+# NOUSE_OPENAI_API_KEY, så bara en sådan kan vara aktiv åt gången. Dessa
+# tre har istället var sin dedikerad rutt (samma mönster som
+# eval/run_eval.py:s PROVIDERS-dict), så t.ex. "groq/llama-3.1-8b-instant"
+# och en Ollama-modell kan stå i samma fallback-kedja samtidigt.
+_KNOWN_CLOUD_PROVIDERS: dict[str, tuple[str, str]] = {
+    "groq": ("https://api.groq.com/openai/v1", "GROQ_API_KEY"),
+    "openrouter": ("https://openrouter.ai/api/v1", "OPENROUTER_API_KEY"),
+    "cerebras": ("https://api.cerebras.ai/v1", "CEREBRAS_API_KEY"),
+}
+
 _OPENAI_COMPATIBLE_PROVIDER_ALIASES = {
     "openai",
     "openai_compatible",
@@ -159,12 +173,33 @@ def _canonical_provider(provider: str) -> str:
     return p or "ollama"
 
 
+def model_uses_cloud_provider(model_ref: str) -> bool:
+    """True if `model_ref` has an explicit prefix resolving to a cloud
+    (non-Ollama) provider — groq/openrouter/cerebras, or a generic
+    openai-compatible alias (openai, codex, ...). Public so callers like
+    daemon/extractor.py can decide whether it's safe to pass
+    provider-specific request params such as `max_tokens` — Ollama's
+    native AsyncClient.chat() does not accept that kwarg (it uses
+    options={'num_predict': N} instead), so passing it unconditionally
+    would raise a TypeError against local Ollama models."""
+    raw = str(model_ref or "")
+    if "/" not in raw:
+        return False
+    prefix = raw.split("/", 1)[0].strip().lower()
+    if prefix in _KNOWN_CLOUD_PROVIDERS:
+        return True
+    return _canonical_provider(prefix) == "openai_compatible"
+
+
 def _split_provider_model_ref(model_ref: str, default_provider: str) -> tuple[str, str]:
     raw = str(model_ref or "").strip()
     if not raw:
         raise ValueError("model required")
     if "/" in raw:
         prefix, remainder = raw.split("/", 1)
+        prefix_l = prefix.strip().lower()
+        if prefix_l in _KNOWN_CLOUD_PROVIDERS and remainder.strip():
+            return prefix_l, remainder.strip()
         canonical = _canonical_provider(prefix)
         if canonical in {"ollama", "openai_compatible"} and remainder.strip():
             return canonical, remainder.strip()
@@ -406,13 +441,14 @@ class AsyncOllama:
                     )
                     return _Response(_Message(content=msg.content, tool_calls=tool_calls), usage=usage)
 
-                if provider == "openai_compatible":
+                if provider == "openai_compatible" or provider in _KNOWN_CLOUD_PROVIDERS:
                     resp = None
                     for attempt in range(self._max_retries + 1):
                         try:
                             resp = await self._create_openai_compatible(
                                 model=resolved_model,
                                 messages=messages,
+                                provider=provider,
                                 **kwargs,
                             )
                             break
@@ -485,19 +521,32 @@ class AsyncOllama:
 
                 raise RuntimeError(
                     f"Unknown NOUSE_LLM_PROVIDER='{provider}'. "
-                    "Use 'ollama' or 'openai_compatible'."
+                    f"Use 'ollama', 'openai_compatible', or "
+                    f"{sorted(_KNOWN_CLOUD_PROVIDERS)}."
                 )
 
             async def _create_openai_compatible(
-                self, *, model: str, messages: list[dict], **kwargs
+                self, *, model: str, messages: list[dict], provider: str = "openai_compatible",
+                **kwargs
             ) -> _Response:
-                base_url = os.getenv("NOUSE_OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
-                api_key = os.getenv("NOUSE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY", "")
-                if not api_key:
-                    raise RuntimeError(
-                        "Missing API key for openai_compatible provider. "
-                        "Set NOUSE_OPENAI_API_KEY or OPENAI_API_KEY."
-                    )
+                if provider in _KNOWN_CLOUD_PROVIDERS:
+                    default_base_url, key_env = _KNOWN_CLOUD_PROVIDERS[provider]
+                    base_url = os.getenv(
+                        f"NOUSE_{provider.upper()}_BASE_URL", default_base_url
+                    ).rstrip("/")
+                    api_key = os.getenv(key_env, "")
+                    if not api_key:
+                        raise RuntimeError(
+                            f"Missing API key for {provider} provider. Set {key_env}."
+                        )
+                else:
+                    base_url = os.getenv("NOUSE_OPENAI_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+                    api_key = os.getenv("NOUSE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY", "")
+                    if not api_key:
+                        raise RuntimeError(
+                            "Missing API key for openai_compatible provider. "
+                            "Set NOUSE_OPENAI_API_KEY or OPENAI_API_KEY."
+                        )
 
                 payload: dict[str, Any] = {
                     "model": model,
