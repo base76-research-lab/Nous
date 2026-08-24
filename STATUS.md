@@ -58,6 +58,11 @@ enligt det kontraktet, inte uppfunnet från scratch.
   intervall, matchar `nouse-watchdog`-mönstret) men **inte installerade/
   aktiverade** — det gör pollningen till en stående bakgrundsprocess,
   väntar på Björns separata "kör" för det steget.
+  **2026-08-24, senare: aktiverad.** `systemctl --user enable --now
+  agentmail-poll.timer` kört, körde direkt en gång (`status=0/SUCCESS`,
+  "no new mail"). Demo-mejlet "nu ska jag visa" (bara ett test inför hans
+  fru) raderat på Björns begäran via `delete_thread` — isolerad tråd, rörde
+  ingen annan korrespondens.
 - Nytt privat agentkort: `IIC/04_SYSTEM/agents/agent-mail/AGENT.md` —
   `forbidden` nämner uttryckligen 2026-08-23-precedensen och att den inte
   fortsätts.
