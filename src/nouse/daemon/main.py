@@ -802,6 +802,15 @@ async def brain_loop(
                             break
                         source_docs_processed += 1
                         source_docs_local += 1
+                        _refresh_status_heartbeat(
+                            cycle,
+                            phase="source_ingest",
+                            progress={
+                                "source": source_name,
+                                "docs_local": source_docs_local,
+                                "docs_total": source_docs_processed,
+                            },
+                        )
                         source_key = _source_key(meta)
                         remaining = _source_backoff_remaining(source_key, source_throttle, time.time())
                         if remaining > 0:
@@ -920,6 +929,16 @@ async def brain_loop(
                         _added = await enqueue_write(_write_source_rels())
                         new_rel += _added
                         source_relations_added += _added
+                        _refresh_status_heartbeat(
+                            cycle,
+                            phase="source_ingest",
+                            progress={
+                                "source": source_name,
+                                "docs_local": source_docs_local,
+                                "docs_total": source_docs_processed,
+                                "relations_total": source_relations_added,
+                            },
+                        )
 
                         if (
                             SOURCE_PROGRESS_TRACE
@@ -2147,8 +2166,37 @@ async def brain_loop(
 _STATUS_FILE = path_from_env("NOUSE_STATUS_FILE", "status.json")
 
 
-def _write_status(stats: dict, limbic: "LimbicState", cycle: int, nervbanor: int) -> None:
+def _persist_status(data: dict) -> None:
     import json
+
+    _STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = _STATUS_FILE.with_name(f".{_STATUS_FILE.name}.tmp")
+    tmp_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    tmp_path.replace(_STATUS_FILE)
+
+
+def _refresh_status_heartbeat(
+    cycle: int,
+    *,
+    phase: str,
+    progress: dict | None = None,
+) -> None:
+    import json
+    from datetime import datetime
+
+    try:
+        data = json.loads(_STATUS_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        data = {"cycle": cycle}
+    data["cycle"] = cycle
+    data["phase"] = phase
+    data["updated"] = datetime.now().isoformat()
+    if progress is not None:
+        data["progress"] = progress
+    _persist_status(data)
+
+
+def _write_status(stats: dict, limbic: "LimbicState", cycle: int, nervbanor: int) -> None:
     from datetime import datetime
     data = {
         "concepts":   stats["concepts"],
@@ -2161,8 +2209,7 @@ def _write_status(stats: dict, limbic: "LimbicState", cycle: int, nervbanor: int
         "arousal":    round(limbic.arousal, 3),
         "updated":    datetime.now().isoformat(),
     }
-    _STATUS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    _STATUS_FILE.write_text(json.dumps(data, indent=2))
+    _persist_status(data)
 
 
 def _build_sources():

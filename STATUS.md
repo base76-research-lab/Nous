@@ -1,5 +1,20 @@
 # Nous — status
 
+**2026-08-24, integritet, watchdog och MCP 2.0 stabiliserade:**
+
+- Daemonens relationsextraktor har nu en hård lokalmodellspärr för
+  `research_plg`, `personal_health` och `user_model`. Molnkandidater tas bort
+  före första modellanropet, även om de ligger först i tjänstens kandidatlista;
+  diagnostiken redovisar policy och blockerade modeller.
+- `status.json` skrivs atomiskt och uppdateras med fas/dokumentprogress under
+  source-ingest, inte bara vid cykelgränser. Watchdoggens reservtröskel höjdes
+  från 600 till 1200 sekunder. Live verifierat efter daemon-omstart: heartbeat
+  avancerade inom samma cykel, enbart lokala Ollama-anrop syntes, watchdog gav
+  `OK` och daemonen stod kvar på samma PID med `NRestarts=0`.
+- MCP-servern är migrerad från borttagna `mcp.server.fastmcp.FastMCP` till
+  `mcp.server.mcpserver.MCPServer` och använder MCP 2.0:s HTTP-parametrar.
+  Full verifiering: `404 passed, 1 skipped`; de tre tidigare MCP-felen är borta.
+
 **2026-08-24, ICM/Larynx agent-pipeline (Jarvis), första vertikala skivan
 klar och verifierad:**
 

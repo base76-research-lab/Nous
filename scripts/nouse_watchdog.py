@@ -75,7 +75,7 @@ def _env_bool(key: str, default: bool) -> bool:
 @dataclass
 class Config:
     service: str = field(default_factory=lambda: os.getenv("NOUSE_WATCHDOG_SERVICE", DEFAULT_SERVICE))
-    stale_threshold_sec: float = field(default_factory=lambda: _env_float("NOUSE_WATCHDOG_STALE_THRESHOLD_SEC", 600.0))
+    stale_threshold_sec: float = field(default_factory=lambda: _env_float("NOUSE_WATCHDOG_STALE_THRESHOLD_SEC", 1200.0))
     startup_grace_sec: float = field(default_factory=lambda: _env_float("NOUSE_WATCHDOG_STARTUP_GRACE_SEC", 900.0))
     max_restarts: int = field(default_factory=lambda: _env_int("NOUSE_WATCHDOG_MAX_RESTARTS", 3))
     restart_window_sec: float = field(default_factory=lambda: _env_float("NOUSE_WATCHDOG_RESTART_WINDOW_SEC", 1800.0))
@@ -227,7 +227,7 @@ def check(cfg: Config, now: datetime | None = None) -> int:
             staleness = (now - updated_at).total_seconds()
             if staleness > cfg.stale_threshold_sec:
                 reason = (
-                    f"heartbeat inaktuell: {staleness:.0f}s sen senaste cykel "
+                    f"heartbeat inaktuell: {staleness:.0f}s sen senaste progress "
                     f"(cycle={status_data.get('cycle', '?')}), tröskel {cfg.stale_threshold_sec:.0f}s"
                 )
             else:

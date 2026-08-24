@@ -26,13 +26,13 @@ from nouse.mcp_gateway.gateway import (
 )
 
 try:
-    from mcp.server.fastmcp import FastMCP
+    from mcp.server.mcpserver import MCPServer
 except Exception as exc:  # pragma: no cover - runtime dependency hint
     raise RuntimeError(
         "mcp package is required for b76 MCP server. Install with: pip install mcp"
     ) from exc
 
-mcp = FastMCP("b76-kernel")
+mcp = MCPServer("b76-kernel")
 
 
 @mcp.tool()
@@ -244,13 +244,15 @@ def run_http(host: str = "127.0.0.1", port: int = 8766) -> None:
     parser.add_argument("--port", type=int, default=port)
     args = parser.parse_args()
 
-    mcp.settings.host = args.host
-    mcp.settings.port = args.port
     # Disable DNS-rebinding protection so Cloudflare Tunnel host headers pass through
-    mcp.settings.transport_security = TransportSecuritySettings(
-        enable_dns_rebinding_protection=False,
+    mcp.run(
+        transport="streamable-http",
+        host=args.host,
+        port=args.port,
+        transport_security=TransportSecuritySettings(
+            enable_dns_rebinding_protection=False,
+        ),
     )
-    mcp.run(transport="streamable-http")
 
 
 if __name__ == "__main__":

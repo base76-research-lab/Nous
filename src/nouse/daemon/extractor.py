@@ -76,6 +76,9 @@ ENABLE_HEURISTIC_FALLBACK = (
     (os.getenv("NOUSE_EXTRACT_HEURISTIC_FALLBACK", "1") or "").strip().lower() in _BOOL_TRUE
 )
 
+# Material in these scopes must never leave the machine during extraction.
+_LOCAL_ONLY_EXTRACT_SCOPES = frozenset({"personal_health", "research_plg", "user_model"})
+
 RELATION_TYPES = [
     "modulerar","orsakar","konsoliderar","är_del_av",
     "synkroniserar","reglerar","oscillerar","är_analogt_med",
@@ -562,6 +565,18 @@ async def extract_relations_with_diagnostics(
     else:
         raw_candidates = _extract_model_candidates()
     candidates = order_models_for_workload("extract", raw_candidates)
+
+    scope_hint = str(metadata.get("scope_hint") or "").strip().lower()
+    if scope_hint in _LOCAL_ONLY_EXTRACT_SCOPES:
+        blocked_cloud_models = [
+            model for model in candidates if model_uses_cloud_provider(model)
+        ]
+        candidates = [
+            model for model in candidates if not model_uses_cloud_provider(model)
+        ]
+        diagnostics["model_policy"] = "local_only"
+        diagnostics["local_only_scope"] = scope_hint
+        diagnostics["blocked_cloud_models"] = blocked_cloud_models
 
     for model in candidates:
         diagnostics["attempted_models"].append(model)
