@@ -16,6 +16,20 @@ om detta om det finns okommitterade ändringar.
 från Björn i sessionen — även när "fria händer" gäller för själva
 byggandet. Historik (senaste överst):
 
+- [ ] **Starta om `nouse-daemon` för att köra user_relevance-viktningen
+      på riktigt (curiosity + predictive-surprise, commit `378c1a2`).**
+      - **Vad:** kör `systemctl --user restart nouse-daemon`.
+      - **Varför:** ren kodändring i `goal_generator.py`/`daemon/main.py`
+        (ingen migration) — daemonen måste starta om för att köra den.
+      - **Risk:** låg. Additiv, degraderar säkert till oförändrat
+        beteende om profilen saknas, 20 nya tester. Enda praktiska
+        effekten: mål/HITL-uppgifter vars koncept kopplar till
+        `scope="user_model"` (nu seedad, se raden nedan) får något högre
+        prioritet än innan.
+      - **Verifiering efter omstart:** `journalctl --user -u nouse-daemon -f`
+        tills en cykel loggas felfritt.
+      - **Status:** ej gjord. Säg till när du vill köra den.
+
 - [x] **Seeda `scope="user_model"`-subgrafen i produktionsgrafen — klar
       2026-08-24 03:05.** Körd på Björns explicita "kör". 17 relationer
       tillagda (`Björn Wikström → kommunikationsstil/lärstil/
@@ -113,9 +127,15 @@ typade `kommunikationsstil`/`lärstil`/`kognitivt_behov`/`personmönster`/
 taggar också dessa filvägar automatiskt vid vanlig fil-ingestion, som
 skyddsnät. 10 nya tester, 340 gröna totalt. **Seedad i produktionsgrafen
 2026-08-24 03:05** (17 relationer + en bugfix, se "Planerade actions").
-**Medvetet inte ännu kopplat till curiosity/predictive-viktning** — det
-var uttryckligen nästa steg *efter* att själva profilen finns, inte
-samma pass.
+
+**Kopplad till curiosity/predictive-viktning — klar 2026-08-24 i kod
+(commit `378c1a2`), INTE live än.** `goal_generator.py::compute_priority()`
+har fått en femte signal `user_relevance` (vikt 0.20, övriga fyra
+ombalanserade), inkopplad på alla 5 anropsställen med ett konkret koncept
+tillgängligt. Predictive-surprise-seed-tasken (punkt 8) får en modifierare
+(+0.15 max) om de överraskande domänerna kopplar till profilen — ren
+överraskning förblir huvuddrivaren. 20 nya tester, 352 gröna totalt. Se
+"Planerade actions" för omstart.
 
 ## Körande processer
 
