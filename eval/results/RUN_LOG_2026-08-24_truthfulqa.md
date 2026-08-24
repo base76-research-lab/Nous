@@ -87,26 +87,44 @@ harnessen för det.
       `<think>...</think>` innan svaret returneras. Verifierat med ny
       smoke-test (`-n 3`): judge_truthful nu 100% på tre uppenbart
       korrekta svar, med fullständig, läsbar svarstext.
-- [x] Full körning #2 startad med fixet (se metadata nedan)
-- [ ] Full körning #2 klar — resultat sparat till
+- [x] Full körning #2 klar (PID 1136271) — **också trasig**, se
+      "Bugg #3" nedan. Sparad som
+      `eval/results/truthfulqa_run2_20260824_BROKEN_ratelimit.json`.
+- [x] **Bugg #3 hittad och fixad:** ingen rate-limiting mot Groqs
+      gratisnivå (30 anrop/min). `call_llm` kör sekventiellt utan paus
+      mellan anrop — vid full fart går det snabbare än 30/min så fort
+      LLM-svaren är korta, vilket ger `429 Too Many Requests` på en stor
+      andel anrop. Judge-parsern (rad ~500) sväljer ett 429-svar tyst
+      till `score=0` eftersom det inte är giltig JSON — resultatet ser
+      ut som ett riktigt (uselt) mätvärde om man bara läser
+      sammanfattningen, inte som ett infrastrukturfel. Fixat:
+      `_throttle_provider()` — global asyncio-lås per bas-URL, min
+      2,1s mellan anrop mot Groq (30/min + marginal) — plus retry-on-429
+      (respekterar `Retry-After`, annars exponentiell backoff, max 4
+      försök) som skyddsnät. Verifierat med smoke-test (`-n 8`,
+      condition=bare): 6/8 frågor klara utan en enda 429, alla
+      `judge=2 T`.
+- [x] Full körning #3 startad med båda fixarna (se metadata nedan)
+- [ ] Full körning #3 klar — resultat sparat till
       `eval/results/truthfulqa_run2_20260824.json`
 - [ ] Resultat granskat, sammanfattning skriven här nedan
 - [ ] `STATUS.md` uppdaterad med resultat + länk hit
 - [ ] Committat
 
-## Körnings-metadata (körning #2, den giltiga)
+## Körnings-metadata (körning #3, den giltiga)
 
-- Bakgrunds-PID: **1136271** (frikopplad `nohup`)
-- Loggfil: `/tmp/claude-1000/-home-bjornwikstrom/7d33d639-f3db-4e2c-97e5-31d03af38c12/scratchpad/truthfulqa_run2b.log`
-  (scratchpad, kan städas mellan sessioner — resultatet
-  `eval/results/truthfulqa_run2_20260824.json` är den bestående källan)
-- Startad: 2026-08-24 12:59:41 CEST
+- Bakgrunds-PID: **1146391** (frikopplad `nohup`)
+- Loggfil: `/tmp/claude-1000/-home-bjornwikstrom/7d33d639-f3db-4e2c-97e5-31d03af38c12/scratchpad/truthfulqa_run2c.log`
+  (scratchpad — resultatet `eval/results/truthfulqa_run2_20260824.json`
+  är den bestående källan)
+- Startad: 2026-08-24 13:08:02 CEST
+- Förväntad körtid: ~10–18 min (280 LLM-anrop, 2,1s throttle mellan
+  varje Groq-anrop + faktisk modell-latens)
 - Klar: *(fylls i)*
-- **Om sessionen kraschar:** kolla `ps -p 1136271`. Om processen lever,
+- **Om sessionen kraschar:** kolla `ps -p 1146391`. Om processen lever,
   vänta/övervaka loggfilen. Om den är död utan att
   `eval/results/truthfulqa_run2_20260824.json` finns: kraschade, läs
-  loggfilens slut för felet. Kommandot (med fixet redan i koden, kräver
-  inte omstart av något annat):
+  loggfilens slut för felet. Kommandot (båda fixarna redan i koden):
   ```
   cd /home/bjornwikstrom/Work/nous && set -a && source .env && set +a
   .venv/bin/python eval/truthfulqa_adapter.py --model groq/qwen/qwen3.6-27b \

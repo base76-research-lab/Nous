@@ -43,6 +43,35 @@ _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 # eval/results/RUN_LOG_2026-08-24_truthfulqa.md).
 EVAL_CLOUD_MAX_TOKENS = max(256, int((os.getenv("NOUSE_EVAL_CLOUD_MAX_TOKENS") or "4096").strip()))
 
+# Groqs gratisnivå: 30 anrop/min. Ett eval-pass gör flera sekventiella
+# anrop per fråga (svar + judge, ibland fler för flerstegs-conditions)
+# utan någon paus mellan dem — utan throttle går det i praktiken 429
+# på nästan varje anrop så fort ett pass kommer upp i fart (verifierat
+# 2026-08-24, se eval/results/RUN_LOG_2026-08-24_truthfulqa.md). Judge-
+# parsern sväljer ett 429-svar tyst till score=0 eftersom det inte är
+# giltig JSON — ett rate-limitat pass ser ut som usla riktiga resultat,
+# inte som ett infrastrukturfel, om man inte läser rådata.
+_PROVIDER_MIN_INTERVAL_SEC = {
+    "https://api.groq.com/openai/v1": 2.1,
+}
+_provider_locks: dict[str, asyncio.Lock] = {}
+_provider_last_call: dict[str, float] = {}
+
+
+async def _throttle_provider(base_url: str | None) -> None:
+    if not base_url:
+        return
+    interval = _PROVIDER_MIN_INTERVAL_SEC.get(base_url, 0.0)
+    if interval <= 0:
+        return
+    lock = _provider_locks.setdefault(base_url, asyncio.Lock())
+    async with lock:
+        last = _provider_last_call.get(base_url, 0.0)
+        wait = interval - (time.monotonic() - last)
+        if wait > 0:
+            await asyncio.sleep(wait)
+        _provider_last_call[base_url] = time.monotonic()
+
 SYSTEM_NOUSE = """\
 Du är en AI-assistent med tillgång till ett strukturerat kunskapsminne (Nouse).
 Kunskapsminnet innehåller verifierade relationer och koncept med evidensvärden.
@@ -136,17 +165,29 @@ async def call_llm(client, model: str, system: str, user: str,
             ],
             "max_tokens": EVAL_CLOUD_MAX_TOKENS,
         }
-        try:
-            async with httpx.AsyncClient(timeout=timeout, headers=headers) as hx:
-                r = await hx.post(f"{base_url}/chat/completions", json=payload)
-                r.raise_for_status()
-                data = r.json()
-                content = data["choices"][0]["message"]["content"] or ""
-                return _THINK_BLOCK_RE.sub("", content).strip()
-        except asyncio.TimeoutError:
-            return "[TIMEOUT]"
-        except Exception as e:
-            return f"[ERROR: {e}]"
+        max_retries = 4
+        for attempt in range(max_retries + 1):
+            await _throttle_provider(base_url)
+            try:
+                async with httpx.AsyncClient(timeout=timeout, headers=headers) as hx:
+                    r = await hx.post(f"{base_url}/chat/completions", json=payload)
+                    if r.status_code == 429 and attempt < max_retries:
+                        retry_after = r.headers.get("retry-after")
+                        try:
+                            delay = max(1.0, float(retry_after)) if retry_after else 2.0 ** (attempt + 1)
+                        except ValueError:
+                            delay = 2.0 ** (attempt + 1)
+                        await asyncio.sleep(delay)
+                        continue
+                    r.raise_for_status()
+                    data = r.json()
+                    content = data["choices"][0]["message"]["content"] or ""
+                    return _THINK_BLOCK_RE.sub("", content).strip()
+            except asyncio.TimeoutError:
+                return "[TIMEOUT]"
+            except Exception as e:
+                return f"[ERROR: {e}]"
+        return "[ERROR: 429 Too Many Requests (retries exhausted)]"
 
 
 async def run_single(client, model: str, question: dict,
