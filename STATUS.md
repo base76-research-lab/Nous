@@ -1,5 +1,18 @@
 # Nous — status
 
+**2026-08-24, isolerad VS Code Build-arbetsyta tillagd:**
+
+- `.vscode/` rekommenderar Python, Ruff, rust-analyzer och TOML-stöd och
+  pekar Python mot repots `.venv` samt Rust mot
+  `crates/tda_engine/Cargo.toml`. Rust-tasken binder dessutom PyO3 till
+  repots Python 3.13-miljö i stället för systemets inkompatibla Python 3.14.
+- Tasks för Python-kompilering, pytest och Rust-tester finns under
+  `Terminal: Run Task`; pytest får en isolerad fältdatabas under `/tmp`.
+  Inga daemon-, systemd- eller produktionsgrafåtgärder har lagts till.
+- Arbetsytan kopplas från `~/NOUS-BUILD.code-workspace` till VS Code-profilen
+  `Build`. Verifierat från samma kommandon: Python-kompilering utan fel,
+  `404 passed, 1 skipped` i pytest och godkänd Rust-build/test (`0 failed`).
+
 **2026-08-24, public explainer linked from the project README:**
 
 - Added a prominent `79-Second Explainer` section after the quick start,

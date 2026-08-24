@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Nous: Python compile",
+      "type": "process",
+      "command": "${workspaceFolder:Nous}/.venv/bin/python",
+      "args": ["-m", "compileall", "-q", "src"],
+      "options": {
+        "cwd": "${workspaceFolder:Nous}"
+      },
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Nous: Python tests",
+      "type": "process",
+      "command": "${workspaceFolder:Nous}/.venv/bin/python",
+      "args": ["-m", "pytest", "-q"],
+      "options": {
+        "cwd": "${workspaceFolder:Nous}",
+        "env": {
+          "NOUSE_FIELD_DB": "/tmp/nouse-vscode-test-field.sqlite"
+        }
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Nous: Rust tests",
+      "type": "process",
+      "command": "cargo",
+      "args": ["test", "--manifest-path", "crates/tda_engine/Cargo.toml"],
+      "options": {
+        "cwd": "${workspaceFolder:Nous}",
+        "env": {
+          "PYO3_PYTHON": "${workspaceFolder:Nous}/.venv/bin/python"
+        }
+      },
+      "group": "test",
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "Nous: Verify",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Nous: Python compile",
+        "Nous: Python tests",
+        "Nous: Rust tests"
+      ],
+      "problemMatcher": []
+    }
+  ]
+}
