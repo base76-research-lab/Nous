@@ -44,6 +44,12 @@ KNOWN_SCOPES = {
 SENSITIVE_SCOPES = {"personal_health"}
 DEFAULT_SCOPE = "general"
 
+# Fas 3 punkt 9 (multi-timescale synaptisk styrka): halveringstid för den
+# snabba komponenten. 6h → märkbart avklingad inom en session, praktiskt
+# borta inom ett dygn utan förnyad aktivering — "senaste aktivering", inte
+# konsoliderat minne.
+FAST_STRENGTH_HALF_LIFE_HOURS = 6.0
+
 
 def _normalize_scope(scope) -> str:
     s = str(scope or "").strip()
@@ -203,6 +209,7 @@ class FieldSurface:
         self._migrate_relation_temporal_columns()
         self._migrate_concept_dormancy_column()
         self._migrate_concept_scope_column()
+        self._migrate_relation_multitimescale_columns()
 
     def _migrate_concept_scope_column(self) -> None:
         """Fas 2 steg 5 (2026-08-23): formell källgräns, se KNOWN_SCOPES ovan."""
@@ -245,6 +252,36 @@ class FieldSurface:
             # betyder rot (ingen känd förälder). `why` förblir den
             # mänskligt läsbara motiveringen för just det steget i kedjan.
             cur.execute("ALTER TABLE relation ADD COLUMN derived_from INTEGER")
+        self._sql.commit()
+
+    def _migrate_relation_multitimescale_columns(self) -> None:
+        """Fas 3 punkt 9, slice 1 av 2 (2026-08-24, se
+        docs/NOUS_NEXT_GENERATION_PLAN.md och
+        docs/lab-notes/2026-08-23-brain-document-synthesis.md): en enda
+        skalär `strength` räcker inte — hjärndokumentet varnar uttryckligen
+        för det. Lägger till en snabb, decayande komponent (senaste
+        aktivering) vid sidan av den befintliga `strength`, som blir den
+        långsamma/konsoliderade komponenten (LTP-analogi).
+
+        Medvetet ADDITIVT: strengthen()/weaken() fortsätter uppdatera
+        `strength` exakt som förut (backfyllt-värde, ingen
+        beteendeändring). Ingen befintlig läsväg — dormancy, pruning,
+        top_relations_by_strength — konsulterar strength_fast ännu. Att
+        koppla in den i de vägarna är slice 2, medvetet uppskjutet: det
+        skulle ändra levande beteende i en körande daemon (pruning/
+        dormancy-trösklar) och förtjänar en egen verifieringsomgång,
+        inte en bulkändring i samma pass som slice 1."""
+        cur = self._sql.cursor()
+        existing = {row["name"] for row in cur.execute("PRAGMA table_info(relation)")}
+        if "strength_fast" not in existing:
+            cur.execute("ALTER TABLE relation ADD COLUMN strength_fast REAL")
+            cur.execute("UPDATE relation SET strength_fast = strength WHERE strength_fast IS NULL")
+        if "strength_fast_updated" not in existing:
+            cur.execute("ALTER TABLE relation ADD COLUMN strength_fast_updated TEXT")
+            cur.execute(
+                "UPDATE relation SET strength_fast_updated = created "
+                "WHERE strength_fast_updated IS NULL"
+            )
         self._sql.commit()
 
     def _load_graph_into_networkx(self) -> None:
@@ -479,6 +516,7 @@ class FieldSurface:
                     continue
                 current = float(self._G[src][tgt][key].get("strength", 1.0) or 1.0)
                 self._G[src][tgt][key]["strength"] = min(safe_ceiling, max(0.05, current + safe_delta))
+        self._bump_fast_strength(src, tgt, safe_delta, ceiling=safe_ceiling, rel_type=rel_type)
 
     def weaken(self, src, tgt, delta=0.05, *, rel_type=None, floor=0.05):
         safe_delta = max(0.0, float(delta))
@@ -497,6 +535,68 @@ class FieldSurface:
                     continue
                 current = float(self._G[src][tgt][key].get("strength", 1.0) or 1.0)
                 self._G[src][tgt][key]["strength"] = max(safe_floor, current - safe_delta)
+        self._bump_fast_strength(src, tgt, -safe_delta, ceiling=3.5, rel_type=rel_type)
+
+    def _bump_fast_strength(self, src, tgt, delta, *, ceiling, rel_type=None):
+        """Fas 3 punkt 9, slice 1: uppdatera den snabba komponenten. Läser
+        det redan decayade värdet (så upprepad aktivering ackumulerar
+        korrekt i stället för att bara skjuta upp klockan), lägger på
+        delta, skriver tillbaka nytt värde + tidsstämpel. Rör INTE
+        `strength` — den uppdaterades redan av anroparen ovan."""
+        ts = datetime.utcnow().isoformat()
+        sql = "SELECT id, strength_fast, strength_fast_updated FROM relation WHERE src = ? AND tgt = ?"
+        params: list = [src, tgt]
+        if rel_type is not None:
+            sql += " AND type = ?"
+            params.append(rel_type)
+        with self._lock:
+            rows = self._sql.execute(sql, params).fetchall()
+            for row in rows:
+                current = self._decay_fast_value(
+                    row["strength_fast"], row["strength_fast_updated"], ts
+                )
+                new_val = max(0.0, min(ceiling, current + delta))
+                self._sql.execute(
+                    "UPDATE relation SET strength_fast = ?, strength_fast_updated = ? WHERE id = ?",
+                    (new_val, ts, row["id"]),
+                )
+            self._sql.commit()
+
+    @staticmethod
+    def _decay_fast_value(value, updated_ts, now_ts) -> float:
+        """Exponentiell decay av strength_fast sedan senaste uppdateringen.
+        Saknas historik (ny rad/pre-migration NULL): returnera värdet
+        oförändrat i stället för att gissa en ålder."""
+        if value is None:
+            return 0.0
+        if not updated_ts:
+            return float(value)
+        try:
+            elapsed_hours = (
+                datetime.fromisoformat(now_ts) - datetime.fromisoformat(updated_ts)
+            ).total_seconds() / 3600.0
+        except (TypeError, ValueError):
+            return float(value)
+        if elapsed_hours <= 0:
+            return float(value)
+        return float(value) * (0.5 ** (elapsed_hours / FAST_STRENGTH_HALF_LIFE_HOURS))
+
+    def decayed_fast_strength(self, src, tgt, *, rel_type=None) -> float | None:
+        """Läs strength_fasts nuvarande värde efter decay sedan senaste
+        strengthen()/weaken(). Returnerar None om relationen saknas.
+        Observationell i det här slicet — inget befintligt beslut
+        (pruning/dormancy/ranking) konsulterar den ännu, se
+        _migrate_relation_multitimescale_columns()."""
+        sql = "SELECT strength_fast, strength_fast_updated FROM relation WHERE src = ? AND tgt = ?"
+        params: list = [src, tgt]
+        if rel_type is not None:
+            sql += " AND type = ?"
+            params.append(rel_type)
+        row = self._sql.execute(sql, params).fetchone()
+        if row is None:
+            return None
+        now_ts = datetime.utcnow().isoformat()
+        return self._decay_fast_value(row["strength_fast"], row["strength_fast_updated"], now_ts)
 
     # ── Knowledge CRUD ───────────────────────────────────────────────────────
 

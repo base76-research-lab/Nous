@@ -48,8 +48,27 @@ väntar fortfarande på egna beslutstillfällen.
 ### Fas 3 — Den verkliga arkitektoniska visionen (större, senare)
 7. **Full konkurrerande arbitrering** (Global Workspace): de beskrivna `TypedProcessor`/`TypedGlobalWorkspace`-komponenterna aktiveras på riktigt, inte bara den enklare extraktionsloopen som körs idag.
 8. **Predictive coding driver faktiska beslut**, inte bara UI: när ett nytt faktum starkt överraskar (hög `arousal`), trigga automatiskt en HITL-forskningsuppgift — arousal blir en åtgärdsutlösare, inte bara en glödeffekt.
-9. **Multi-timescale synaptisk styrka** (kandidat, tillagd 2026-08-23 efter genomläsning av Björns hjärndokument, se `docs/lab-notes/2026-08-23-brain-document-synthesis.md`): dagens `relation.strength` är en enda skalär — exakt den förenkling dokumentet varnar för ("en enda vikt per koppling räcker inte"). Separera i en snabb, decayande komponent (senaste aktivering) och en långsam komponent (konsoliderad styrka, ändras bara vid upprepad samaktivering över cykler — verklig LTP-analogi). Hänger ihop med punkt 8, bör beslutas tillsammans.
-10. [x] **Energibudget** — klart 2026-08-24: ny `LimbicState.energy_budget` (`limbic/signals.py`), sjunker med `llm_calls` denna cykel (`sum(source_attempted_models.values())` i `daemon/main.py`), återhämtar sig 8%/cykel mot baslinjen 1.0 oavsett belastning — `update_energy_budget()`. Kopplad in på TVÅ ställen: (1) `run_limbic_cycle(..., llm_calls=...)` beräknar och persisterar den varje cykel, loggas i cykel-raden; (2) bisociation-motorns cykel-modulo-trigger (`cycle % BISOC_SOLVER_EVERY == 0`) har fått ett andra villkor, `limbic_state.energy_budget >= BISOC_SOLVER_MIN_ENERGY_BUDGET` (default 0.15, `NOUSE_BISOC_SOLVER_MIN_ENERGY_BUDGET`) — passet hoppas över och loggas explicit om budgeten är tömd, annars som förut. Curiosity-loopen är INTE kopplad in än (nästa steg om detta ska fortsätta). 8 nya tester (`tests/limbic/test_signals_energy_budget.py`), 310 tester gröna totalt. **Kräver omstart av den körande daemonen (`nouse daemon web`, PID vid skrivande stund 809960) för att koden ska plockas upp — INTE gjord av Claude, kräver Björns godkännande eftersom det är en levande process.**
+9. [x] **Multi-timescale synaptisk styrka, slice 1 — klar 2026-08-24**
+   (tillagd som kandidat 2026-08-23 efter genomläsning av Björns
+   hjärndokument, se `docs/lab-notes/2026-08-23-brain-document-synthesis.md`).
+   Ny kolumn `relation.strength_fast` + `strength_fast_updated`
+   (`field/surface.py::_migrate_relation_multitimescale_columns()`) —
+   den befintliga `strength` blir den långsamma/konsoliderade komponenten,
+   **oförändrad**: `strengthen()`/`weaken()` uppdaterar den exakt som
+   förut. Den nya `strength_fast` uppdateras vid samma anrop
+   (`_bump_fast_strength()`), decayar exponentiellt med 6h halveringstid
+   sedan senaste aktivering (`_decay_fast_value()`,
+   `FAST_STRENGTH_HALF_LIFE_HOURS`), läses via `decayed_fast_strength()`.
+   **Medvetet additivt/observationellt**: ingen befintlig läsväg
+   (dormancy, pruning, `top_relations_by_strength`) konsulterar den än —
+   att koppla in den där (slice 2) ändrar levande beslut i en körande
+   daemon och kräver en egen verifieringsomgång, inte samma pass. 10 nya
+   tester (`tests/field/test_multitimescale_strength.py`), 320 tester
+   gröna totalt (inga regressioner). **Kräver omstart av daemonen för att
+   migrationen ska köras — inte gjort ännu, be Björn bekräfta.**
+10. [x] **Energibudget** — klart 2026-08-24, **live sedan omstart
+   2026-08-24 02:24** (PID 921187, bekräftad felfri: `energy_budget`
+   loggas i cykel-raden). Ny `LimbicState.energy_budget` (`limbic/signals.py`), sjunker med `llm_calls` denna cykel (`sum(source_attempted_models.values())` i `daemon/main.py`), återhämtar sig 8%/cykel mot baslinjen 1.0 oavsett belastning — `update_energy_budget()`. Kopplad in på TVÅ ställen: (1) `run_limbic_cycle(..., llm_calls=...)` beräknar och persisterar den varje cykel, loggas i cykel-raden; (2) bisociation-motorns cykel-modulo-trigger (`cycle % BISOC_SOLVER_EVERY == 0`) har fått ett andra villkor, `limbic_state.energy_budget >= BISOC_SOLVER_MIN_ENERGY_BUDGET` (default 0.15, `NOUSE_BISOC_SOLVER_MIN_ENERGY_BUDGET`) — passet hoppas över och loggas explicit om budgeten är tömd, annars som förut. Curiosity-loopen är INTE kopplad in än (nästa steg om detta ska fortsätta). 8 nya tester (`tests/limbic/test_signals_energy_budget.py`).
 
 ## Vad detta INTE är
 
@@ -65,15 +84,40 @@ byggordning, inte kronologisk ordning på listan:
 1. **10 (energibudget)** — billigast, mest mekanisk, redan observerat
    konkret behov (VRAM-konflikt daemon vs. benchmark, 23/8 kväll). Ingen
    förutsättning behövs.
-2. **9 (multi-timescale strength)** — **vänta tills LongMemEval (Fas 2 steg 6)
-   faktiskt kör en full delmängd och mäter kvalitet.** Annars går det inte
-   att avgöra om separationen faktiskt hjälper eller bara lägger till
-   komplexitet (§13-fallgropen i hjärndokumentet: "fler parametrar löser
-   det").
+2. [x] **9 (multi-timescale strength), slice 1 — klar 2026-08-24.**
+   Upplåst genom ett beslut om LongMemEval-grinden (se nedan), inte genom
+   att grinden gav grönt ljus rakt av.
 3. **8 (predictive coding som beslutsdrivare)** — hänger ihop med 9,
    naturlig uppföljare när arousal/strength-signalerna är skarpare.
 4. **7 (full Global Workspace-arbitrering)** — störst, mest genomgripande.
    Sist, när 8–10 gett en tydligare bild av vad arbitreringen faktiskt ska
    arbitrera mellan.
 
-Inget av detta påbörjat än.
+## LongMemEval-grinden — beslut 2026-08-24
+
+Grinden på punkt 9 var: "vänta tills LongMemEval faktiskt kör en full
+delmängd och mäter kvalitet." Det är nu gjort (Fas 2 steg 6, se ovan):
+bare=4,2%, nous=0,0%, n=24. Grundorsaken är identifierad, inte gissad:
+`extractor.py`s `RELATION_TYPES`-vokabulär (modulerar, reglerar, orsakar,
+konsoliderar, är_del_av, stärker, försvagar, producerar, synkroniserar,
+oscillerar, är_analogt_med, motsäger, förnekar, beskriver) är byggd för
+**tematiska/konceptuella relationer mellan idéer** — exakt vad Nous
+faktiskt är till för (bisociationsmotorn, FNC-teorin, se
+`docs/NOUS_STRATEGIC_DOCTRINE.md` och `FRONTIER_PLAN.md`). LongMemEval
+testar **atomära personliga fakta ur vardagskonversation** ("hur många
+dussin ägg har vi", "hur många år äldre är min mormor") — en annan
+uppgift, inte en svagare version av samma uppgift.
+
+**Beslut: bygg inte ett fakta/värde-extraktionsspår för att jaga
+LongMemEval-poäng.** Det skulle optimera mot fel benchmark och späda ut
+den faktiska differentiatorn (kors-domän-syntes) som hela
+Frontier-planen står på. LongMemEval-resultatet räknas som grinden
+uppfylld — inte som "Nous fungerar inte", utan som "fel mätsticka för det
+här systemet." Den riktiga empiriska valideringen förblir TruthfulQA
+(Fas 2, `FRONTIER_PLAN.md`, MC1/MC2 mot 8B-baseline) och FNC-bench
+(`eval/fnc_bench/`, redan delvis kört 2026-04-17) — båda mäter
+konceptuell/faktuell grundning, vilket är vad grafschemat faktiskt gör.
+Det unlockar punkt 9: separationen fast/slow-styrka testas mot dessa
+benchmarks framöver, inte mot LongMemEval.
+
+Inget av punkterna 7, 8 påbörjat än.

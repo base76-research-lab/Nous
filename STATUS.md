@@ -34,30 +34,33 @@ ett negativt men substantiellt resultat, inte ett trasigt mätvärde:**
     atomära fakta/värden ("30 dussin ägg" → senare "20"). LongMemEvals
     knowledge-update/multi-session-frågor kräver exakt den typen av
     värdefakta. Nous grafschema är inte byggt för det ännu.
-  - **Öppen fråga för Björn:** är det värt att bygga ett
-    fakta/värde-extraktionsspår vid sidan av relationsextraktionen innan
-    LongMemEval körs igen, eller är LongMemEval fel benchmark för det
-    Nous faktiskt är byggt att göra (semantisk grafgrundning, inte
-    QA-över-transkript)?
-  - Resultatfilen + `eval/longmemeval_adapter.py`-ändringen är
-    **okommitterade** i skrivande stund.
+  - **Beslut 2026-08-24 (Björn gav fria händer att bygga vidare på egen
+    bedömning):** bygg INTE ett fakta/värde-extraktionsspår för att jaga
+    LongMemEval-poäng. `RELATION_TYPES`-vokabulären (modulerar, orsakar,
+    är_del_av, m.fl.) är byggd för tematiska/konceptuella relationer —
+    exakt vad bisociationsmotorn/FNC-teorin faktiskt gör. LongMemEval
+    testar atomära personliga fakta ur vardagskonversation — en annan
+    uppgift. Grinden räknas som uppfylld genom detta beslut, inte genom
+    ett förbättrat resultat. Riktig empirisk validering förblir
+    TruthfulQA/FNC-bench (se `docs/NOUS_NEXT_GENERATION_PLAN.md`, avsnitt
+    "LongMemEval-grinden — beslut 2026-08-24" för fullt resonemang).
+  - Resultatfilerna + `eval/longmemeval_adapter.py`-fixen är committade
+    (`75286b0`).
 
-**Fas 3 (`docs/NOUS_NEXT_GENERATION_PLAN.md`, punkterna 7–10: energibudget,
-multi-timescale styrka, predictive coding, full Global Workspace) är
-godkänd av Björn. Byggordning: 10 → 9 → 8 → 7.**
+**Fas 3 (`docs/NOUS_NEXT_GENERATION_PLAN.md`, punkterna 7–10) är godkänd
+av Björn. Byggordning: 10 → 9 → 8 → 7.**
 
-- **Punkt 10 (energibudget) — klar 2026-08-24 i kod, INTE live än.**
-  `LimbicState.energy_budget` sjunker med faktiska LLM-anrop/cykel,
-  återhämtar sig långsamt, gate:ar nu bisociation-motorns cykel-pass
-  utöver den gamla modulon. 8 nya tester, 310 gröna totalt. **Den körande
-  daemonen (`nouse daemon web`, port 8767) måste startas om för att plocka
-  upp ändringen — inte gjort, kräver Björns godkännande (levande
-  process).**
-- Punkt 9 (multi-timescale styrka) var spärrad tills LongMemEval "faktiskt
-  kör en full delmängd och mäter kvalitet" — det är nu gjort (ovan), men
-  resultatet väcker grundorsaksfrågan om extraktionsschemat snarare än ger
-  grönt ljus rakt av. **Vänta på Björns beslut om den frågan innan punkt 9
-  påbörjas.**
+- **Punkt 10 (energibudget) — klar 2026-08-24, LIVE.** Daemonen
+  omstartad 02:24 (PID 921187), `energy_budget` bekräftat loggas felfritt
+  i cykel-raden. Gate:ar nu bisociation-motorns cykel-pass utöver den
+  gamla modulon.
+- **Punkt 9 (multi-timescale styrka), slice 1 — klar 2026-08-24 i kod,
+  INTE live än.** Ny `strength_fast`-kolumn, decayar 6h-halveringstid,
+  additiv/observationell (rör inte `strength` eller några befintliga
+  beslut som dormancy/pruning/ranking — det är slice 2, medvetet
+  uppskjutet). 320 tester gröna totalt, inga regressioner. **Kräver
+  omstart av daemonen för att migrationen ska köras — fråga Björn innan
+  nästa omstart.**
 - Punkt 8 och 7 väntar på 9 respektive 8–10, som planerat.
 
 ## Körande processer
