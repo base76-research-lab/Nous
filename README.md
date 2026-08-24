@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <a href="#quick-start">Quick Start</a> · <a href="#79-second-explainer">Explainer</a> · <a href="#the-architectural-inversion">Inversion</a> · <a href="#what-nous-is">What Nous Is</a> · <a href="#the-result">Evidence</a> · <a href="#research">Research</a> · <a href="#roadmap">Roadmap</a> · <a href="#community">Community</a>
+  <a href="#quick-start">Quick Start</a> · <a href="#the-architectural-inversion">Inversion</a> · <a href="#what-nous-is">What Nous Is</a> · <a href="#evidence-status">Evidence</a> · <a href="#research">Research</a> · <a href="#roadmap">Roadmap</a> · <a href="#community">Community</a>
 </p>
 
 <p align="center">
@@ -65,18 +65,6 @@ If Nous already knows something relevant, you get back a grounded context block 
 If that output feels more useful than plain chat history or chunk retrieval, then the project is doing its job.
 
 ---
-
-## 79-Second Explainer
-
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=SLDbJbEXI1g">
-    <img src="IMG/nous-explainer-thumbnail.png" alt="Watch the 79-second Nous explainer: the model is not the mind" width="900">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://www.youtube.com/watch?v=SLDbJbEXI1g"><strong>Watch on YouTube →</strong></a>
-</p>
 
 ---
 

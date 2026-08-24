@@ -19,6 +19,14 @@
   okommitterad pilotfil; den ska inte publiceras som effektbevis innan en
   komplett körning med oberoende scoring finns.
 
+**2026-08-25, gammal explainer avpublicerad:**
+
+- README-länken till YouTube-videon `SLDbJbEXI1g` och den tillhörande
+  explainer-sektionen är borttagna. Den gamla videon innehöll en ej verifierad
+  96%-claim och ska inte längre vara en del av projektets publika väg.
+- En ny, saklig explainer-video är kvar som planerad task och ska länkas först
+  när den är inspelad och granskad mot aktuell evidens.
+
 **2026-08-24, isolerad VS Code Build-arbetsyta tillagd:**
 
 - `.vscode/` rekommenderar Python, Ruff, rust-analyzer och TOML-stöd och
