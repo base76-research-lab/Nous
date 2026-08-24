@@ -70,19 +70,28 @@ harnessen för det.
       identifierad (dataset-ID + modell-åtkomst)
 - [x] `eval/truthfulqa_adapter.py:121` fixad (dataset-ID)
 - [x] Smoke-test (`-n 2`, condition=bare) — grönt
-- [ ] Full körning startad (bakgrund, se nedan för task/logg-sökväg)
+- [x] Full körning startad (bakgrund, se nedan för task/logg-sökväg)
 - [ ] Full körning klar — resultat sparat till
       `eval/results/truthfulqa_run2_20260824.json`
 - [ ] Resultat granskat, sammanfattning skriven här nedan
 - [ ] `STATUS.md` uppdaterad med resultat + länk hit
 - [ ] Committat
 
-## Körnings-metadata (fylls i vid start)
+## Körnings-metadata
 
-- Bakgrundstask-id: *(fylls i)*
-- Loggfil: *(fylls i)*
-- Startad: *(fylls i)*
+- Bakgrunds-PID: **1134136** (frikopplad `nohup`, körs oavsett Claude
+  Code-sessionens status — om sessionen kraschar, kolla
+  `ps -p 1134136` eller om outputfilen nedan slutat växa)
+- Loggfil: `/tmp/claude-1000/-home-bjornwikstrom/7d33d639-f3db-4e2c-97e5-31d03af38c12/scratchpad/truthfulqa_run2.log`
+  (OBS: scratchpad, kan städas mellan sessioner — resultatet
+  `eval/results/truthfulqa_run2_20260824.json` är den bestående källan)
+- Startad: 2026-08-24 12:57:08 CEST
 - Klar: *(fylls i)*
+- **Om sessionen kraschar och den här checklistan fortfarande visar
+  "Full körning startad" som senaste bock:** kolla `ps -p 1134136`. Om
+  processen lever, vänta/övervaka loggfilen. Om den är död utan att
+  `eval/results/truthfulqa_run2_20260824.json` finns: den kraschade,
+  läs loggfilens slut för felet och kör om kommandot ovan.
 
 ## Resultat (fylls i vid slutförande)
 
