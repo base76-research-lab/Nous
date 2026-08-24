@@ -204,3 +204,42 @@ If the doctrine needs to be carried in one paragraph:
 
 > `Nous` is not an LLM enhancement layer. It is an attempt to define a new category of AI system: a persistent epistemic substrate that can store, revise, consolidate, and act on knowledge across time. In this architecture, the language model is the larynx, not the mind. The next strategic step is therefore not feature expansion, but closing the cognitive loop through contradiction authority, evidence maturation, causal reflection, stronger substrate-to-model control, and longitudinal self-evaluation.
 
+---
+
+## 11. Model Routing Doctrine (added 2026-08-24)
+
+From a conversation about which SLMs to run and where a free cloud API
+(Groq) fits: routing between a frontier model (conductor) and a
+small/cheap model (executor) is not decided by task complexity or step
+count. A single LLM call can be either high-stakes or low-stakes; a
+multi-step task can be either.
+
+The two axes that actually matter:
+
+1. **Volume/frequency** — a task repeated continuously (Nous's own
+   `extract` workload: dozens of calls per cycle) risks rate limits and
+   needs a model that can sustain that pace without contention. A task
+   that fires rarely (`bisoc`, every 48 cycles; a curiosity research
+   burst, triggered occasionally) has no such constraint — model
+   *quality* matters more than *throughput* there, since there is room
+   to spend it on the best available model.
+2. **Stakes/reversibility** — a draft the human reviews and edits
+   anyway (a lead-outreach angle, a voice-note summary) tolerates a
+   weaker first attempt. A decision that becomes standing state (a
+   relation written into the production graph, a threshold gating a
+   HITL interrupt) deserves the strongest reasoning available.
+
+Rule of thumb: **high volume OR low stakes → route to a small/free
+model (Groq, local Ollama). Low volume AND high stakes → route to the
+frontier model, or at minimum to the best available option regardless
+of cost.** Step count is a poor proxy for either axis — it correlates
+with neither how often a task runs nor how much a wrong answer costs.
+
+Concrete split as of 2026-08-24, verified not just assumed (see
+STATUS.md): `extract` stays local-first (gemma4:e2b/dolphin3:8b) because
+of volume; `bisoc`/`synth`/curiosity-burst are good Groq candidates
+because of low volume and creative-quality payoff, verified end-to-end
+against Groq's live API (`groq/qwen/qwen3.6-27b`, quality 0.967, beating
+gemma4:e2b's own 0.927) — not yet activated as the production default,
+tracked as a pending decision in STATUS.md.
+
