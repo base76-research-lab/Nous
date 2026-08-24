@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="IMG/nous-header.svg" alt="Nous (νοῦς) — plastic metacognitive layer for AI" width="100%">
+  <img src="IMG/nous-header.png" alt="Nous (νοῦς) — plastic metacognitive layer for AI" width="100%">
 </p>
 
 <p align="center">
@@ -11,7 +11,6 @@
 </p>
 
 <p align="center">
-  <a href="https://discord.gg/Fbwmr7Vv"><img src="https://img.shields.io/badge/Discord-join-5865F2?logo=discord&logoColor=white" alt="Discord"></a>
   <a href="https://pypi.org/project/nouse/"><img src="https://img.shields.io/pypi/v/nouse" alt="PyPI"></a>
   <a href="https://github.com/base76-research-lab/Nous/actions/workflows/tests.yml"><img src="https://github.com/base76-research-lab/Nous/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/badge/python-3.11+-blue.svg" alt="Python 3.11+"></a>
@@ -24,7 +23,7 @@
 </p>
 
 <p align="center">
-  <img src="IMG/nouse-graph-growth.gif" alt="Nous knowledge graph growing — discovering concepts, substrates, gaps, and axioms" width="800">
+  <img src="IMG/nous-graph-hero.png" alt="The Nous knowledge graph — typed, evidence-scored relations, with a visible boundary of what is not yet known" width="900">
 </p>
 
 ---
@@ -36,7 +35,7 @@ Most AI systems still place the language model at the center and attach tools, m
 `Nous` inverts that stack.
 
 <p align="center">
-  <img src="IMG/nous-stack-inversion.svg" alt="Industry stack versus Nous stack" width="100%">
+  <img src="IMG/nous-stack-inversion.png" alt="Industry stack versus Nous stack" width="100%">
 </p>
 
 In this picture, the language model is not discarded. It is repositioned.
@@ -521,7 +520,6 @@ Requires Python 3.11+. Graph stored in `~/.local/share/nouse/`.
 
 ## Community
 
-- [Discord](https://discord.gg/Fbwmr7Vv) — real-time chat, help, show & tell
 - [GitHub Discussions](https://github.com/base76-research-lab/Nous/discussions) — Q&A, ideas, research notes, show & tell
 - [Open an issue](https://github.com/base76-research-lab/Nous/issues) — bugs, feature requests, domain benchmark submissions
 - [Contributing guide](CONTRIBUTING.md) — how to contribute code, benchmarks, examples, and docs
