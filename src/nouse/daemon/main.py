@@ -166,6 +166,10 @@ KNOWLEDGE_BACKFILL_MIN_EVIDENCE = float(
 BISOC_SOLVER_ENABLED = str(os.getenv("NOUSE_BISOC_SOLVER_ENABLED", "1")).strip().lower() in _BOOL_TRUE
 BISOC_SOLVER_EVERY = max(1, int(os.getenv("NOUSE_BISOC_SOLVER_EVERY_CYCLES", "48")))
 BISOC_SOLVER_MAX_PAIRS = max(1, int(os.getenv("NOUSE_BISOC_SOLVER_MAX_PAIRS", "1")))
+# Fas 3 punkt 10 (energibudget, docs/NOUS_NEXT_GENERATION_PLAN.md): utöver
+# cykel-modulon, hoppa över bisociation-passet (extra LLM-anrop) om
+# energibudgeten redan är tömd av den här cykelns övriga anrop.
+BISOC_SOLVER_MIN_ENERGY_BUDGET = float(os.getenv("NOUSE_BISOC_SOLVER_MIN_ENERGY_BUDGET", "0.15"))
 DORMANCY_CONSOLIDATION_ENABLED = str(
     os.getenv("NOUSE_DORMANCY_CONSOLIDATION_ENABLED", "1")
 ).strip().lower() in _BOOL_TRUE
@@ -1163,6 +1167,7 @@ async def brain_loop(
                 bisociation_candidates=len(candidates),
                 novel_domains=max(0, len(domains) - limbic_state.cycle),
                 active_domains=len(domains),
+                llm_calls=sum(source_attempted_models.values()),
             )
             
             # ── brain_sync: Limbic Spike Event ───────────────────────────────
@@ -1479,7 +1484,11 @@ async def brain_loop(
                     # — Nous enda verkliga skillnad mot Mem0/Zep/Letta, tidigare
                     # oanvänd. Blockerande LLM-anrop, körs i tråd så cykel-loopen
                     # inte fryser.
-                    if BISOC_SOLVER_ENABLED and cycle % BISOC_SOLVER_EVERY == 0:
+                    if (
+                        BISOC_SOLVER_ENABLED
+                        and cycle % BISOC_SOLVER_EVERY == 0
+                        and limbic_state.energy_budget >= BISOC_SOLVER_MIN_ENERGY_BUDGET
+                    ):
                         try:
                             from nouse.tools.bisociative_solver import scheduled_bisociation_pass
                             bisoc_results = await asyncio.to_thread(
@@ -1492,6 +1501,15 @@ async def brain_loop(
                                 )
                         except Exception as bisoc_err:
                             log.debug(f"  Bisociation-pass (non-fatal): {bisoc_err}")
+                    elif (
+                        BISOC_SOLVER_ENABLED
+                        and cycle % BISOC_SOLVER_EVERY == 0
+                        and limbic_state.energy_budget < BISOC_SOLVER_MIN_ENERGY_BUDGET
+                    ):
+                        log.info(
+                            f"  Bisociation-pass: hoppar över, energy_budget="
+                            f"{limbic_state.energy_budget:.2f} < {BISOC_SOLVER_MIN_ENERGY_BUDGET}"
+                        )
 
                     # ── 8e: Camera + Speech (sensorimotor loop) ────────────────
                     try:

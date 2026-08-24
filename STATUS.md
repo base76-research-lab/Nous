@@ -44,11 +44,21 @@ ett negativt men substantiellt resultat, inte ett trasigt mätvärde:**
 
 **Fas 3 (`docs/NOUS_NEXT_GENERATION_PLAN.md`, punkterna 7–10: energibudget,
 multi-timescale styrka, predictive coding, full Global Workspace) är
-godkänd av Björn men INTE påbörjad.** Byggordning: 10 → 9 → 8 → 7. Punkt 9
-är uttryckligen spärrad tills LongMemEval "faktiskt kör en full delmängd
-och mäter kvalitet" — det är nu gjort (ovan), men resultatet väcker frågan
-ovan snarare än att ge grönt ljus rakt av. Vänta på Björns beslut om
-grundorsaksfrågan innan Fas 3 påbörjas.
+godkänd av Björn. Byggordning: 10 → 9 → 8 → 7.**
+
+- **Punkt 10 (energibudget) — klar 2026-08-24 i kod, INTE live än.**
+  `LimbicState.energy_budget` sjunker med faktiska LLM-anrop/cykel,
+  återhämtar sig långsamt, gate:ar nu bisociation-motorns cykel-pass
+  utöver den gamla modulon. 8 nya tester, 310 gröna totalt. **Den körande
+  daemonen (`nouse daemon web`, port 8767) måste startas om för att plocka
+  upp ändringen — inte gjort, kräver Björns godkännande (levande
+  process).**
+- Punkt 9 (multi-timescale styrka) var spärrad tills LongMemEval "faktiskt
+  kör en full delmängd och mäter kvalitet" — det är nu gjort (ovan), men
+  resultatet väcker grundorsaksfrågan om extraktionsschemat snarare än ger
+  grönt ljus rakt av. **Vänta på Björns beslut om den frågan innan punkt 9
+  påbörjas.**
+- Punkt 8 och 7 väntar på 9 respektive 8–10, som planerat.
 
 ## Körande processer
 

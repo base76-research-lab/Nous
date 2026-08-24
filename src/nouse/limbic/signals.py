@@ -46,6 +46,15 @@ AROUSAL_K              = 2.0    # kurvskärpa
 LAMBDA_MIN = 0.1
 LAMBDA_MAX = 0.9
 
+# Energibudget (Fas 3 punkt 10, docs/NOUS_NEXT_GENERATION_PLAN.md): sjunker
+# med faktiska LLM-anrop denna cykel, återhämtar sig långsamt mot 1.0.
+# Distinkt från self_layer/living_core.pys "energy" (en homeostas-blandning
+# av dopamin/arousal/kö-tryck) — den här signalen mäter faktisk kostnad,
+# inte upplevd belastning.
+ENERGY_BUDGET_BASELINE = 1.0
+ENERGY_BUDGET_COST_PER_CALL = 0.03   # ~33 anrop dränerar budgeten till 0 i en cykel
+ENERGY_BUDGET_RECOVERY = 0.08        # återhämtning mot baslinjen per cykel
+
 
 # ── Tillståndsmodell ─────────────────────────────────────────────────────────
 
@@ -61,6 +70,7 @@ class LimbicState:
     acetylcholine:  float = ACETYLCHOLINE_BASELINE
     cycle:          int   = 0
     lam:            float = 0.5   # nuvarande λ (kreativitetskoefficient)
+    energy_budget:  float = ENERGY_BUDGET_BASELINE  # faktisk anropskostnad, se update_energy_budget
 
     # Tonic baslinjer — rör sig långsamt, representerar "personlighetsdisposition"
     tonic_dopamine:      float = DOPAMINE_BASELINE
@@ -178,6 +188,19 @@ def update_acetylcholine(state: LimbicState,
     state.acetylcholine = max(0.1, min(2.0, state.acetylcholine))
 
 
+def update_energy_budget(state: LimbicState, llm_calls: int) -> None:
+    """
+    Energibudget: sjunker med faktiska LLM-anrop denna cykel (kostnad),
+    återhämtar sig långsamt mot baslinjen oavsett belastning — biologisk
+    trötthet/återhämtning, inte en cykel-modulo-räknare.
+    """
+    cost = max(0, int(llm_calls)) * ENERGY_BUDGET_COST_PER_CALL
+    recovered = state.energy_budget + ENERGY_BUDGET_RECOVERY * (
+        ENERGY_BUDGET_BASELINE - state.energy_budget
+    )
+    state.energy_budget = max(0.0, min(ENERGY_BUDGET_BASELINE, recovered - cost))
+
+
 def update_lambda(state: LimbicState) -> None:
     """
     λ (kreativitetskoefficient i F_bisoc) styrs av dopamin och noradrenalin.
@@ -201,16 +224,23 @@ def run_limbic_cycle(
     bisociation_candidates: int,
     novel_domains: int,
     active_domains: int,
+    llm_calls: int = 0,
 ) -> LimbicState:
     """
     Kör en full limbisk cykel och returnerar uppdaterat tillstånd.
     Anropas av brain-loopen en gång per cykel.
+
+    llm_calls: antal faktiska LLM-anrop denna cykel (t.ex.
+    sum(source_attempted_models.values()) i daemon/main.py) — driver
+    energy_budget. 0 = ingen kostnadsdata tillgänglig, budgeten återhämtar
+    sig bara.
     """
     state.cycle += 1
 
     update_dopamine(state, new_relations, discoveries)
     update_noradrenaline(state, bisociation_candidates, novel_domains)
     update_acetylcholine(state, active_domains)
+    update_energy_budget(state, llm_calls)
     update_lambda(state)
 
     # Tonic EMA — uppdatera långsamma baslinjer (personlighetsdisposition)
@@ -229,6 +259,7 @@ def run_limbic_cycle(
         f"NA={state.noradrenaline:.2f}(tonic={state.tonic_noradrenaline:.2f}) "
         f"ACh={state.acetylcholine:.2f} "
         f"λ={state.lam:.2f} "
+        f"energy_budget={state.energy_budget:.2f} "
         f"arousal={state.arousal:.2f} "
         f"perf={state.performance:.2f} "
         f"disposition={state.disposition_label}"
