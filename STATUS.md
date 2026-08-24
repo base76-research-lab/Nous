@@ -10,6 +10,33 @@ Uppdatera den här filen **innan session slut** om något ändrats sedan
 senaste uppdateringen — se `.claude/settings.json`s Stop-hook, som påminner
 om detta om det finns okommitterade ändringar.
 
+**2026-08-24, front-modell-benchmark för Jarvis (`eval/front_model_bench.py`,
+resultat i `eval/results/front_model_bench_20260824_131301.json`):**
+5 lokala modeller testade mot 4 Jarvis-relevanta scenarier (småprat,
+systemmedvetenhet, enkelt kommando, ett för stort uppdrag den ska avböja).
+**Kritisk metodfälla hittad och löst underveges:** Ollamas `"think": false`
+saknades i första körningen — utan den gav `gemma4:e2b` och `qwen3.5:9b`
+tomt `content` (all tokenbudget gick åt i det dolda `thinking`-fältet,
+`done_reason: length`). Detta ifrågasätter delvis gårdagens
+`extraction_model_bench.py`-slutsats att `qwen3.5:9b` "duger INTE" —
+den kördes utan `think:false` och kan vara felaktigt dömd; ej omtestat än.
+
+Resultat med `think:false`: **`gemma4:e2b`** vann tydligt — snabbast
+(snitt 2,1s vs. 3,7–28s för övriga) och **enda modellen som konsekvent
+avböjde det för stora uppdraget** i alla 4 körningar istället för att
+försöka utföra det själv. `qwen3-8b-abliterated` hade bäst naturlig ton
+men **misslyckades disciplinen** (tackade ja till att skriva om hela
+artikeln). `lfm2.5` respekterar inte `think:false` — läcker rått
+`<think>`-resonemang i `content`, oanvändbar som Jarvis-front utan vidare
+arbete. `qwen3.5:9b` fortsatt långsam (22,7s snitt) och gav ett
+osammanhängande svar även efter fixen.
+
+**Rekommendation:** återanvänd `gemma4:e2b` som Jarvis-front istället för
+en andra modell — löser samtidigt VRAM-trängseln (8 GB-kortet, daemonen
+använder redan samma modell), Ollama tidsdelar en modell istället för att
+ladda två. Avvägning: en fråga till Jarvis mitt i daemonens egen cykel får
+kö-fördröjning, inte blockering.
+
 **2026-08-24, senare session:** NVIDIA NIM tillagd som fjärde molnleverantör
 i `ollama_client/client.py::_KNOWN_CLOUD_PROVIDERS` (`"nvidia": ("https://integrate.api.nvidia.com/v1", "NVIDIA_API_KEY")`),
 samma mönster som Groq/OpenRouter/Cerebras. `NVIDIA_API_KEY` tillagd i

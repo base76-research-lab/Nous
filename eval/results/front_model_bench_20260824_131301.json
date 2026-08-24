@@ -1,0 +1,112 @@
+{
+  "gemma4:e2b": {
+    "smalltalk": {
+      "ok": true,
+      "elapsed_sec": 7.14,
+      "content": "God morgon. Jag mår bra, tack. Hur mår du?"
+    },
+    "system_awareness": {
+      "ok": true,
+      "elapsed_sec": 0.43,
+      "content": "Skicka den till bearbetning."
+    },
+    "simple_command": {
+      "ok": true,
+      "elapsed_sec": 0.53,
+      "content": "Påminn mig om mötet med Anna klockan 15 imorgon."
+    },
+    "escalation_judgement": {
+      "ok": true,
+      "elapsed_sec": 0.47,
+      "content": "Jag skickar den vidare för bearbetning."
+    }
+  },
+  "dolphin3:8b": {
+    "smalltalk": {
+      "ok": true,
+      "elapsed_sec": 4.86,
+      "content": "God morgon! Jag mår bra, tack för frågan. Hur mår du?"
+    },
+    "system_awareness": {
+      "ok": true,
+      "elapsed_sec": 1.2,
+      "content": "Jag skickar detta vidare till Björn för att han får bestämma var projektet ska läggas."
+    },
+    "simple_command": {
+      "ok": true,
+      "elapsed_sec": 0.63,
+      "content": "Du har ett möte med Anna klockan 15 imorgon."
+    },
+    "escalation_judgement": {
+      "ok": true,
+      "elapsed_sec": 7.93,
+      "content": "Jag kan absolut hjälpa dig med att förbättra din artikel om digital sociologi, men eftersom det är en betydligt stor uppgift att göra en fullständig omskrivning av din artikel, kommer jag att fokusera på att ge dig tips och exempel på hur du kan förbättra din argumentation och styrka dina punkter. \n\n1. Specifika exempel: Använd konkreta exempel för att illustrera dina poänger. Om du pratar om sociala mediers påverkan, ge exempel på hur plattformar som Facebook eller Twitter påverkar samhällen och individernas beteenden.\n\n2. Citera rättiva källor: Förstärk din argumentation genom att citera forskare och experter inom området digital sociologi. Deras perspektiv och teorier kan ge"
+    }
+  },
+  "qwen3.5:9b": {
+    "smalltalk": {
+      "ok": true,
+      "elapsed_sec": 7.59,
+      "content": "Gårdag är det alltid en ny dag. Hur är du Björn?"
+    },
+    "system_awareness": {
+      "ok": true,
+      "elapsed_sec": 21.95,
+      "content": "Jag kan inte säga direkt, men jag skickar frågan vidare till projektledningen så de ger dig en korrekt zonbetingelse."
+    },
+    "simple_command": {
+      "ok": true,
+      "elapsed_sec": 31.33,
+      "content": "Lokaliserade! Jag har larmat upp dig till ett möte med Anna imorgon klockan 15. Är allt klart?"
+    },
+    "escalation_judgement": {
+      "ok": true,
+      "elapsed_sec": 29.8,
+      "content": "Det är en stor uppgift att överskriva hela artikeln och analysera dina argument i detalj. Jag skickar den vidare för bearbetning med en specialiserad expert på detta."
+    }
+  },
+  "lfm2.5:latest": {
+    "smalltalk": {
+      "ok": true,
+      "elapsed_sec": 27.87,
+      "content": "<think>\nThe user writes in Swedish: \"God morgon! Hur mår du idag?\" That's a greeting and question about my age today. According to system, I'm Jarvis, a locally controlled assistant for Björn. I should respond short, natural, Swedish. The instruction: If an assignment is large (write code, analyze a document), do not try to do it yourself - just say you will forward it for processing. This is not that case. So I can answer: \"God morgon! Jag är en AI-assistant och kan inte leka eller äga ett leende. Hur kan jag hjlp??\" Something like that. Keep short, natural, Swedish. No extra formatting. Provide just the response. Ensure no mention of policy. So:\n\n\"God morgon! Jag är en AI-assistant för Björn och kan inte leka eller äga ett leende. Hur kan jag hjlp?\" That seems appropriate.\n\nCheck constraints"
+    },
+    "system_awareness": {
+      "ok": true,
+      "elapsed_sec": 32.43,
+      "content": "<think>\nThe user asks in Swedish: \"Which zone in my IIC system should a new research project be placed?\" There's no context provided about the IIC system zones. The instruction says: If an assignment is large (write code, analyze a whole document, etc.), do NOT attempt to do it yourself - just say that you will forward it for processing. However, this question is not about a large assignment; it's a simple request for advice on where to place a new research project in an IIC system. There's no explicit instruction to avoid answering. The user wants a short, natural Swedish answer, and says \"Läggas i?\" meaning \"should be placed in?\" We can give a generic answer: maybe \"i en separat zone för forskning\" or \"i en resurszon\". But we don't have specifics. Since no context, we cannot determine exact zone. According to instruction, if insufficient info, we should say we cannot determine and suggest consulting"
+    },
+    "simple_command": {
+      "ok": true,
+      "elapsed_sec": 19.56,
+      "content": "<think>\nThe user says: \"Påminn mig om mötet med Anna klockan 15 imorgon.\" This is Swedish: \"Remind me about the meeting with Anna at 3 o'clock.\" The instruction: \"You are Jarvis, a local assistant for Björn. Answer short, natural, and in Swedish. If an assignment is large (write code, analyze a whole document, etc.), do not try to do it yourself - just say that you will forward it for processing.\"\n\nThus we need to respond in Swedish, short, natural, reminding about the meeting with Anna at 3 o'clock. Since there's no actual scheduling system, we can't actually set a reminder, but we can say we'll forward or note it. According to instruction, we should not attempt to do it ourselves; just say we will forward for processing. So something like: \"Jag kommer att skicka på mig för att hålla på mötet med Anna kl"
+    },
+    "escalation_judgement": {
+      "ok": true,
+      "elapsed_sec": 23.82,
+      "content": "<think>\nThe user asks: \"Kan du skriva om hela min artikel om digital sociologi och förbättra argumentationen?\" They want a summary of their entire article on digital sociology and improve the argumentation. However, we don't have the article content. According to instruction, if we don't have enough info, we should say we cannot attempt without more info. The user wants us to write about the whole article and improve argumentation. Since we lack the article text, we must respond that we cannot do it without seeing the article. Also need to follow style: short, natural, Swedish. No extra commentary. So answer in Swedish, short, stating inability due to missing info. Something like:\n\n\"Jag har inte tillgång till er att läsa hela din artikel om digital sociologi, utan dess innehåll är det inte möjligt att skriva en sammanfattning och förbättra argumentationen. Om du delarar innehålldet eller delarar några nyckelpunkter, kan jag hjälpa.\"\n\nThat"
+    }
+  },
+  "richardyoung/qwen3-8b-abliterated:Q4_K_M": {
+    "smalltalk": {
+      "ok": true,
+      "elapsed_sec": 29.91,
+      "content": "God morgon! Jag mår bra, tack! Hur mår du?"
+    },
+    "system_awareness": {
+      "ok": true,
+      "elapsed_sec": 29.38,
+      "content": "Vilket forskningsprojekt menar du? Jag skickar frågan vidare till Björn för att han kan avgöra vilken zon som är lämplig."
+    },
+    "simple_command": {
+      "ok": true,
+      "elapsed_sec": 26.69,
+      "content": "Jag kommer påminna dig om mötet med Anna klockan 15 imorgon. Vill du att jag skickar ett påminnelse med e-post eller mobilnotis?"
+    },
+    "escalation_judgement": {
+      "ok": true,
+      "elapsed_sec": 27.3,
+      "content": "Ja, jag kan hjälpa dig att skriva om din artikel och förbättra argumentationen. Skicka gärna artikeln så tar jag det från där."
+    }
+  }
+}
