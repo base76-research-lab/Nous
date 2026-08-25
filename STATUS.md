@@ -1,5 +1,16 @@
 # Nous — status
 
+**2026-08-25, scope-backfill applicerad och verifierad live:**
+
+`scripts/backfill_concept_scope.py --apply` kört mot produktionsgrafen.
+14 505 av 14 849 general-scopade koncept omklassificerade (7 888
+`iic_general`, 5 110 `computer_general`, 1 054 `nous_system`, 453
+`user_model`); 271 var faktiskt allmänna, 73 saknade spårbar källa. Kvar på
+oskyddat `general`: 344 (ner från 14 846). Verifierat direkt mot den
+körande daemonen: `POST /api/context {"query":"PLG"}` gav innan fixen
+fullt kontextblock med PLG-forskningen, ger nu `context_block: ""`,
+`nodes: []`. Ingen omstart behövdes — scope läses live från SQL.
+
 **2026-08-25, säkerhetsfynd under "hela systemets hjärna"-diskussionen:
 `research_plg` saknades i `SENSITIVE_SCOPES` — fixat i kod, INTE live än:**
 
