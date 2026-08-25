@@ -102,7 +102,7 @@ There are still places in the repo where older `NoUse` naming survives for compa
 
 ## Maintainer
 
-**Björn Wikström** — [bjorn@base76.se](mailto:bjorn@base76.se)
+**Björn Wikström** — [bjorn@base76research.com](mailto:bjorn@base76research.com)
 
 ## Response Times
 

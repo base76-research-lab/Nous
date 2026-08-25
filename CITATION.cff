@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Nous: a persistent epistemic substrate for grounding language models"
+type: software
+authors:
+  - family-names: Wikström
+    given-names: Björn
+repository-code: "https://github.com/base76-research-lab/Nous"
+license: MIT
+version: 0.4.0
+date-released: 2026-08-25
+abstract: >
+  Nous is a research prototype testing whether a language model becomes more
+  reliable when it can consult a persistent, structured record of what is
+  known before speaking — typed relations with graded confidence, tracked
+  contradictions, and explicit boundaries around what is not known. As of the
+  release date above, no complete, independently scored benchmark run
+  demonstrates a reliability improvement over a bare model; see
+  eval/RESULTS_INDEX.md in the repository for the current evidence status.
+preferred-citation:
+  type: article
+  title: "The Larynx Problem: Why Large Language Models Are Not Artificial Intelligence"
+  authors:
+    - family-names: Wikström
+      given-names: Björn
+  year: 2026
+  url: "https://zenodo.org/records/19413234"

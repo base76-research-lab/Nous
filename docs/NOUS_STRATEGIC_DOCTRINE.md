@@ -1,7 +1,7 @@
 # Nous Strategic Doctrine
 
 **Status:** Draft distillation of the updated roadmap  
-**Source documents:** `docs/PLASTIC_COGNITIVE_SYSTEM_ROADMAP.md`, `docs/WORKPLAN.md`, `FRONTIER_PLAN.md`
+**Source documents:** `docs/archive/ROADMAP_2026-04-17_superseded.md`, `STATUS.md` (two of the three original source files, `docs/PLASTIC_COGNITIVE_SYSTEM_ROADMAP.md` and `docs/WORKPLAN.md`, no longer exist in this repo — link corrected 2026-08-25)
 
 ---
 

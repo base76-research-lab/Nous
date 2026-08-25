@@ -525,7 +525,7 @@ Pre-populate graph with universal primitives by running decomposition on top hub
 | TDA Engine | Rust (fast) / Python scipy (fallback) |
 | STDP | Brian2 (Rust) / Python (fallback) |
 | License | MIT |
-| Version | 0.3.2 (alpha) |
+| Version | 0.4.0 (alpha) |
 
 **Dependencies:** ollama, rich, networkx, watchdog, numpy, scipy, fastapi, uvicorn, pydantic, pandas, httpx, beautifulsoup4, lxml, pypdf
 

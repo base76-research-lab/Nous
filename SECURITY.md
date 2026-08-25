@@ -2,9 +2,9 @@
 
 ## Reporting Vulnerabilities
 
-If you discover a security vulnerability in NoUse, please report it responsibly:
+If you discover a security vulnerability in Nous, please report it responsibly:
 
-**Email:** bjorn@base76.se
+**Email:** bjorn@base76research.com
 
 - **Do NOT** open public GitHub issues for security vulnerabilities.
 - We will acknowledge your report within 72 hours.
@@ -18,10 +18,10 @@ If you discover a security vulnerability in NoUse, please report it responsibly:
 
 ## Data Handling
 
-NoUse is **local-first** by design:
+Nous is **local-first** by design:
 
 - Knowledge graphs are stored locally on your machine.
-- **No telemetry.** NoUse does not phone home or collect usage data.
+- **No telemetry.** Nous does not phone home or collect usage data.
 - **No cloud dependency.** The daemon runs entirely on your hardware.
 - API keys for LLM providers are passed at runtime — never stored in the graph.
 - Graph data is stored unencrypted in SQLite. Encryption at rest is the user's responsibility.

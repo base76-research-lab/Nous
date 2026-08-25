@@ -1,3 +1,8 @@
+> **SUPERSEDED, 2026-08-25.** This file self-declared as "single source of
+> truth" but was last updated 2026-04-17 — over four months stale. STATUS.md
+> took over that role on 2026-08-24 (see AGENTS.md/CLAUDE.md). Kept for
+> history, not current status.
+
 # Nous ROADMAP
 
 > Single source of truth for project state. Next LLM session: read THIS file + latest handoff, then start working.
