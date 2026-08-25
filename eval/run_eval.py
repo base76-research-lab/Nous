@@ -8,7 +8,10 @@ Modeller:
   B. liten modell MED Nouse   (hypotesen)
   C. stor modell  UTAN Nouse  (frontier baseline)
 
-Output: eval/results/run_<timestamp>.json + eval/RESULTS.md
+Output: eval/results/run_<timestamp>.json (raw, durable record).
+Public claims require a manually reviewed line in eval/RESULTS_INDEX.md --
+no file is auto-written there, by design (see eval/results/archive/
+RESULTS_2026-04-07_superseded.md for what an unreviewed auto-write caused).
 
 Kör:
     python eval/run_eval.py
@@ -663,22 +666,24 @@ async def main(args):
             "results": scored_results,
         }, f, ensure_ascii=False, indent=2)
 
-    # RESULTS.md
     md = _print_table(
         run_configs,
         scored_results,
         run_id=f"run_{ts}",
         scoring_mode=scoring_mode,
     )
-    results_md = Path(__file__).parent / "RESULTS.md"
-    with open(results_md, "w", encoding="utf-8") as f:
-        f.write(md)
 
-    print(f"\n✅ Resultat sparade:")
+    print(f"\n✅ Results saved:")
     print(f"   JSON: {out_json}")
-    print(f"   MD:   {results_md}")
     print()
     print(md[:1000])
+    print()
+    print(
+        "NOTE: no file is auto-written to RESULTS_INDEX.md -- add a manually "
+        "reviewed line there (run id, status, model, summary) after checking "
+        "judge validity. No run counts as public evidence until it has been "
+        "reviewed and listed there. See eval/RESULTS_INDEX.md."
+    )
 
 
 if __name__ == "__main__":
