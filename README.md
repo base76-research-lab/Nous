@@ -226,7 +226,7 @@ If you use this software, see [CITATION.cff](CITATION.cff).
 MIT — see [LICENSE](LICENSE).
 
 Björn Wikström / [Base76 Research Lab](https://github.com/base76-research-lab) —
-[bjorn@base76research.com](mailto:bjorn@base76research.com) ·
+[bjorn@base76.se](mailto:bjorn@base76.se) ·
 [GitHub Issues](https://github.com/base76-research-lab/Nous/issues) ·
 [Discussions](https://github.com/base76-research-lab/Nous/discussions)
 

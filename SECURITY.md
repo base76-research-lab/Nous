@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability in Nous, please report it responsibly:
 
-**Email:** bjorn@base76research.com
+**Email:** bjorn@base76.se
 
 - **Do NOT** open public GitHub issues for security vulnerabilities.
 - We will acknowledge your report within 72 hours.
