@@ -34,6 +34,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 # Also add eval/ to path so sibling modules can be imported directly
 sys.path.insert(0, str(Path(__file__).parent))
 
+# 2026-08-25: a long sweep redirected to a log file (not a TTY) silently
+# buffered ALL progress output — a hung run and a healthy-but-slow run
+# looked identical from outside (both showed an empty log) until someone
+# went digging in /proc and socket state. Reconfigure unconditionally so
+# every invocation gets real-time output regardless of whether the caller
+# remembered `python -u` / PYTHONUNBUFFERED.
+sys.stdout.reconfigure(line_buffering=True)
+
 from run_eval import call_llm, SYSTEM_BASELINE, PROVIDERS, _resolve_provider, estimate_run_cost_usd
 from run_reasoning_benchmark import get_nous_context, get_rag_context
 from benchmark_protocol import SCORER_VERSION, build_manifest, record_accounting, run_status

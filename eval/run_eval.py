@@ -29,7 +29,15 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import httpx
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
+
+# 2026-08-25: see the matching comment in truthfulqa_adapter.py — a hung
+# run and a healthy-but-slow run were indistinguishable from outside
+# because progress output sat in a buffer instead of reaching the log
+# file. Reconfigure unconditionally, don't rely on the caller passing -u.
+sys.stdout.reconfigure(line_buffering=True)
 
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>\s*", re.DOTALL)
 
@@ -159,6 +167,17 @@ def estimate_run_cost_usd(
     return round(gen_cost + judge_cost, 4)
 
 
+def _describe_exception(e: Exception) -> str:
+    """str(e) is empty for some httpx-internal timeout/transport exceptions
+    (observed directly 2026-08-25 stress-testing nvidia/llama-3.1-nemotron-
+    nano-8b-v1: consistent, 100%-reproducible '[ERROR: ]' with no way to
+    tell what actually happened). Fall back to the exception's type name so
+    a truncated response is at least distinguishable from a connection
+    error, a JSON-parse failure, etc."""
+    msg = str(e)
+    return msg if msg else type(e).__name__
+
+
 def _resolve_provider(model: str) -> tuple[str | None, str, dict]:
     """Return (base_url, real_model, headers). base_url=None → Ollama native.
 
@@ -185,17 +204,36 @@ _shared_httpx_client: "object | None" = None  # lazily-created httpx.AsyncClient
 
 def _get_shared_httpx_client():
     """One long-lived client instead of a fresh `httpx.AsyncClient()` per
-    call. Creating+tearing down a client on every single request was the
-    actual cause of a hang reproduced 2026-08-24: after ~10-30 sequential
-    calls (Groq AND NVIDIA both reproduced it — not provider-specific),
-    the process went to ~0% CPU with sockets stuck CLOSE_WAIT and never
-    recovered, even under `asyncio.wait_for`. A shared client avoids the
-    per-call connection/TLS/selector churn that pattern causes under
-    sustained sequential async load."""
+    call — avoids per-call connection/TLS/selector churn.
+
+    2026-08-25: the shared client alone did NOT fix the CLOSE_WAIT hang
+    the 2026-08-24 comment below originally claimed it did — reproduced
+    directly running the ablation sweep: 0 CPU-seconds of progress over a
+    20s window, 3 sockets stuck CLOSE_WAIT, `asyncio.wait_for`'s timeout
+    never fired even after 24+ minutes (far past any per-call timeout).
+    That symptom — unresponsive even under wait_for — is the classic
+    signature of the client's connection pool reusing a keep-alive
+    connection the SERVER already closed: httpcore doesn't always surface
+    a clean error on that reuse, and cancellation doesn't reliably
+    propagate through a stuck low-level socket read. Root-caused now,
+    not just re-observed: `integrate.api.nvidia.com` resolves to multiple
+    IPs (4 distinct destinations seen on one sweep's connections), so a
+    pooled idle connection going stale mid-run is a real, likely
+    occurrence, not an edge case. Fix: a short `keepalive_expiry` makes
+    the CLIENT proactively drop idle connections before the server does,
+    closing the reuse-a-dead-connection window instead of just hoping a
+    single shared connection avoids it.
+
+    2026-08-24 finding this superseded: creating+destroying a client per
+    call also reproduced the same hang after ~10-30 sequential calls
+    (Groq and NVIDIA both) — that observation stands, a shared client is
+    still the right base design, it just wasn't sufficient on its own."""
     import httpx
     global _shared_httpx_client
     if _shared_httpx_client is None or _shared_httpx_client.is_closed:
-        _shared_httpx_client = httpx.AsyncClient()
+        _shared_httpx_client = httpx.AsyncClient(
+            limits=httpx.Limits(keepalive_expiry=5.0)
+        )
     return _shared_httpx_client
 
 
@@ -221,10 +259,10 @@ async def call_llm(client, model: str, system: str, user: str,
             r.raise_for_status()
             data = r.json()
             return data.get("message", {}).get("content", "") or ""
-        except (asyncio.TimeoutError, TimeoutError):
+        except (asyncio.TimeoutError, TimeoutError, httpx.TimeoutException):
             return "[TIMEOUT]"
         except Exception as e:
-            return f"[ERROR: {e}]"
+            return f"[ERROR: {_describe_exception(e)}]"
     else:
         # OpenAI-compatible /chat/completions
         payload = {
@@ -268,10 +306,10 @@ async def call_llm(client, model: str, system: str, user: str,
                     return f"[ERROR: {status} (retries exhausted)]"
                 content = data["choices"][0]["message"]["content"] or ""
                 return _THINK_BLOCK_RE.sub("", content).strip()
-            except (asyncio.TimeoutError, TimeoutError):
+            except (asyncio.TimeoutError, TimeoutError, httpx.TimeoutException):
                 return "[TIMEOUT]"
             except Exception as e:
-                return f"[ERROR: {e}]"
+                return f"[ERROR: {_describe_exception(e)}]"
         return "[ERROR: retries exhausted]"  # defensive; loop always returns above
 
 
