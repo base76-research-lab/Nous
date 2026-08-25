@@ -1,5 +1,32 @@
 # Nous — status
 
+**2026-08-25, ablation-sweepen mekaniskt validerad gratis lokalt — redo
+för riktig körning, inte körd på riktigt än:**
+
+Föregick av en riktig bugg: `vector_rag`-villkoret hade kraschat tyst i
+en betald körning — `OllamaEmbedder()` föll tillbaka på
+`nomic-embed-text-v2-moe:latest`, inte pullad här, när skriptet körs
+fristående (daemonens systemd-enhet sätter `NOUSE_EMBED_MODEL` men
+`.env` gjorde det inte). Fixat: `NOUSE_EMBED_MODEL=nomic-embed-text:latest`
+tillagt i `.env` (ej i git, redan skyddad fil). Verifierat mot en färsk
+snapshot av produktionsgrafen (17 450 koncept): embedding + query gav
+vettigt resultat.
+
+Kört därefter: `truthfulqa_adapter.py -n 3 --model gemma4:e2b` (lokal,
+gratis), alla 11 villkor. Inga krascher, ingen tyst fallback, isolerad
+snapshot bekräftat använd (inte produktionsgrafen direkt). Resultatet
+(`eval/results/setup_validation.json`) är **mekanisk validering, inte
+evidens** — n=3, samma lilla lokala modell som både svarar och dömer sig
+själv, siffrorna studsar som väntat och betyder ingenting om Nous
+faktiskt hjälper. Poängen var att bevisa att rörledningen fungerar innan
+en betald körning, inte att mäta något.
+
+Grov kostnadsuppskattning för en riktig körning (alla 11 villkor,
+`estimate_run_cost_usd()`, inte fakturaexakt): Groq/NVIDIA ~$0.17–0.41
+för n=40–100, Cerebras ~$0.34–0.85. Väntar på Björns "kör" — se Tududi-
+tasken "Introduktionsmail om Nous till X" för den villkorade planen
+(kör sweepen → tvätta resultat → gate → mail).
+
 **2026-08-25, agent-pipelinens research-local-koll delar nu mekanism med
 grafens scope (Axel 1, IIC/04_SYSTEM/agents/nous-agency-model.md):**
 
