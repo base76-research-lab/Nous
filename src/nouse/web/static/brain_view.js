@@ -35,6 +35,178 @@
     corpus_callosum:{ label: 'Corpus callosum',        pos: [0, 0, 0],      color: '#ffffff', desc: 'Korsdomän-bryggor' },
   };
 
+  // ── Lager 1: Kortikalt punktmoln ("Living Tractograph", 2026-08-25) ──
+  // Domän -> region, grundat i de riktiga distrikten (Districts-panelen).
+  // Ofullständig lista är avsiktlig: okända domäner faller tillbaka på
+  // en deterministisk hash över alla regioner (se buildNodeCloud) i
+  // stället för att gissa -- inte "community affinity" (Ox Alphas
+  // fulla förslag), en medveten förenkling för v1.
+  const DOMAIN_TO_REGION = {
+    // 'system'/'process'/'file system' were mapped to brainstem
+    // originally (thematically apt: "axiom, fundamentala") but the real
+    // brainstem anchor sits near the mesh boundary and only has ~15 raw
+    // template slots -- routed to higher-capacity regions instead so
+    // these high-volume domains don't collapse onto a handful of points.
+    'system':            'corpus_callosum',
+    'neuroscience':       'prefrontal',
+    'programmering':      'frontal',
+    'process':            'parietal',
+    'data':               'parietal',
+    'struktur':           'parietal',
+    'file system':        'corpus_callosum',
+    'systemarkitektur':   'frontal',
+    'projektstruktur':    'parietal',
+    'funktion':           'frontal',
+    'psykologi':          'amygdala',
+    'ekonomi':            'prefrontal',
+    'beroenden':          'corpus_callosum',
+    'mjukvara':           'frontal',
+    'dokumentation':      'temporal_left',
+    'design':             'occipital',
+    'datastruktur':       'parietal',
+    'ai':                 'prefrontal',
+  };
+  let nodeCloudPoints = null;     // Float32Array positions, render-space
+  let nodeCloudMesh = null;
+  let nodeCloudIdByIndex = [];    // index -> node id, for future lookups
+  let brainTemplate = null;       // { points, region_ids } raw asset
+
+  function hashStringToUnit(str) {
+    // Deterministic, stable across reloads -- FNV-1a-ish, output in [0,1).
+    let h = 2166136261;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return ((h >>> 0) % 1000003) / 1000003;
+  }
+
+  async function fetchBrainTemplate() {
+    if (brainTemplate) return brainTemplate;
+    try {
+      const resp = await fetch('/static/models/brain_template.json');
+      brainTemplate = await resp.json();
+      return brainTemplate;
+    } catch (e) {
+      console.warn('Brain View: kunde inte ladda brain_template.json', e);
+      return null;
+    }
+  }
+
+  async function buildNodeCloud(graphData) {
+    const nodes = (graphData && graphData.nodes) || [];
+    if (!nodes.length) return;
+
+    const template = await fetchBrainTemplate();
+    if (!template || !template.points || !template.points.length) {
+      console.warn('Brain View: ingen hjärnmall tillgänglig, hoppar över punktmolnet');
+      return;
+    }
+
+    // Gruppera mallens kandidatpunkter per region.
+    const poolByRegion = {};
+    for (let i = 0; i < template.points.length; i++) {
+      const rid = template.region_ids[i];
+      (poolByRegion[rid] || (poolByRegion[rid] = [])).push(template.points[i]);
+    }
+    const allRegionNames = Object.keys(REGIONS);
+
+    const positions = new Float32Array(nodes.length * 3);
+    const colors = new Float32Array(nodes.length * 3);
+    const phases = new Float32Array(nodes.length);
+    nodeCloudIdByIndex = new Array(nodes.length);
+    const tmpColor = new THREE.Color();
+
+    for (let i = 0; i < nodes.length; i++) {
+      const node = nodes[i];
+      const id = String(node.id || '');
+      const domainKey = String(node.group || node.domain || '').trim().toLowerCase();
+      let region = DOMAIN_TO_REGION[domainKey];
+      if (!region) {
+        // Okänd domän: deterministisk (inte slumpmässig-per-laddning)
+        // spridning över alla regioner, hashad på domännamnet så samma
+        // okända domän alltid landar i samma region.
+        const idx = Math.floor(hashStringToUnit(domainKey || 'unknown') * allRegionNames.length);
+        region = allRegionNames[idx];
+      }
+      const pool = poolByRegion[region] || template.points;
+      const slot = Math.floor(hashStringToUnit(id) * pool.length) % pool.length;
+      const [x, y, z] = pool[slot];
+      positions[i * 3] = x;
+      positions[i * 3 + 1] = y;
+      positions[i * 3 + 2] = z;
+
+      const hex = (typeof domainColor === 'function') ? domainColor(node.group || node.domain) : '#6a8aaa';
+      tmpColor.set(hex);
+      colors[i * 3] = tmpColor.r;
+      colors[i * 3 + 1] = tmpColor.g;
+      colors[i * 3 + 2] = tmpColor.b;
+
+      phases[i] = hashStringToUnit(id + ':phase') * Math.PI * 2;
+      nodeCloudIdByIndex[i] = id;
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geo.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1));
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 }, uSize: { value: 8.0 } },
+      vertexColors: true,
+      transparent: true,
+      depthWrite: false,
+      depthTest: false,
+      blending: THREE.AdditiveBlending,
+      vertexShader: `
+        attribute float aPhase;
+        uniform float uTime;
+        uniform float uSize;
+        varying vec3 vColor;
+        varying float vBreath;
+        void main() {
+          vColor = color;
+          // Långsam andning per punkt, fasförskjuten -- vila ska läsas
+          // som ett levande moln, inte en frusen punktsky.
+          vBreath = 0.65 + 0.35 * sin(uTime * 0.5 + aPhase);
+          vec4 mv = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = uSize * vBreath * (300.0 / -mv.z);
+          gl_Position = projectionMatrix * mv;
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vColor;
+        varying float vBreath;
+        void main() {
+          vec2 uv = gl_PointCoord - vec2(0.5);
+          float d = length(uv);
+          if (d > 0.5) discard;
+          float glow = smoothstep(0.5, 0.0, d);
+          gl_FragColor = vec4(vColor * (0.6 + 0.4 * vBreath), glow * vBreath);
+        }
+      `,
+    });
+
+    if (nodeCloudMesh) {
+      brainGroup.remove(nodeCloudMesh);
+      nodeCloudMesh.geometry.dispose();
+      nodeCloudMesh.material.dispose();
+    }
+    nodeCloudMesh = new THREE.Points(geo, mat);
+    brainGroup.add(nodeCloudMesh);
+    nodeCloudPoints = positions;
+
+    // Regionerna blir optik, inte objekt: kraftigt nedtonade så de bara
+    // ger en svag densitets-antydan bakom det riktiga punktmolnet, i
+    // stället för att konkurrera med det som egna solida bollar.
+    for (const mesh of Object.values(regionMeshes)) {
+      mesh.material.opacity = 0.06;
+      if (mesh.userData.glowMesh) mesh.userData.glowMesh.material.opacity = 0.02;
+    }
+
+    console.log(`Brain View: punktmoln byggt, ${nodes.length} noder placerade i hjärnmallen`);
+  }
+
   let scene, camera, renderer, brainGroup;
   let fallbackBrainParts = [];  // sphere + fissures — undanröjs när GLB-modellen laddat klart
   let regionMeshes = {};
@@ -76,7 +248,7 @@
     }
   }
 
-  async function init(container) {
+  async function init(container, graphData) {
     const W = container.clientWidth || window.innerWidth;
     const H = container.clientHeight || window.innerHeight;
 
@@ -130,6 +302,7 @@
     await loadTdaRegionPositions();
     buildRegions();
     buildNervePaths();
+    buildNodeCloud(graphData).catch((e) => console.error('Brain View: buildNodeCloud misslyckades', e));  // asynkron
 
     // Load initial heat data
     fetchHeat();
@@ -334,7 +507,13 @@
 
       const mesh = new THREE.Mesh(sphereGeo, sphereMat);
       mesh.position.set(x, y, z);
-      mesh.userData = { regionName: name, baseIntensity: 0.15, targetIntensity: 0.15 };
+      // breathPhase: fas-förskjuten per region så vila läses som lugn,
+      // inte död (annars pulserar alla regioner i takt, vilket ser
+      // mekaniskt ut snarare än levande).
+      mesh.userData = {
+        regionName: name, baseIntensity: 0.15, targetIntensity: 0.15,
+        breathPhase: Math.random() * Math.PI * 2,
+      };
       brainGroup.add(mesh);
       regionMeshes[name] = mesh;
 
@@ -467,17 +646,15 @@
   }
 
   function updateRegionIntensities() {
+    // Storlek är FAST (identitet: du känner igen en region på position,
+    // inte på hur mycket den råkar pulsera just nu). Aktivitet kodas
+    // enbart som ljusstyrka + pulsfrekvens (animate()) -- ändrad radie
+    // konkurrerade tidigare med positionsminnet och gjorde regionerna
+    // svårare att känna igen, inte lättare (Ox Alpha-granskning 2026-08-25).
     for (const [name, heat] of Object.entries(heatData)) {
       const mesh = regionMeshes[name];
       if (!mesh) continue;
-
-      const intensity = Math.max(0.15, heat.intensity || 0);
-      mesh.userData.targetIntensity = intensity;
-
-      // Scale based on activity
-      const baseScale = 1.0;
-      const activeScale = baseScale + intensity * 0.4;
-      mesh.scale.setScalar(activeScale);
+      mesh.userData.targetIntensity = Math.max(0.15, heat.intensity || 0);
     }
   }
 
@@ -565,13 +742,21 @@
     const dt = clock.getDelta();
     const time = clock.getElapsedTime();
 
+    if (nodeCloudMesh) {
+      nodeCloudMesh.material.uniforms.uTime.value = time;
+    }
+
     // Smooth intensity transitions
     for (const [name, mesh] of Object.entries(regionMeshes)) {
       const current = mesh.material.emissiveIntensity;
       const target = mesh.userData.targetIntensity;
       const speed = 2.0;
       const next = current + (target - current) * Math.min(1, dt * speed);
-      mesh.material.emissiveIntensity = next;
+      // Långsam andning ovanpå -- litet, alltid närvarande, fasförskjutet
+      // per region. Vid stark aktivitet (SSE-driven target nära 1) märks
+      // det knappt; i vila är det skillnaden mellan "levande" och "död".
+      const breath = 0.04 * (0.5 + 0.5 * Math.sin(time * 0.6 + mesh.userData.breathPhase));
+      mesh.material.emissiveIntensity = Math.min(1.2, next + breath);
 
       // Glow mesh opacity follows intensity
       if (mesh.userData.glowMesh) {
@@ -760,7 +945,7 @@
     const container = document.getElementById('brain-container');
     if (!container) return;
     container.style.display = 'block';
-    init(container);
+    init(container, graphData);
     if (sseSource) connectSSE(sseSource);
   };
 

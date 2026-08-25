@@ -50,6 +50,10 @@ dev = [
 migrate = [
   "kuzu>=0.11.0",
 ]
+brain_template = [
+  "trimesh>=4.0.0",
+  "scipy>=1.11.0",
+]
 brian2 = [
   "brian2>=2.5.0",
 ]

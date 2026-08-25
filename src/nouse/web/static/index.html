@@ -703,8 +703,6 @@
 <div class="hud" id="hud-viewmode">
   <button class="view-btn active" id="btn-concept"  onclick="setView('concept')">◉ Concept Atlas</button>
   <button class="view-btn"        id="btn-domain"   onclick="setView('domain')">⬡ Domain Blocks</button>
-  <button class="view-btn"        id="btn-ripple"   onclick="setView('ripple')">◎ Ripple Pulse</button>
-  <button class="view-btn"        id="btn-path"     onclick="setView('path')">⟿ Thread Path</button>
   <button class="view-btn"        id="btn-brain"    onclick="setView('brain')">🧠 Brain View</button>
   <button class="view-btn" id="btn-tools" onclick="toggleTools()" style="margin-left:auto">☰ Tools</button>
 </div>
@@ -1328,7 +1326,6 @@ function setView(mode) {
     if (sel && sel.value) filterDomainByName(sel.value);
     else { graphData.nodes.forEach(n => { n.hidden = false; }); Graph.graphData(graphData); }
   }
-  // ripple/path hanteras av deras egna knappar
 }
 
 // ── State ──────────────────────────────────────────────────────
@@ -1779,6 +1776,9 @@ function buildDomainLegend() {
   });
 
   const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+
+  const domainsStat = document.getElementById('st-domains');
+  if (domainsStat) domainsStat.textContent = sorted.length;
 
   list.innerHTML = sorted.map(([dom, cnt]) => `
     <div class="domain-row" onclick="filterDomainByName('${dom}')">
@@ -3014,7 +3014,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   try {
     loadingText.textContent = 'LOADING FIELD SURFACE...';
-    const resp = await fetch('/api/graph?limit=1500&edge_limit=4000');
+    const resp = await fetch('/api/graph?limit=10000&edge_limit=4000');
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
