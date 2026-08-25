@@ -1207,6 +1207,8 @@ class FieldSurface:
                 "evidence_score": data.get("evidence_score"),
                 "assumption_flag": data.get("assumption_flag"),
                 "source_tag": data.get("source_tag", "auto"),
+                "valid_from": data.get("valid_from"),
+                "valid_until": data.get("valid_until"),
             })
         _queue_indications(name, rows)
         return rows
@@ -1222,6 +1224,8 @@ class FieldSurface:
                 "evidence_score": data.get("evidence_score"),
                 "assumption_flag": data.get("assumption_flag"),
                 "source_tag": data.get("source_tag", "auto"),
+                "valid_from": data.get("valid_from"),
+                "valid_until": data.get("valid_until"),
             })
         return rows
 

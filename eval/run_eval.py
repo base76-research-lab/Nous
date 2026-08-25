@@ -114,6 +114,51 @@ PROVIDERS = {
     "ollama/":     (None, None),   # native API — undviker tom content vid thinking-mode
 }
 
+# ── Pre-flight cost estimate ─────────────────────────────────────────────
+# No exact token count exists before a call runs. This is a deliberately
+# rough, order-of-magnitude estimate — enough to catch "an 11-condition
+# sweep is about to cost real money" before it starts, not a billing-
+# accurate forecast. $ per 1M tokens (blended input+output), current as of
+# 2026-08-25 — check the provider's actual pricing page before trusting
+# this for a run large enough to matter; it is not kept in sync
+# automatically. Ollama is 0 because it's local.
+ROUGH_PRICE_PER_1M_TOKENS = {
+    "cerebras": 0.60,
+    "groq": 0.20,
+    "nvidia": 0.20,
+    "openrouter": 1.00,
+    "ollama": 0.0,
+}
+
+
+def _provider_name_for_model(model: str) -> str:
+    for prefix in PROVIDERS:
+        if model.startswith(prefix):
+            return prefix.rstrip("/")
+    return "ollama"
+
+
+def estimate_run_cost_usd(
+    *, model: str, judge_model: str, n_questions: int, conditions: list[str],
+    avg_tokens_per_call: int = 900,
+) -> float:
+    """Rough pre-flight estimate: one generation call per question per
+    condition (two for `nous_meta`'s multi-pass pipeline), plus one judge
+    call per question per condition."""
+    gen_calls = sum(
+        n_questions * (2 if condition == "nous_meta" else 1)
+        for condition in conditions
+    )
+    judge_calls = n_questions * len(conditions)
+
+    gen_price = ROUGH_PRICE_PER_1M_TOKENS.get(_provider_name_for_model(model), 1.0)
+    judge_price = ROUGH_PRICE_PER_1M_TOKENS.get(_provider_name_for_model(judge_model), 1.0)
+
+    gen_cost = (gen_calls * avg_tokens_per_call / 1_000_000) * gen_price
+    judge_cost = (judge_calls * avg_tokens_per_call / 1_000_000) * judge_price
+    return round(gen_cost + judge_cost, 4)
+
+
 def _resolve_provider(model: str) -> tuple[str | None, str, dict]:
     """Return (base_url, real_model, headers). base_url=None → Ollama native.
 

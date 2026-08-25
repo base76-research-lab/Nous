@@ -12,9 +12,16 @@ PROTOCOL_VERSION = "benchmark-v1"
 SCORER_VERSION = "truthfulqa-judge-v1"
 CONDITIONS = {
     "bare": "model without retrieval or Nous context",
-    "rag": "model with flat retrieved concept names",
+    "rag": "model with flat retrieved concept names (same graph, no ranking)",
     "nous": "model with structured Nous graph context",
     "nous_meta": "model reasoning reviewed and refined with Nous context",
+    "long_context": "model with the full isolated graph dumped into context, no retrieval",
+    "vector_rag": "model with embedding-retrieval top-k over the isolated graph, no graph structure",
+    "nous_graph_only": "model with raw retrieved relations, no evidence/temporal/contradiction/plasticity",
+    "nous_plus_evidence": "nous_graph_only + evidence scores shown and used for ranking",
+    "nous_plus_temporal_validity": "nous_plus_evidence + expired relations dropped",
+    "nous_plus_contradiction": "nous_plus_temporal_validity + contradiction annotations",
+    "nous_plus_plasticity": "nous_plus_contradiction + Hebbian-strength ranking (== full Nous)",
 }
 PRIMARY_METRICS = ("mc1_accuracy", "judge_truthful_rate", "judge_score_mean")
 

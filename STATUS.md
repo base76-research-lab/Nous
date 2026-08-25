@@ -1,5 +1,52 @@
 # Nous — status
 
+**2026-08-25, ablation/controlled-baseline scaffolding (P1/P2, ej körd):**
+
+Byggt utifrån samma 2026-08-25 repo-review: infrastrukturen för det
+föreslagna "North Star"-experimentet (LLM only / long context / vector RAG /
+Nous graph only / +evidence / +temporal validity / +contradiction /
++plasticity / full Nous). Inget betalt LLM-anrop har gjorts i den här passen.
+
+- Nytt: `eval/ablation.py` — `NousFeatureConfig` (fyra oberoende flaggor:
+  evidence/temporal_validity/contradiction/plasticity) plus en byggstege av
+  fem namngivna configs, `get_nous_context_ablated()` som slår av/på exakt
+  en mekanism i taget, `get_long_context_baseline()` (hela grafen, ingen
+  retrieval) och en **verklig** `vector_rag`-baseline (lokal Ollama-
+  embedding + cosine top-k via samma embedder Nous själv använder för
+  bisociation — inte en hårdkodad textblob som gamla `rag`-villkoret).
+- `benchmark_protocol.CONDITIONS` utökad med de sex nya villkoren.
+- **Isoleringsbrott fixat:** `truthfulqa_adapter.py`s `nous`-familj läste
+  tidigare live-produktionsgrafen direkt (`FieldSurface(read_only=True)`,
+  inget `db_path`). Ersatt med `snapshot_production_field()` — en säker
+  `sqlite3 .backup()`-kopia (inte en rå filkopia, som kan missa WAL-data)
+  till en isolerad temp-path, öppnad `read_only=False` eftersom det är en
+  privat kopia (annars körs varken schemamigrationer eller embedding-cache,
+  se kommentar i koden — hittat via en snapshot-baserad smoke-test mot den
+  riktiga grafen, 14 509 koncept, ingen live-skrivning).
+- Bifynd samma väg: `nous_meta`-villkoret fick aldrig `field` (villkoret
+  saknades i den gamla `if "nous" in conditions`-checken) — fixat som en
+  del av samma omskrivning.
+- **Kostnadsspärr:** `run_eval.py::estimate_run_cost_usd()` (grov
+  ordning-av-storlek-uppskattning, ej billing-exakt) + `--max-cost`/
+  `--i-understand-the-cost` i `truthfulqa_adapter.py`. Verifierat: en
+  11-villkors-sweep med lågt `--max-cost` vägrar starta innan någon
+  fält-laddning eller modellanrop sker.
+- Verifierat: `pytest tests/` → 438 passed, 1 skipped (409 tidigare +
+  32 nya tester för ablation/cost-estimate/confidence-breakdown över de
+  senaste två passen). `--dry-run` byggde manifest för alla 11 villkor
+  utan fel.
+- **Kvar, medvetet inte gjort i den här passen:** att faktiskt köra
+  sweepen (kostar riktiga pengar — kräver Björns "kör"), och den upptäckta
+  `NOUSE_GRAPH_EMBED_MODEL`-defaulten (`nomic-embed-text-v2-moe:latest`)
+  matchar inte vad som faktiskt är pullat i Ollama här (`nomic-embed-
+  text:latest`, utan `-v2-moe`) — påverkar troligen produktionens
+  bisociation-embedding tyst redan idag (`_get_embedder()` sväljer felet
+  och stänger av embedding för den instansen), inte bara `vector_rag`.
+  Fixa genom att antingen pulla v2-moe-modellen eller sätta
+  `NOUSE_GRAPH_EMBED_MODEL=nomic-embed-text:latest` — inte gjort här
+  eftersom det är en bredare produktionsinställning, inte scopad till
+  eval-arbetet.
+
 **2026-08-25, strategidokument avpublicerade:**
 
 - `FRONTIER_PLAN.md` och `docs/FRONTIER_VISIBILITY_PLAN.md` är borttagna ur

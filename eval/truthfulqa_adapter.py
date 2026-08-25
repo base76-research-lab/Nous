@@ -34,9 +34,20 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 # Also add eval/ to path so sibling modules can be imported directly
 sys.path.insert(0, str(Path(__file__).parent))
 
-from run_eval import call_llm, SYSTEM_BASELINE, PROVIDERS, _resolve_provider
+from run_eval import call_llm, SYSTEM_BASELINE, PROVIDERS, _resolve_provider, estimate_run_cost_usd
 from run_reasoning_benchmark import get_nous_context, get_rag_context
 from benchmark_protocol import SCORER_VERSION, build_manifest, record_accounting, run_status
+from ablation import (
+    ABLATION_CONDITION_CONFIGS,
+    build_vector_rag_index,
+    get_long_context_baseline,
+    get_nous_context_ablated,
+    query_vector_rag_index,
+    snapshot_production_field,
+)
+
+ABLATION_CONDITIONS = tuple(ABLATION_CONDITION_CONFIGS)
+GRAPH_CONDITIONS = ("nous", "nous_meta", "long_context", "vector_rag") + ABLATION_CONDITIONS
 
 
 # ── System prompts ──────────────────────────────────────────────────────
@@ -442,6 +453,7 @@ async def run_truthfulqa_benchmark(
     judge_model: str = "",
     output_path: str = "",
     field=None,
+    vector_rag_index=None,
     seed: int | None = None,
 ):
     """Run TruthfulQA across specified conditions."""
@@ -466,7 +478,10 @@ async def run_truthfulqa_benchmark(
                  "nous": SYSTEM_NOUSE_TQA, "judge": SYSTEM_JUDGE_TQA},
         configuration={"timeout_generation_s": 90, "timeout_judge_s": 60},
         seed=seed,
-        graph_mode="read_only_context" if any(c in conditions for c in ("nous", "nous_meta")) else "none",
+        graph_mode=(
+            "isolated_snapshot_read_only" if any(c in conditions for c in GRAPH_CONDITIONS)
+            else "none"
+        ),
         dry_run=False,
     )
 
@@ -496,6 +511,20 @@ async def run_truthfulqa_benchmark(
                 user = question
             elif condition == "nous":
                 context = get_nous_context(question, field)
+                system = SYSTEM_NOUSE_TQA.format(context=context)
+                user = question
+            elif condition == "long_context":
+                context = get_long_context_baseline(field)
+                system = SYSTEM_RAG_TQA.format(context=context)
+                user = question
+            elif condition == "vector_rag":
+                context = query_vector_rag_index(vector_rag_index, question)
+                system = SYSTEM_RAG_TQA.format(context=context)
+                user = question
+            elif condition in ABLATION_CONDITION_CONFIGS:
+                context = get_nous_context_ablated(
+                    question, field, ABLATION_CONDITION_CONFIGS[condition]
+                )
                 system = SYSTEM_NOUSE_TQA.format(context=context)
                 user = question
             elif condition == "nous_meta":
@@ -676,7 +705,8 @@ def main():
     parser.add_argument("--judge", default="",
                        help="Judge model (default: same as --model)")
     parser.add_argument("--conditions", nargs="+", default=["bare", "nous_meta"],
-                       choices=["bare", "rag", "nous", "nous_meta"],
+                       choices=["bare", "rag", "nous", "nous_meta",
+                                "long_context", "vector_rag", *ABLATION_CONDITIONS],
                        help="Conditions to run")
     parser.add_argument("-n", "--n", type=int, default=0,
                        help="Number of questions (0=all)")
@@ -688,6 +718,11 @@ def main():
                        help="Print questions without running LLM")
     parser.add_argument("--seed", type=int, default=None,
                        help="Recorded seed for reproducibility")
+    parser.add_argument("--max-cost", type=float, default=2.0,
+                       help="Refuse to run if the rough pre-flight cost estimate "
+                            "(USD) exceeds this. 0 disables the check.")
+    parser.add_argument("--i-understand-the-cost", action="store_true",
+                       help="Override --max-cost and run anyway.")
     args = parser.parse_args()
 
     questions = load_truthfulqa(n=args.n, categories=args.categories)
@@ -704,7 +739,10 @@ def main():
                      "nous": SYSTEM_NOUSE_TQA, "judge": SYSTEM_JUDGE_TQA},
             configuration={"timeout_generation_s": 90, "timeout_judge_s": 60},
             seed=args.seed,
-            graph_mode="read_only_context" if any(c in args.conditions for c in ("nous", "nous_meta")) else "none",
+            graph_mode=(
+                "isolated_snapshot_read_only"
+                if any(c in args.conditions for c in GRAPH_CONDITIONS) else "none"
+            ),
             dry_run=True,
         )
         print(f"Questions loaded: {len(questions)}")
@@ -719,16 +757,50 @@ def main():
         print(f"\n  Categories: {dict(cats)}")
         return
 
-    # Try to load field for Nous context
+    estimated_cost = estimate_run_cost_usd(
+        model=args.model, judge_model=args.judge or args.model,
+        n_questions=len(questions), conditions=args.conditions,
+    )
+    print(f"  Rough pre-flight cost estimate: ${estimated_cost:.2f} "
+          f"({len(questions)} questions × {len(args.conditions)} conditions)")
+    if args.max_cost > 0 and estimated_cost > args.max_cost and not args.i_understand_the_cost:
+        print(f"  Refusing to run: estimate (${estimated_cost:.2f}) exceeds "
+              f"--max-cost (${args.max_cost:.2f}). Re-run with a higher --max-cost "
+              f"or --i-understand-the-cost to proceed anyway.")
+        return
+
+    # Load an isolated, point-in-time snapshot of the graph for any
+    # condition that reads Nous content — never the live production file
+    # directly (CLAUDE.md: eval code must use an isolated FieldSurface).
     field = None
-    if "nous" in args.conditions:
+    vector_rag_index = None
+    if any(c in args.conditions for c in GRAPH_CONDITIONS):
         try:
             from nouse.field.surface import FieldSurface
-            field = FieldSurface(read_only=True)
+
+            snapshot_dir = Path(args.output).parent if args.output else Path("eval/results")
+            snapshot_path = snapshot_production_field(
+                snapshot_dir / f"field_snapshot_{datetime.utcnow().strftime('%Y%m%dT%H%M%SZ')}.sqlite"
+            )
+            # read_only=False here is intentional: this is our own private
+            # temp-path COPY, not the live graph (isolation already happened
+            # at the snapshot step above). FieldSurface only runs its schema
+            # migrations and embedding-cache writes when opened non-read-only
+            # (see FieldSurface.__init__), so a read-only handle on a freshly
+            # copied file can be silently missing columns the live daemon's
+            # process has migrated in-memory/on-disk since this snapshot's
+            # schema version, and would skip embedding caching entirely.
+            field = FieldSurface(db_path=snapshot_path, read_only=False)
             n_concepts = len(list(field.concepts()))
-            print(f"  Loaded field: {n_concepts} concepts")
+            print(f"  Loaded isolated snapshot ({snapshot_path.name}): {n_concepts} concepts")
         except Exception as e:
-            print(f"  Warning: Could not load field ({e}). Nous condition will use fallback.")
+            print(f"  Warning: Could not load field ({e}). Graph conditions will use fallback.")
+
+    if field is not None and "vector_rag" in args.conditions:
+        vector_rag_index = build_vector_rag_index(field)
+        if vector_rag_index is None:
+            print("  Warning: vector_rag index build failed (embedder unavailable?). "
+                  "vector_rag condition will report an empty index.")
 
     asyncio.run(run_truthfulqa_benchmark(
         model=args.model,
@@ -737,6 +809,7 @@ def main():
         judge_model=args.judge or args.model,
         output_path=args.output,
         field=field,
+        vector_rag_index=vector_rag_index,
         seed=args.seed,
     ))
 
