@@ -56,7 +56,15 @@ from nouse.limbic.signals import (
 )
 from nouse.limbic.state_modulator import SemanticModulation, modulate as modulate_limbic
 from nouse.memory.store import MemoryStore
-from nouse.orchestrator.global_workspace import GlobalWorkspace, WorkspaceProposal
+from nouse.orchestrator.global_workspace import GlobalWorkspace
+from nouse.orchestrator.arbitration import (
+	Bid,
+	GuardedReferee,
+	LegacyWTAReferee,
+	ReadOnlyLedgerView,
+	bisociation_gate,
+	self_modification_gate,
+)
 from nouse.self_layer.living_core import (
 	append_identity_memory,
 	load_living_core,
@@ -306,6 +314,23 @@ class CognitiveConductor:
 		self._coordinator = coordinator
 		self.cc = cc_node if cc_node is not None else CCNode()
 
+		# P3 arbitration contract wiring (2026-08-25). The referee reads both
+		# ledgers and writes to neither (enforced at runtime by GuardedReferee).
+		# INTERIM: Tier 2 (a real confirmation-event ledger, see docs/EVIDENCE_
+		# MODEL.md / STATUS.md) does not exist yet, so both views wrap empty
+		# lists -- there is nothing to read, only the write-prohibition is being
+		# exercised. Swap these for real ledger handles when Tier 2 lands;
+		# LegacyWTAReferee/GuardedReferee do not otherwise need to change.
+		self._epistemic_ledger: list[Any] = []
+		self._behavioral_ledger: list[Any] = []
+		self._epistemic_view = ReadOnlyLedgerView(self._epistemic_ledger)
+		self._behavioral_view = ReadOnlyLedgerView(self._behavioral_ledger)
+		self._referee = GuardedReferee(
+			LegacyWTAReferee(self.workspace, self._epistemic_view, self._behavioral_view),
+			self._epistemic_view,
+			self._behavioral_view,
+		)
+
 	async def run_cognitive_cycle(
 		self,
 		episode_text: str,
@@ -472,15 +497,20 @@ class CognitiveConductor:
 		f_bisoc, verdict = _f_bisoc(h0_a, h1_a, h0_b, h1_b, limbic.lam)
 		log.info(f"F_bisoc={f_bisoc:.3f} verdict={verdict} λ={limbic.lam:.2f}")
 
-		# ── Steg 6: Global Workspace WTA ────────────────────────────────────
-		proposals: list[WorkspaceProposal] = [
-			WorkspaceProposal(
+		# ── Steg 6: Global Workspace-arbitrering via kontraktet (P3, 2026-08-25) ──
+		# Samma tre bud, samma salience-formler, samma limbiska koppling som
+		# tidigare; enda skillnaden är behållartypen (WorkspaceProposal -> Bid)
+		# plus auktoritetsmetadata som legacy-pipelinen ännu ignorerar.
+		bids: list[Bid] = [
+			Bid(
 				module="episodic_memory",
 				content={"episode_id": episode_id, "text_preview": episode_text[:140]},
 				salience=0.5 + 0.3 * limbic.dopamine,
 				domain=domain,
+				action_class="memory.recall.read",
+				blast_radius="local",
 			),
-			WorkspaceProposal(
+			Bid(
 				module="tda_bisociation",
 				content={
 					"f_bisoc": f_bisoc,
@@ -490,8 +520,10 @@ class CognitiveConductor:
 				},
 				salience=f_bisoc * (1.0 + limbic.lam),
 				domain=domain,
+				action_class="synthesis.broadcast",
+				blast_radius="module",
 			),
-			WorkspaceProposal(
+			Bid(
 				module="limbic_homeostasis",
 				content={
 					"arousal": limbic.arousal,
@@ -500,16 +532,23 @@ class CognitiveConductor:
 				},
 				salience=limbic.performance * 0.6,
 				domain="meta",
+				action_class="homeostasis.adjust",
+				blast_radius="local",
 			),
 		]
 
-		ws_result = await self.workspace.competition_step(proposals, limbic)
-		winner_module = ws_result.winner.module if ws_result.winner else None
+		decision = await self._referee.arbitrate(bids, limbic)
+		winner_module = decision.winner_module
 
 		# ── Steg 7: Skriv syntes om bisociation ─────────────────────────────
 		new_relations = 0
 		synthesis_queued = False
-		if verdict == "BISOCIATION":
+		# BUG FIX (P3, 2026-08-25): kaskaden brytes nu bara ut när referee-
+		# beslutet godkänner, inte bara när verdict-strängen matchar. Bevisat
+		# beteendebevarande idag: statisk 3-elements bud-lista => alltid en
+		# vinnare => decision.approved är identiskt True vid detta anrop, så
+		# uttrycket reducerar exakt till den gamla `verdict == "BISOCIATION"`.
+		if bisociation_gate(verdict, decision):
 			self._discovery_streak += 1
 			synthesis = (
 				f"[Bisociation discovery] domain={domain} "
@@ -560,9 +599,12 @@ class CognitiveConductor:
 
 		# ── Steg 8: Självmodifieringsförslag ────────────────────────────────
 		self_update_proposed = False
-		if (
-			self._discovery_streak >= _SELF_MOD_DISCOVERY_MIN
-			and f_bisoc >= _SELF_MOD_CONFIDENCE_MIN
+		if self_modification_gate(
+			self._discovery_streak,
+			f_bisoc,
+			decision,
+			min_streak=_SELF_MOD_DISCOVERY_MIN,
+			min_confidence=_SELF_MOD_CONFIDENCE_MIN,
 		):
 			self_update_proposed = self._propose_self_modification(
 				rationale=(

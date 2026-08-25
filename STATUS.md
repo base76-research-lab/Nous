@@ -1,5 +1,88 @@
 # Nous — status
 
+## 2026-08-25T22:40Z — Arbitrerings-KONTRAKT (P3) byggt + read-only tool-loop för Ox Alpha
+
+Björn: "vi skulle kunna ge OA tillgång till Nouse och se vad den gör" —
+gav `stealth/ox-alpha` (OpenRouter) faktisk verktygsåtkomst till repot
+för första gången, inte bara curerade textutdrag. Verifierat först att
+modellen faktiskt stödjer tool-calling (`supported_parameters` inkl.
+`tools`/`tool_choice`, OpenRouters egen modell-API). Två spår samma pass:
+
+**1. Read-only explore-harness** (`/tmp/.../oxalpha/explore_nous.py`,
+ej i repot — engångsskript). Tre verktyg: `list_dir`/`read_file`/`grep`,
+sandboxade till repo-roten, `.env`/`.git`/nyckelfiler blockerade. Inget
+skriv- eller exec-verktyg definierat alls — modellen kan strukturellt
+inte skriva även om den försökte, samma gräns som `relay:codex` haft
+hela kvällen. 25 verktygsanrop, egen navigering (STATUS.md → evidence.py
+→ nightrun.py → remediation-skriptet → inject.py → EVIDENCE_MODEL.md →
+salience.py → surface.py → bridge_finder.py). Fann en verklig lucka
+ingen tidigare flaggat: **evidens-taket
+(`PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING=0.70`) sitter bara på ETT
+skrivställe** (`surface.py:489`, nyckel på `source_tag=="domain_bootstrap"`),
+medan `bridge_finder.py` (LLM-syntetiserade bisociationskedjor) och
+`axon_growth_cone.py` (`evidence_score=min(1.0, match.score+0.1)`)
+skriver hög evidence helt utan tak. Verifierat direkt mot koden — sant.
+Även: `surface_kuzu.py` saknar taket helt, men verifierat DEPRECATED
+och oanvänd i produktion (`grep` för importer gav noll träffar utanför
+migrationsskriptet) — lägre allvar än OA:s egen framing antydde.
+**Ny prioritet, inte byggd än:** utvidga taket till en
+skrivar-agnostisk provenance-klass-regel i stället för en enda
+sträng-nyckel; granska `bridge_finder`/`axon_growth_cone` mot historisk
+data (samma kontamineringssignatur som 19:31Z-saneringen).
+
+**2. Fixade en verklig lucka i Nous egen OpenRouter-klient** som
+blockerade en riktig multi-turn tool-loop: `_ToolCall` (`ollama_client/
+client.py`) kastade bort `id`-fältet från API-svaret — krävs för att
+eka `tool_call_id` korrekt i efterföljande turns. Litet, additivt,
+33 klient-tester gröna efteråt.
+
+**3. Arbitrerings-KONTRAKT (P3)**, Ox Alphas eget förslag från
+verdikt-rundan tidigare samma kväll ("bygg kontraktet nu, som en
+stub — dagars arbete, fryser gränssnittet innan implicita arbiter
+förstenas"). Grundat i verklig kod: bekräftade oberoende, innan
+uppdraget skickades, att `ws_result.winner` i `conductor.py` beräknades
+men ALDRIG styrde något (steg 7 grenar på `verdict=="BISOCIATION"`,
+steg 8 på streak-räknare, vinnaren bara sparad som info i
+`CycleResult`) — samma "dekorativ arbitrering"-kritik Codex och OA
+oberoende landat på tidigare, nu bekräftad med radnummer.
+
+Ny fil `src/nouse/orchestrator/arbitration.py`: `Bid` (rikare bud med
+`action_class`/`blast_radius`, defaulted — bakåtkompatibel), `Referee`-
+protokoll, `ReadOnlyLedgerView` (whitelist-adapter, kastar `AttributeError`
+på allt utom `length`/`tail`), `GuardedReferee` (fingerprintar båda
+loggböckerna kring varje `arbitrate()`-anrop, kastar `RefereePurityError`
+vid mutation — verkställt, inte bara dokumenterat), `LegacyWTAReferee`
+(byte-för-byte-delegering till oförändrad `GlobalWorkspace` — noll ny
+valideringslogik). `global_workspace.py` har NOLL radändringar.
+
+`conductor.py` steg 6–8 kopplat om till kontraktet. Referee-loggböckerna
+är en medveten INTERIM-platshållare (tomma listor) — Tier 2 (en riktig
+bekräftelse-händelse-logg) finns inte än; byts ut när den byggs, utan
+att `LegacyWTAReferee`/`GuardedReferee` behöver ändras.
+
+**Bevisat beteendebevarande, inte bara påstått:** statisk 3-elements
+bud-lista ⇒ alltid en vinnare ⇒ `decision.approved` identiskt `True`
+vid detta anropsställe ⇒ de nya grindarna (`bisociation_gate`,
+`self_modification_gate`) reducerar exakt till de gamla predikaten.
+Verifierat av mig, inte bara av Ox Alphas bevis: 519 gröna tester
+(516 tidigare + 3 nya kontraktstester), inklusive det riktiga
+end-to-end-testet av hela kognitiva cykeln
+(`test_conductor_run_cognitive_cycle_returns_valid_result`).
+
+**En verklig bugg hittad och fixad i Ox Alphas eget utkast innan
+körning:** testfixturen `LimbicFixture` hade fältet `beta`, men
+`GlobalWorkspace.competition_step()` läser `limbic.wta_beta` (verifierat
+mot `limbic/signals.py`) — hade kraschat vid första körning.
+
+**Öppet, medvetet inte gjort:** ledger-inkopplingen är platshållare,
+inte riktig; provenance-klass-regeln för evidenstaket (fynd 1 ovan) är
+identifierad, inte byggd; historisk `bridge_finder`/`axon_growth_cone`-
+data är inte granskad för samma kontamineringssignatur.
+
+Inget pushat till `origin/main` än — väntar på explicit "kör" för push,
+i linje med tidigare mönster samma kväll (commit lokalt är inom "fria
+händer", push är en delad/synlig handling).
+
 ## 2026-08-25T19:31Z — Historisk kontaminering från evidens-cirkulariteten sanerad (45 relationer)
 
 Uppföljning på 15:00Z-fixen. Ett tredje modellperspektiv (Björn:

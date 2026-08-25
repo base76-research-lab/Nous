@@ -25,6 +25,7 @@ class _ToolFunction:
 @dataclass
 class _ToolCall:
     function: _ToolFunction
+    id: str = ""
 
 
 class _Message:
@@ -37,6 +38,7 @@ class _Message:
         if self.tool_calls:
             out["tool_calls"] = [
                 {
+                    "id": tc.id,
                     "type": "function",
                     "function": {
                         "name": tc.function.name,
@@ -416,7 +418,10 @@ class AsyncOllama:
                             except Exception:
                                 pass
                         tool_calls.append(
-                            _ToolCall(_ToolFunction(name=tc.function.name, arguments=args))
+                            _ToolCall(
+                                _ToolFunction(name=tc.function.name, arguments=args),
+                                id=getattr(tc, "id", "") or "",
+                            )
                         )
                     usage = _extract_ollama_usage(resp)
                     usage["cost_usd"] = estimate_cost_usd(
@@ -597,6 +602,8 @@ class AsyncOllama:
                             args = json.loads(args_raw)
                         except Exception:
                             args = args_raw
-                    tool_calls.append(_ToolCall(_ToolFunction(name=name, arguments=args)))
+                    tool_calls.append(
+                        _ToolCall(_ToolFunction(name=name, arguments=args), id=tc.get("id", ""))
+                    )
 
                 return _Response(_Message(content=content, tool_calls=tool_calls), usage=usage)
