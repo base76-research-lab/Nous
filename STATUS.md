@@ -1,5 +1,60 @@
 # Nous — status
 
+## CHECKPOINT `2026-08-25T09:05Z` — tag `checkpoint-2026-08-25-frontier-cleanup`, commit `007047b`
+
+Björn bad om en summering med tidsstämpel och ID innan sessionen
+fortsätter — se git-taggen ovan för exakt återvändspunkt
+(`git checkout checkpoint-2026-08-25-frontier-cleanup`).
+
+**Startpunkt:** ChatGPT:s repo-validering av `base76-research-lab/Nous`
+(P0–P3-lista) + frågan "hur blir Nous hela systemets hjärna, över både
+Computer och IIC?"
+
+**Gjort, i ordning (12 commits, `565228a`..`007047b`):**
+1. Strategidokument (`FRONTIER_PLAN.md` m.fl.) avpublicerade från det
+   publika repot.
+2. Confidence/evidence-terminologin omskriven — `source_support`,
+   `provenance_class`, `confidence_breakdown`; domain_bootstrap-cirkeln
+   stängd med ett evidens-tak.
+3. Ablation-scaffolding byggd (`eval/ablation.py`) — fem-stegs
+   ablationstrappa, riktig vector-RAG-baseline, riktig long-context-
+   baseline.
+4. **Säkerhetsfynd + fix:** `research_plg` saknades i `SENSITIVE_SCOPES`
+   — 14 846 av 15 037 koncept (98,7%) var oskyddade mot att skickas till
+   Cerebras/OpenRouter via bisociation. Backfillat och verifierat live
+   (`/api/context` för "PLG" gick från fullt kontextblock till tomt).
+5. Occipital-regionen fick riktigt källmaterial (PCPE, bekräftat av
+   Björn).
+6. Agent-pipelinens `_touches_research()` delar nu mekanism med grafens
+   scope (en tidigare felaktig anteckning om att "PLG" inte skulle
+   fångas rättad — `.env` hade redan täckt det, problemet var
+   strukturellt: en lista som glider ur synk, inte det specifika
+   exemplet).
+7. `nous-agency-model.md` (IIC, inte publikt repo) — designdokument för
+   handlingslagret, Axel 1 implementerad, Axel 2/3 fortfarande bara
+   förslag.
+8. Genererare+domare-par för sweepen verifierat mot riktiga NVIDIA-API:et
+   (inte antaget): `nemotron-3.5-lightning-30b-a3b` +
+   `nemotron-3-ultra-550b-a55b`. Två kandidater föll bort i test.
+9. Första riktiga sweep-försöket (n=40) hängde sig — CLOSE_WAIT-buggen
+   från 2026-08-24 reproducerades trots gårdagens "fix". Processen
+   dödad, ingen resultatfil skriven. `keepalive_expiry`-fix insatt.
+10. **Pågående just nu:** stresstest av fixen (10 sekventiella riktiga
+    anrop) visar INTE hängningsbuggen längre (inga CLOSE_WAIT, rena
+    anslutningar) — men avslöjade ett separat, nytt problem: den valda
+    "nano"-modellen (`llama-3.1-nemotron-nano-8b-v1`, endast använd i
+    detta stresstest, inte i sweep-planen) timeoutar konsekvent på ~30s.
+    Ej sweepens faktiska modeller — inget som blockerar den riktiga
+    körningen.
+11. Obuffrad loggning + tydligare felmeddelanden (`_describe_exception`)
+    — direkt orsakad av att jag inte kunde se om sweepen hade hängt sig
+    eller bara jobbade långsamt.
+12. Städat bort ~600 MB temporära test-snapshots ur `eval/results/`.
+
+**Ej gjort än:** checkpointing/resume för långa sweepar (efterfrågat,
+inte byggt), begränsad parallellitet, extern vakthund. Den riktiga
+n=40-sweepen är inte körd färdigt — startpunkten för nästa steg.
+
 **2026-08-25, genererare+domare-par för den riktiga sweepen verifierat mot
 NVIDIA:s API på riktigt, inte gissat:**
 
