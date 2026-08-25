@@ -1,5 +1,55 @@
 # Nous — status
 
+## 2026-08-25T15:00Z — Kritisk fix: aktivering/NightRun kunde höja evidence_score utan nytt bevis
+
+Björn: "skickar en dialog till codex om hur ni tillsammans bäst uppnår
+mina mål... målet är en plan" + "det är viktigt att ni debatterar,
+ifrågasätter och konkurrerar för att få fram vem som har rätt." Ett
+tredje, öppet relay:codex-samtal (2 rundor) om Nous hela riktning, inte
+en avgränsad buggfråga. Full dialog: `IIC/04_SYSTEM/agents/
+nous-codex-dialogue-2026-08-25-evidence-circularity.md`.
+
+**Det viktigaste fyndet, verifierat av mig oberoende innan det
+accepterades:** `activate_relation()` (aktiveras vid varje query-träff)
+höjde `evidence_score` — samma fält `source_support`/
+`parametric_hypothesis`-arbetet tidigare samma kväll bygger på — utan
+något nytt oberoende bevis. En ren Hebbisk gissning kunde klättra över
+`is_strong`-gränsen (0.75) genom 50 upprepade återhämtningar, noll ny
+verifiering. Läste `_bump_evidence()` direkt för att bekräfta: skriver
+rakt in i `relation.evidence_score`-kolumnen.
+
+**Blast radius-kollen gav en viktig nyans:** `activate_relation()` och
+`confirm_relation()` hade NOLL faktiska anropare — död kod, ofarlig
+hittills. Den RIKTIGA, LIVE buggen satt i `run_evidence_pass()`
+(NightRun-anropad): SQL:ens `WHERE`-sats begränsade redan raderna till
+mitten-bandet, vilket gjorde promote/demote-grenarna i loopen
+matematiskt onåbara — varje vald rad fick alltid samma ovillkorliga
+`+0.01` per cykel, oavsett nytt bevis. Verifierat genom att läsa hela
+funktionskroppen själv, inte antaget.
+
+**Fixat (`src/nouse/daemon/evidence.py`):**
+- `activate_relation()`: `_bump_evidence()`-anropet borttaget (höjer nu
+  bara `strength`/salience, aldrig `evidence_score`). Samtidigt fixad:
+  ett trasigt `rel_type`-argument (refererat i kroppen, saknades i
+  signaturen — tyst `NameError` fångad av ett bart `except`).
+- `run_evidence_pass()`: gjord till en avsiktlig no-op (fail-closed) —
+  ingen automatisk promotion förrän en riktig bekräftelse-händelse-logg
+  finns. Gammal, död kod RADERAD, inte kvarlämnad/omdöpt.
+- 4 nya tester (`tests/daemon/test_evidence.py`). 516 gröna, 0 failed.
+
+**Medvetet uppskjutet (Tier 2):** Codex sex-vägs-proveniens-taxonomi
+(källobservation/modelltolkning/parametrisk hypotes/strukturellt
+härledd hypotes/användarpåstående/verifierad-korroborerad) —
+bekräftat kompatibel med dagens fix, inte byggd. Bisociation- och
+Global Workspace-kritiken (citerad med radnummer, INTE oberoende
+verifierad av mig på samma sätt) — trovärdig, egen framtida fråga.
+
+**Den avgörande frågan och svaret:** ska `source_support` vara omutabel
+under användning/topologi/modell-samstämmighet? Codex: entydigt ja.
+Mitt svar efter egen verifiering: håller med — det är inte en
+stilfråga, det är exakt garantin `parametric_hypothesis`-arbetet redan
+skulle ge, som läckte igenom en väg ingen stängt.
+
 ## 2026-08-25T14:37Z — Codex-dialogens tre buggar fixade + kod-brus-filter, wiki omgenererad (commit 9ccc802)
 
 Björn: "bygg det och åtgärda problemen som codex hittade; du kan be

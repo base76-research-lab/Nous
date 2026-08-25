@@ -12,10 +12,21 @@ Bayesian-inspired heuristic model:
     P(true | k bekräftningar, m motstridigheter) ∝ prior × LR^k × (1-LR)^m
   LR = likelihood ratio (satt till 3.0 för bekräftning, 0.4 för motbevisning)
 
-Aktiveringsackumulator (P2 — evidenspromotion):
-  - activate_relation(): varje aktivering (query-träff, bisociation) → w+=0.02, u-=0.01
-  - confirm_relation(): ny källa bekräftar → ev+=0.05
-  - run_evidence_pass(): NightRun-granskning av kanter 0.35 < ev < 0.65
+Aktiveringsackumulator:
+  - activate_relation(): varje aktivering (query-träff, bisociation) → w+=0.02.
+    Rör ALDRIG evidence_score — se fix 2026-08-25 nedan.
+  - confirm_relation(): avsedd för bekräftelse från en NY källa, men har
+    ingen anropare i repot och ingen faktisk källidentitet/deduplicering
+    än — namnet är inte ännu en verkställd epistemisk gräns, bara en
+    avsikt. Lämnad oansluten tills en riktig confirmation-identitet finns.
+  - run_evidence_pass(): AVSTÄNGD 2026-08-25 (verifierad relay:codex-
+    dialog, se nous-codex-dialogue-2026-08-25-evidence-circularity.md).
+    Den gamla SQL-WHERE-satsen (0.35 < ev < 0.65) gjorde promote/demote-
+    grenarna i loopen matematiskt onåbara — varje vald rad fick samma
+    ovillkorliga +0.01 varje NightRun-cykel, oavsett om något nytt
+    bevismaterial någonsin tillkom. "Överlevde till nästa cykel" blev
+    de facto "sannare". Stängd fail-closed tills en riktig
+    bekräftelse-händelse-logg finns (Tier 2, inte byggd).
   - measure_crystallization(): kristalliseringsgrad + evidenskvalitet
 """
 from __future__ import annotations
@@ -191,8 +202,7 @@ CRYSTAL_STRENGTH_FLOOR   = 0.55      # w > denna → kristalliserad
 EVIDENCE_PROMOTE_FLOOR   = 0.65      # ev > denna → stark/validerad
 EVIDENCE_DEMOTE_CEILING  = 0.35      # ev < denna → svag/hypotes
 CONFIRMATION_DELTA        = 0.05     # ev-ökning per bekräftelse
-ACTIVATION_W_DELTA        = 0.02     # styrkeökning per aktivering
-ACTIVATION_EV_DELTA       = 0.01     # ev-ökning per aktivering
+ACTIVATION_W_DELTA        = 0.02     # styrkeökning per aktivering (salience, ALDRIG evidence)
 EVIDENCE_CAP              = 1.0
 STRENGTH_CAP              = 3.5
 
@@ -222,18 +232,27 @@ def activate_relation(
     src: str,
     tgt: str,
     *,
+    rel_type: str | None = None,
     source: str = "query",
 ) -> bool:
     """
     Styrk en relation vid aktivering (query-träff, bisociation, etc.).
-    w_delta = +0.02 (Hebbisk förstärkning)
-    ev_delta = +0.01 (liten evidensboost)
+    w_delta = +0.02 (Hebbisk förstärkning/salience — ALDRIG evidence_score).
+
+    Fixat 2026-08-25 (verifierad relay:codex-dialog): den tidigare
+    versionen anropade även _bump_evidence(), vilket lät ren aktivering
+    — bara att bli hittad av en fråga — höja samma evidence_score-fält
+    som source_support/parametric_hypothesis bygger på. En relation som
+    aldrig fått nytt oberoende bevis kunde ändå klättra över is_strong-
+    gränsen (0.75) genom upprepad återhämtning. Aktivering får nu bara
+    påverka salience (strength), aldrig sanningshalt (evidence).
+    Referenskoll INNAN denna fix: noll faktiska anropare av den här
+    funktionen fanns i repot — bugg utan verklig skada ännu, fixad
+    innan den fick en.
     """
     try:
         field.strengthen(src, tgt, delta=ACTIVATION_W_DELTA,
                          rel_type=rel_type, ceiling=STRENGTH_CAP)
-        _bump_evidence(field, src, tgt, delta=ACTIVATION_EV_DELTA,
-                       rel_type=rel_type)
         _log.debug("Aktiverade: %s→%s (källa=%s)", src, tgt, source)
         return True
     except Exception as e:
@@ -274,56 +293,30 @@ def run_evidence_pass(
     max_items: int = 500,
 ) -> AccumulationResult:
     """
-    NightRun evidens-pass: granska kanter med 0.35 < ev < 0.65.
+    Periodisk evidens-underhållspass. AVSIKTLIGT icke-muterande sedan
+    2026-08-25 (verifierad relay:codex-dialog, se
+    nous-codex-dialogue-2026-08-25-evidence-circularity.md).
 
-    För varje sådan relation:
-      - ev >= 0.65: promovisera (ev += 0.05)
-      - ev < 0.35: demovera (ev -= 0.05)
-      - annars: liten boost (ev += 0.01)
+    Den gamla implementationen läste rader där EVIDENCE_DEMOTE_CEILING <
+    ev < EVIDENCE_PROMOTE_FLOOR redan i SQL-WHERE-satsen, vilket gjorde
+    promote-grenen (ev >= PROMOTE_FLOOR) och demote-grenen
+    (ev < DEMOTE_CEILING) i loopen matematiskt onåbara — verifierat
+    genom att läsa hela den gamla funktionskroppen, inte antaget. Varje
+    vald rad tog alltid samma tredje gren (+0.01), oavsett något nytt
+    bevis någonsin tillkommit. Given att NightRun kör detta upprepat
+    drev det gradvis relationer över is_strong-gränsen enbart genom att
+    "överleva till nästa cykel".
+
+    Schemat saknar idag en riktig bekräftelse-händelse-identitet för att
+    ärligt skilja "nytt oberoende bevis" från "samma data sedd igen" —
+    så rätt beteende tills den infrastrukturen finns (Tier 2, inte
+    byggd) är att inte alls promovera automatiskt, inte att gissa.
     """
-    result = AccumulationResult()
-
-    try:
-        rows = field._sql.execute(
-            "SELECT src, type, tgt, evidence_score FROM relation "
-            "WHERE evidence_score > ? AND evidence_score < ? "
-            "ORDER BY evidence_score DESC LIMIT ?",
-            (EVIDENCE_DEMOTE_CEILING, EVIDENCE_PROMOTE_FLOOR, max_items),
-        ).fetchall()
-    except Exception as e:
-        _log.warning("Evidence pass: kunde inte hämta kandidater: %s", e)
-        return result
-
-    for row in rows:
-        src = row["src"]
-        tgt = row["tgt"]
-        rel_type = row.get("type") or row.get("rel_type")
-        old_ev = float(row.get("evidence_score", 0.5) or 0.5)
-        old_tier = _tier(old_ev)
-
-        if old_ev >= EVIDENCE_PROMOTE_FLOOR:
-            new_ev = min(EVIDENCE_CAP, old_ev + CONFIRMATION_DELTA)
-        elif old_ev < EVIDENCE_DEMOTE_CEILING:
-            new_ev = max(0.0, old_ev - CONFIRMATION_DELTA)
-        else:
-            new_ev = min(EVIDENCE_CAP, old_ev + 0.01)
-
-        new_tier = _tier(new_ev)
-        _set_evidence(field, src, tgt, new_ev, rel_type=rel_type)
-
-        if new_tier != old_tier:
-            if new_tier > old_tier:
-                result.promoted += 1
-            else:
-                result.demoted += 1
-
-        result.activated += 1
-
     _log.info(
-        "Evidence pass: granskade=%d promoted=%d demoted=%d",
-        result.activated, result.promoted, result.demoted,
+        "Evidence pass: automatisk promotion avstängd — kräver nytt, "
+        "oberoende identifierbart bevis (inte byggt än)"
     )
-    return result
+    return AccumulationResult()
 
 
 def measure_crystallization(field) -> CrystallizationMetrics:
