@@ -113,7 +113,39 @@ def _looks_like_large_project(text: str) -> bool:
 
 def _touches_research(text: str) -> bool:
     t = text.lower()
-    return any(marker in t for marker in _research_markers())
+    if any(marker in t for marker in _research_markers()):
+        return True
+    return _touches_research_by_scope(text)
+
+
+def _touches_research_by_scope(text: str) -> bool:
+    """2026-08-25 (see IIC/04_SYSTEM/agents/nous-agency-model.md, Axel 1):
+    the marker list above is a manually maintained snapshot
+    (NOUSE_RESEARCH_LOCAL_MARKERS) — real and already reasonably populated
+    (it already lists "plg" etc.), but it silently drifts out of sync as
+    new research topics/papers appear. scope_from_path() classifies new
+    IIC content automatically, with no list to maintain — reuse that exact
+    mechanism (same pattern-matching style research-guard/AGENT.md already
+    says this check should follow) instead of growing a second,
+    separately-maintained keyword list.
+
+    scope_from_path() only does string pattern-matching (no filesystem
+    access), so it is safe to call on arbitrary request text, not just
+    real paths — this catches a request that mentions an IIC path
+    directly, even one not in the curated marker list. It intentionally
+    checks only research_plg/iic_general, not the full SENSITIVE_SCOPES
+    set — personal_health/user_model/computer_general are governed by
+    other rules (workspace scoping, not this one), and folding them in
+    here would over-trigger hard rule 1 for content it was never about.
+
+    Does NOT yet cover "known project names from 01_PROJECTS/*" per
+    research-guard/AGENT.md's documented intent — that needs real file-
+    path resolution earlier in the pipeline (routing_decision has no
+    structured path field today, only free-text "entities"), which is a
+    separate, larger change, deliberately not bundled into this one."""
+    from nouse.daemon.sources import scope_from_path
+
+    return scope_from_path(Path(text)) in {"research_plg", "iic_general"}
 
 
 def _strip_json_fence(text: str) -> str:

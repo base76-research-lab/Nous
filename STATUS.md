@@ -1,5 +1,26 @@
 # Nous — status
 
+**2026-08-25, agent-pipelinens research-local-koll delar nu mekanism med
+grafens scope (Axel 1, IIC/04_SYSTEM/agents/nous-agency-model.md):**
+
+`_touches_research()` i `agent_system/pipeline.py` anropade tidigare bara
+en manuellt underhållen nyckelordslista (`.env`s
+`NOUSE_RESEARCH_LOCAL_MARKERS` — redan välfylld, inklusive "plg", en
+tidigare notering om att PLG inte skulle fångas var fel och rättad i
+IIC-dokumentet). Problemet var strukturellt: listan glider ur synk när
+nya forskningsämnen tillkommer. Anropar nu även `scope_from_path()`
+(samma funktion som skyddar grafen) direkt på request-texten, som ett
+andra oberoende villkor — fångar `research_plg`/`iic_general` specifikt,
+inte hela `SENSITIVE_SCOPES` (personal_health/user_model/computer_general
+styrs av andra regler). 5 nya tester
+(`tests/agent_system/test_pipeline_research_guard.py`), 463 passed totalt.
+`research-guard/AGENT.md` uppdaterad i samma pass så dokumentation och
+kod stämmer överens.
+
+Medvetet kvar: matchning mot projektnamn i `01_PROJECTS/*` kräver riktig
+path-resolution i stage 01/02 (`routing_decision.json` har bara fri text
+idag) — separat, större ändring.
+
 **2026-08-25, scope-backfill applicerad och verifierad live:**
 
 `scripts/backfill_concept_scope.py --apply` kört mot produktionsgrafen.
