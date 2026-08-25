@@ -3079,7 +3079,8 @@ async def post_context(req: ContextRequest):
     field = get_field()
     q = str(req.query or "").strip()[:300]
     if not q:
-        return {"ok": False, "context_block": "", "confidence": 0.0, "nodes": []}
+        return {"ok": False, "context_block": "", "confidence": 0.0,
+                "retrieval_salience": 0.0, "nodes": []}
 
     try:
         # Hämta topp-K noder via enkel label-sökning
@@ -3093,7 +3094,8 @@ async def post_context(req: ContextRequest):
         ][:req.top_k]
 
         if not hits:
-            return {"ok": True, "context_block": "", "confidence": 0.0, "nodes": []}
+            return {"ok": True, "context_block": "", "confidence": 0.0,
+                    "retrieval_salience": 0.0, "nodes": []}
 
         # Bygg kontext-block
         lines = []
@@ -3106,18 +3108,25 @@ async def post_context(req: ContextRequest):
             )
             lines.append(f"• {name} [{domain}]" + (f": {rel_str}" if rel_str else ""))
 
-        confidence = min(1.0, len(hits) / max(req.top_k, 1))
+        # Detta är en retrieval-täckningskvot (träffar / efterfrågat top_k),
+        # ingen evidensvärdering av innehållet — döpt om "confidence" (kvar
+        # som alias för bakåtkompat) till "retrieval_salience" för att inte
+        # blandas ihop med den evidensbaserade epistemic_confidence i
+        # NouseBrain.query()/QueryResult. Se docs/EVIDENCE_MODEL.md.
+        retrieval_salience = min(1.0, len(hits) / max(req.top_k, 1))
         context_block = "\n".join(lines)
 
         return {
             "ok": True,
             "context_block": context_block,
-            "confidence": round(confidence, 2),
+            "confidence": round(retrieval_salience, 2),
+            "retrieval_salience": round(retrieval_salience, 2),
             "nodes": [n.get("name") for n in hits],
         }
     except Exception as exc:
         log.warning("api/context fel: %s", exc)
-        return {"ok": False, "context_block": "", "confidence": 0.0, "nodes": []}
+        return {"ok": False, "context_block": "", "confidence": 0.0,
+                "retrieval_salience": 0.0, "nodes": []}
 
 
 def _queue_ingest_fallback(text: str, source: str, reason: str) -> str:

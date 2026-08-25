@@ -28,10 +28,22 @@ class Axiom:
     src: str
     rel: str
     tgt: str
-    evidence: float          # 0.0–1.0, from evidence_score
+    evidence: float          # 0.0–1.0 — legacy blended field, kept for
+                              # backward compat. Equals source_support when
+                              # the relation has one, otherwise a Hebbian-
+                              # derived estimate. New code should prefer the
+                              # two fields below instead of relying on which
+                              # one this number silently came from.
     flagged: bool            # assumption_flag — pending deep review
     why: str = ""            # motivation / provenance
-    strength: float = 0.5   # Hebbian strength
+    strength: float = 0.5    # hebbian_strength — raw traversal-based strength
+    source_support: float | None = None  # raw evidence_score, if the
+        # relation was ever given one explicitly. None means `evidence`
+        # above is purely a retrieval-strength estimate, not source-backed.
+    provenance_class: str = "external_source"  # "external_source" | "parametric_hypothesis"
+        # "parametric_hypothesis": stored via domain_bootstrap() — an LLM's
+        # own parametric-knowledge guess, not independently verified. See
+        # docs/EVIDENCE_MODEL.md. Never trust this as grounding on its own.
 
     @property
     def is_strong(self) -> bool:
@@ -65,9 +77,25 @@ class QueryResult:
     query: str
     concepts: list[ConceptProfile]
     axioms: list[Axiom]
-    confidence: float          # mean evidence of strong axioms, or 0.0
+    confidence: float          # epistemic_confidence: mean evidence of
+                                # strong axioms, or 0.0. Kept as `confidence`
+                                # for backward compat with existing callers.
     domains: list[str]
     has_knowledge: bool
+    confidence_breakdown: dict = field(default_factory=dict)
+        # Decomposition of `confidence` per docs/EVIDENCE_MODEL.md:
+        #   source_backed_fraction   — share of strong axioms with a real
+        #                              source_support (not Hebbian-estimated)
+        #   mean_source_support      — mean evidence_score over those
+        #   mean_hebbian_strength    — mean raw strength over strong axioms
+        #   parametric_hypothesis_fraction — share of ALL returned axioms
+        #                              (not just strong) sourced from
+        #                              domain_bootstrap(). A caller relying
+        #                              on this result as external grounding
+        #                              should treat a high fraction here as
+        #                              a reason to distrust `confidence`.
+        # Empty dict for results built without going through query()
+        # (e.g. the modelsessions replay path) — absence is not zero.
 
     def context_block(self, max_axioms: int = 15) -> str:
         """Format as LLM-ready context string."""
@@ -254,12 +282,24 @@ def _rows_to_axioms(src_name: str, rows: list[dict]) -> list[Axiom]:
 
         if raw_ev is not None:
             ev = float(raw_ev)
+            source_support = ev
         else:
             # Normalisera Hebbian strength → [0.45, 0.95]
             # strength 1.0 = aldrig traverserat extra = 0.45
             # strength 2.0 = ~20 traversals = 0.72
             # strength 3.0+ = mycket traverserat = 0.90+
+            # source_support stannar None: detta är en retrieval-baserad
+            # gissning, inte en källbelagd evidence_score. Skiljer sig
+            # explicit från `ev`/`evidence` ovan så en anropare kan se
+            # vilket av de två fallen som faktiskt gäller.
             ev = min(0.95, 0.45 + (strength - 1.0) * 0.25)
+            source_support = None
+
+        source_tag = str(r.get("source_tag") or "auto")
+        provenance_class = (
+            "parametric_hypothesis" if source_tag == "domain_bootstrap"
+            else "external_source"
+        )
 
         out.append(Axiom(
             src=str(r.get("source") or src_name),
@@ -269,8 +309,35 @@ def _rows_to_axioms(src_name: str, rows: list[dict]) -> list[Axiom]:
             flagged=flagged,
             why=str(r.get("why") or ""),
             strength=strength,
+            source_support=source_support,
+            provenance_class=provenance_class,
         ))
     return out
+
+
+def _compute_confidence_breakdown(all_axioms: list[Axiom], strong: list[Axiom]) -> dict:
+    """Decompose QueryResult.confidence per docs/EVIDENCE_MODEL.md.
+
+    `confidence` itself stays a single number for backward compat; this is
+    the detail an eval harness or a careful caller needs to tell "confident
+    because well-sourced" apart from "confident because heavily retrieved"
+    or "confident-looking but actually the model's own bootstrapped guess".
+    """
+    source_backed = [a for a in strong if a.source_support is not None]
+    return {
+        "source_backed_fraction": (len(source_backed) / len(strong)) if strong else 0.0,
+        "mean_source_support": (
+            sum(a.source_support for a in source_backed) / len(source_backed)
+            if source_backed else 0.0
+        ),
+        "mean_hebbian_strength": (
+            sum(a.strength for a in strong) / len(strong) if strong else 0.0
+        ),
+        "parametric_hypothesis_fraction": (
+            sum(1 for a in all_axioms if a.provenance_class == "parametric_hypothesis")
+            / len(all_axioms) if all_axioms else 0.0
+        ),
+    }
 
 
 # ── NouseBrain ────────────────────────────────────────────────────────────────
@@ -385,6 +452,7 @@ class NouseBrain:
         all_axioms.sort(key=lambda a: -a.evidence)
         strong = [a for a in all_axioms if a.is_strong]
         confidence = (sum(a.evidence for a in strong) / len(strong)) if strong else 0.0
+        confidence_breakdown = _compute_confidence_breakdown(all_axioms, strong)
 
         return QueryResult(
             query=question,
@@ -393,6 +461,7 @@ class NouseBrain:
             confidence=confidence,
             domains=sorted(domains),
             has_knowledge=bool(profiles),
+            confidence_breakdown=confidence_breakdown,
         )
 
     def context_block(self, query: str, top_k: int = 6, max_axioms: int = 15) -> str:

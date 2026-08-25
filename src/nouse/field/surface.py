@@ -26,6 +26,20 @@ from nouse.config.paths import path_from_env
 
 _STRONG_FACT_MIN_SCORE = float(os.getenv("NOUSE_STRONG_FACT_MIN_SCORE", "0.65"))
 
+# Reviewer-flaggad cirkularitetsrisk (2026-08-25, se docs/EVIDENCE_MODEL.md):
+# domain_bootstrap() lagrar en LLM:s egen parametriska gissning som en
+# relation. Om den relationen sedan kan nå samma evidence_score som en
+# källbelagd fakta blir loopen "LLM säger X → Nous lagrar X → Nous ger X
+# tillbaka som grundning" osynlig. add_relation() klampar därför alltid
+# evidence_score för source_tag="domain_bootstrap" under is_strong-gränsen
+# (0.75, se inject.py::Axiom.is_strong) — en parametrisk hypotes kan aldrig
+# själv nå "validerad"-status vid skrivning, oavsett vad anroparen skickar
+# in. Promotion till hög evidens kräver en explicit, icke-bootstrap
+# add_relation()/supersede_relation()-anrop med en annan source_tag.
+PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING = float(
+    os.getenv("NOUSE_PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING", "0.70")
+)
+
 # ── Skopat minne (Fas 2 steg 5, 2026-08-23) ──────────────────────────────────
 # Google Memory Bank / Mem0-mönster: en formell gräns mellan källtyper i
 # stället för lösa domäntaggar. `domain` förblir fri ämnestaxonomi
@@ -215,6 +229,7 @@ class FieldSurface:
         self._migrate_concept_dormancy_column()
         self._migrate_concept_scope_column()
         self._migrate_relation_multitimescale_columns()
+        self._migrate_relation_source_tag_column()
 
     def _migrate_concept_scope_column(self) -> None:
         """Fas 2 steg 5 (2026-08-23): formell källgräns, se KNOWN_SCOPES ovan."""
@@ -289,6 +304,26 @@ class FieldSurface:
             )
         self._sql.commit()
 
+    def _migrate_relation_source_tag_column(self) -> None:
+        """2026-08-25 (confidence/evidence terminology cleanup, se
+        docs/EVIDENCE_MODEL.md): `source_tag` fanns tidigare bara som ett
+        transient add_relation()-argument som skrevs till concept.source —
+        och concept.source är INSERT OR IGNORE, alltså bara sant för den
+        allra första relationen som rörde det konceptet. Två olika
+        relationer på samma koncept (en riktig, en domain_bootstrap-gissad)
+        kunde därför inte skiljas åt i efterhand. Lägger provenienstaggen
+        direkt på relation-raden — det atomära som faktiskt returneras som
+        Axiom — så `_rows_to_axioms()` kan sätta `provenance_class` korrekt
+        även efter en daemon-omstart. Befintliga rader backfylls till
+        'auto' (okänd/legacy proveniens), aldrig 'domain_bootstrap' — vi
+        gissar inte i efterhand vilka gamla rader som kom från bootstrap."""
+        cur = self._sql.cursor()
+        existing = {row["name"] for row in cur.execute("PRAGMA table_info(relation)")}
+        if "source_tag" not in existing:
+            cur.execute("ALTER TABLE relation ADD COLUMN source_tag TEXT")
+            cur.execute("UPDATE relation SET source_tag = 'auto' WHERE source_tag IS NULL")
+        self._sql.commit()
+
     def _load_graph_into_networkx(self) -> None:
         G = self._G
         G.clear()
@@ -305,7 +340,8 @@ class FieldSurface:
                        scope=row["scope"] or DEFAULT_SCOPE)
         for row in cur.execute(
             "SELECT id, src, tgt, type, why, strength, created, "
-            "evidence_score, assumption_flag, valid_from, valid_until, derived_from FROM relation"
+            "evidence_score, assumption_flag, valid_from, valid_until, derived_from, "
+            "source_tag FROM relation"
         ):
             if not row["src"] or not row["tgt"]:
                 continue
@@ -317,7 +353,8 @@ class FieldSurface:
                        assumption_flag=bool(row["assumption_flag"]),
                        valid_from=row["valid_from"] or row["created"],
                        valid_until=row["valid_until"],
-                       derived_from=row["derived_from"])
+                       derived_from=row["derived_from"],
+                       source_tag=row["source_tag"] or "auto")
 
     def _nx_add_concept(self, name, domain, granularity, source, created,
                         dormant_since=None, scope=None):
@@ -327,13 +364,14 @@ class FieldSurface:
 
     def _nx_add_relation(self, row_id, src, tgt, rel_type, why, strength,
                          created, evidence_score, assumption_flag,
-                         valid_from=None, valid_until=None, derived_from=None):
+                         valid_from=None, valid_until=None, derived_from=None,
+                         source_tag=None):
         self._G.add_edge(src, tgt, key=row_id, id=row_id,
                          type=rel_type, why=why, strength=strength,
                          created=created, evidence_score=evidence_score,
                          assumption_flag=assumption_flag,
                          valid_from=valid_from or created, valid_until=valid_until,
-                         derived_from=derived_from)
+                         derived_from=derived_from, source_tag=source_tag or "auto")
 
     # ── Write operations ─────────────────────────────────────────────────────
 
@@ -415,6 +453,8 @@ class FieldSurface:
         why_clean = (why or "").strip()
         ev = float(evidence_score) if evidence_score is not None else (
             min(1.0, max(0.0, float(strength))) if why_clean else 0.35)
+        if source_tag == "domain_bootstrap":
+            ev = min(ev, PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING)
         af = bool(assumption_flag) if assumption_flag is not None else (not bool(why_clean))
         vf = valid_from or ts
         df = int(derived_from) if derived_from is not None else None
@@ -422,13 +462,15 @@ class FieldSurface:
         with self._lock:
             cur = self._sql.execute(
                 "INSERT INTO relation (src, tgt, type, why, strength, created, "
-                "evidence_score, assumption_flag, valid_from, valid_until, derived_from) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (src, tgt, rel_type, why, strength, ts, ev, int(af), vf, valid_until, df))
+                "evidence_score, assumption_flag, valid_from, valid_until, derived_from, "
+                "source_tag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (src, tgt, rel_type, why, strength, ts, ev, int(af), vf, valid_until, df,
+                 source_tag))
             self._sql.commit()
             row_id = cur.lastrowid
         self._nx_add_relation(row_id, src, tgt, rel_type, why, strength, ts, ev, af,
-                              valid_from=vf, valid_until=valid_until, derived_from=df)
+                              valid_from=vf, valid_until=valid_until, derived_from=df,
+                              source_tag=source_tag)
         self._enrich_nodes_from_relation(src, rel_type, tgt, why, source_tag)
         return row_id
 
@@ -1164,6 +1206,7 @@ class FieldSurface:
                 "why": data.get("why"), "strength": data.get("strength"),
                 "evidence_score": data.get("evidence_score"),
                 "assumption_flag": data.get("assumption_flag"),
+                "source_tag": data.get("source_tag", "auto"),
             })
         _queue_indications(name, rows)
         return rows
@@ -1178,6 +1221,7 @@ class FieldSurface:
                 "why": data.get("why"), "strength": data.get("strength"),
                 "evidence_score": data.get("evidence_score"),
                 "assumption_flag": data.get("assumption_flag"),
+                "source_tag": data.get("source_tag", "auto"),
             })
         return rows
 

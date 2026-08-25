@@ -109,6 +109,11 @@ contradiction state, and temporal relations improve agent reliability under
 controlled conditions. New claims should be based on complete runs with fixed
 commits, datasets, prompts, models, raw outputs, and an independent scorer.
 
+The single `confidence` number above is a mean over graph evidence, not a
+calibrated probability — see [docs/EVIDENCE_MODEL.md](docs/EVIDENCE_MODEL.md)
+for what it does and does not mean, and how model-generated hypotheses are
+kept separate from source-backed facts.
+
 ---
 
 ## What You Get

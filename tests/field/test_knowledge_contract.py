@@ -124,3 +124,38 @@ def test_knowledge_audit_exposes_drift_metrics(tmp_path):
     assert 0.0 <= drift["confidence_volatility"] <= 1.0
     assert 0.0 <= drift["contradiction_rate"] <= 1.0
     assert drift["contradictory_triples"] >= 1
+
+
+def test_domain_bootstrap_relations_are_capped_below_strong_threshold(tmp_path):
+    """A domain_bootstrap-tagged relation is an LLM's own parametric guess
+    (see docs/EVIDENCE_MODEL.md). It must never be able to claim "strong"
+    (>=0.75, see inject.py::Axiom.is_strong) evidence at write time, even if
+    the caller passes a high evidence_score — otherwise repeated bootstrap
+    calls could silently promote an unverified guess to validated-looking
+    status."""
+    field = _mk_field(tmp_path)
+    field.add_relation(
+        "concept_a", "relates_to", "concept_b",
+        why="bootstrapped from model weights", evidence_score=0.99,
+        source_tag="domain_bootstrap",
+    )
+
+    rows = field.out_relations("concept_a")
+    assert rows[0]["evidence_score"] <= 0.70
+    assert rows[0]["source_tag"] == "domain_bootstrap"
+
+
+def test_source_tag_survives_reload_from_sqlite(tmp_path):
+    """source_tag lives on the relation row itself (2026-08-25 migration),
+    not just transiently on the concept — a fresh FieldSurface pointed at
+    the same db must still be able to tell provenance apart per relation."""
+    db_path = tmp_path / "field.sqlite"
+    field = FieldSurface(db_path=db_path, read_only=False)
+    field.add_relation(
+        "concept_a", "relates_to", "concept_b",
+        why="explicit source", evidence_score=0.8, source_tag="verified_source",
+    )
+
+    reloaded = FieldSurface(db_path=db_path, read_only=False)
+    rows = reloaded.out_relations("concept_a")
+    assert rows[0]["source_tag"] == "verified_source"

@@ -85,6 +85,13 @@ class EscalationResult:
     confidence_before: float    # graf-konfidens innan escalation
     snippets: list[str] = field(default_factory=list)
     learned: bool = False       # True om ny fakta skrevs till grafen
+    contains_parametric_hypothesis: bool = False
+        # True om context_block innehåller minst ett axiom med
+        # provenance_class="parametric_hypothesis" — dvs. en LLM:s egen
+        # domain_bootstrap()-gissning, inte källbelagd kunskap. Se
+        # docs/EVIDENCE_MODEL.md. En anropare som injicerar context_block
+        # rakt in i en ny LLM-prompt bör inte redovisa den som verifierad
+        # grundning när det här är True.
 
 
 # ── L4: Domain bootstrap ─────────────────────────────────────────────────────
@@ -136,6 +143,13 @@ def _parse_bootstrap_response(text: str) -> list[tuple[str, str, str]]:
     return relations
 
 
+def _contains_parametric_hypothesis(graph_result) -> bool:
+    return any(
+        getattr(a, "provenance_class", "external_source") == "parametric_hypothesis"
+        for a in getattr(graph_result, "axioms", [])
+    )
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 async def escalate_query(
@@ -164,6 +178,7 @@ async def escalate_query(
             sources=[],
             escalated=False,
             confidence_before=conf,
+            contains_parametric_hypothesis=_contains_parametric_hypothesis(graph_result),
         )
 
     _log.info("Escalating '%s' (conf=%.2f < %.2f)", query[:60], conf, threshold)
@@ -183,6 +198,7 @@ async def escalate_query(
                     escalated=True,
                     confidence_before=conf,
                     learned=True,
+                    contains_parametric_hypothesis=_contains_parametric_hypothesis(graph_result),
                 )
 
     # Nivå 3: web-sök
@@ -209,6 +225,7 @@ async def escalate_query(
         confidence_before=conf,
         snippets=snippets,
         learned=learned,
+        contains_parametric_hypothesis=_contains_parametric_hypothesis(graph_result),
     )
 
 
