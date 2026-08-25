@@ -35,3 +35,7 @@ runs/
 logs/llm/
 logs/nous/
 stages/*/output/
+
+# Internal strategy/negotiation docs — not for the public repo (2026-08-25)
+/FRONTIER_PLAN.md
+/docs/FRONTIER_VISIBILITY_PLAN.md

@@ -1,5 +1,19 @@
 # Nous — status
 
+**2026-08-25, strategidokument avpublicerade:**
+
+- `FRONTIER_PLAN.md` och `docs/FRONTIER_VISIBILITY_PLAN.md` är borttagna ur
+  git (`git rm --cached`) och tillagda i `.gitignore`. Båda innehöll
+  förhandlingsstrategi och audience-/attention-mappning ("frontier-bolag
+  slåss om Nous", patent-resonemang) som en extern reviewer (ChatGPT,
+  repo-validering 2026-08-25) flaggade som olämpligt att exponera publikt —
+  en potentiell köpare eller arbetsgivare behöver inte se förhandlingsplanen.
+  Filerna finns kvar oförändrade lokalt, bara avpublicerade.
+- `docs/NOUS_STRATEGIC_DOCTRINE.md` och `docs/NOUS_NEXT_GENERATION_PLAN.md`
+  (fortsatt publika) nämner `FRONTIER_PLAN.md` som källdokument i löptext —
+  inga brutna länkar (ren textreferens, ingen hyperlänk), lämnade orörda.
+- Kvar: committa borttagningen.
+
 **2026-08-25, benchmark v1 protocol setup completed, awaiting review:**
 
 - Added `eval/benchmark_protocol.py` and wired it into
