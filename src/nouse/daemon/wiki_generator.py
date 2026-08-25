@@ -56,13 +56,26 @@ def slugify(name: str) -> str:
     return s.strip('-')
 
 
+def _safe_concept_limit(field: "FieldSurface", requested: int) -> int:
+    """get_concepts_with_metadata() defaults to limit=5000 and silently
+    truncates beyond that — harmless while the graph is small, a real
+    correctness bug once it isn't (verified: the live graph already has
+    20544 concepts, so a bare default here would silently drop ~75% of
+    them, not just be slow). Always floor the limit at the real count."""
+    try:
+        total = int(field.stats().get("concepts", 0))
+    except Exception:
+        total = 0
+    return max(requested, total)
+
+
 def render_wiki_page(field: "FieldSurface", name: str) -> str:
     """Builds the full Markdown text (frontmatter + body) for one concept."""
 
     # Linjär genomsökning — körs i en periodisk batch-cykel, inte en het väg,
     # så det finns ingen anledning att optimera/cacha den här uppslagningen.
     row = None
-    for c in field.get_concepts_with_metadata(limit=5000):
+    for c in field.get_concepts_with_metadata(limit=_safe_concept_limit(field, 5000)):
         if c.get("id") == name:
             row = c
             break
@@ -186,7 +199,7 @@ def generate_wiki_pages(field: "FieldSurface", *, limit: int = 5000) -> dict:
     total_concepts = 0
 
     try:
-        concepts_meta = field.get_concepts_with_metadata(limit=limit)
+        concepts_meta = field.get_concepts_with_metadata(limit=_safe_concept_limit(field, limit))
     except Exception:
         return {"generated": 0, "skipped": 0, "total_concepts": 0}
 
@@ -224,7 +237,7 @@ def generate_wiki_index(field: "FieldSurface", *, limit: int = 5000) -> dict:
     wiki_dir_path.mkdir(parents=True, exist_ok=True)
 
     try:
-        concepts_meta = field.get_concepts_with_metadata(limit=limit)
+        concepts_meta = field.get_concepts_with_metadata(limit=_safe_concept_limit(field, limit))
     except Exception:
         return {"indexed": 0}
 
