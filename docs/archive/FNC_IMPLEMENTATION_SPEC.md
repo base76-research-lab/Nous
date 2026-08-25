@@ -1,3 +1,5 @@
+> **SUPERSEDED, 2026-08-25.** Describes an early speculative architecture (a Rust/"Zulu DB" system at 10M+ node scale) that was never built. The actual implementation is SQLite WAL + NetworkX (see README.md, CHANGELOG.md). Kept for history, not current status.
+
 # FNC Implementation Specification
 ## For: brain-db-core / b76 / Nous
 **Date:** 2026-04-02 00:26

@@ -49,3 +49,12 @@ wiki/
 # Internal strategy/negotiation docs — not for the public repo (2026-08-25)
 /FRONTIER_PLAN.md
 /docs/FRONTIER_VISIBILITY_PLAN.md
+
+# Marketing/launch copy — the repo is a research project until the research
+# is right, not a product; this framing (unsubstantiated superiority claims,
+# fabricated numbers, launch-post copy) contradicts that (2026-08-25)
+/docs/WHY_NOT_NN_STORAGE.md
+/docs/NOUS_DIFFERENTIATION.md
+/docs/NOUS_PREDICTION_MODEL.md
+/docs/LAUNCH_PACK.md
+/docs/LINKEDIN_POST.md
