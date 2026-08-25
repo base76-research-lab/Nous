@@ -6,6 +6,7 @@ and writes static Markdown files. This module is read-only and never modifies th
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import re
 from datetime import datetime, timezone
@@ -179,14 +180,37 @@ def parse_revision_count_from_file(filepath: Path) -> int | None:
     return None
 
 
-def should_regenerate(field: "FieldSurface", name: str) -> bool:
-    """True om sidan saknas, eller om grafens revision_count gått om filens."""
-    wiki_path = wiki_dir() / f"{slugify(name)}.md"
+def should_regenerate(field: "FieldSurface", name: str, *, filename: str | None = None) -> bool:
+    """True om sidan saknas, eller om grafens revision_count gått om filens.
+
+    `filename` lets a caller that already resolved a collision-disambiguated
+    filename (see _disambiguated_filename) check the RIGHT path — without
+    it, two different names colliding on the same slugify() output would
+    each see the other's freshly-written file and wrongly conclude nothing
+    changed (verified: this silently dropped 2 of 3 same-slug concepts
+    before this parameter existed). Defaults to plain slugify(name) so
+    direct/standalone callers keep their existing behavior."""
+    wiki_path = wiki_dir() / f"{filename or slugify(name)}.md"
     current_rev_count = field.concept_knowledge(name)["revision_count"]
     file_rev_count = parse_revision_count_from_file(wiki_path)
     if file_rev_count is None:
         return True
     return current_rev_count > file_rev_count
+
+
+def _disambiguated_filename(name: str, used_slugs: dict) -> str:
+    """Names that only differ by case/punctuation (CONTEXT / Context / context,
+    __version__ / _version / VERSION -- all real, verified against the live
+    graph 2026-08-25) collapse to the same slugify() output. Left unhandled,
+    the later one silently overwrites the earlier one's file. The suffix is
+    a hash of the full original NAME (not run order), so the same colliding
+    name always lands on the same disambiguated filename across runs."""
+    slug = slugify(name)
+    claimant = used_slugs.get(slug)
+    if claimant is None or claimant == name:
+        used_slugs[slug] = name
+        return slug
+    return f"{slug}--{hashlib.sha1(name.encode('utf-8')).hexdigest()[:6]}"
 
 
 def generate_wiki_pages(field: "FieldSurface", *, limit: int = 5000) -> dict:
@@ -197,6 +221,7 @@ def generate_wiki_pages(field: "FieldSurface", *, limit: int = 5000) -> dict:
     generated_count = 0
     skipped_count = 0
     total_concepts = 0
+    used_slugs: dict = {}
 
     try:
         concepts_meta = field.get_concepts_with_metadata(limit=_safe_concept_limit(field, limit))
@@ -215,13 +240,18 @@ def generate_wiki_pages(field: "FieldSurface", *, limit: int = 5000) -> dict:
             skipped_count += 1
             continue
 
-        if not should_regenerate(field, name):
+        # Resolved BEFORE should_regenerate() on purpose -- the gate must
+        # check the same (possibly disambiguated) path that gets written,
+        # not the plain slug another colliding name may have just claimed.
+        filename = _disambiguated_filename(name, used_slugs)
+
+        if not should_regenerate(field, name, filename=filename):
             skipped_count += 1
             continue
 
         try:
             content = render_wiki_page(field, name)
-            (wiki_dir_path / f"{slugify(name)}.md").write_text(content, encoding="utf-8")
+            (wiki_dir_path / f"{filename}.md").write_text(content, encoding="utf-8")
             generated_count += 1
         except Exception:
             continue
@@ -241,22 +271,29 @@ def generate_wiki_index(field: "FieldSurface", *, limit: int = 5000) -> dict:
     except Exception:
         return {"indexed": 0}
 
-    ranked: list[tuple[float, str]] = []
+    # used_slugs walked in the same concepts_meta order generate_wiki_pages()
+    # uses, so collision disambiguation lines up with what actually got
+    # written to disk in the common case (same run, minimal graph drift
+    # between the two calls) -- not a hard guarantee if the graph mutated
+    # meaningfully in between, but far better than computing independently.
+    used_slugs: dict = {}
+    ranked: list[tuple[float, str, str]] = []
     for concept_row in concepts_meta:
         name = concept_row.get("id")
         if not name or not concept_qualifies_for_page(field, name):
             continue
+        filename = _disambiguated_filename(name, used_slugs)
         try:
             score = salience.concept_top_of_mind_score(field, name)
         except Exception:
             continue
-        ranked.append((score, name))
+        ranked.append((score, name, filename))
 
-    ranked.sort(key=lambda pair: pair[0], reverse=True)
+    ranked.sort(key=lambda triple: triple[0], reverse=True)
 
     lines = ["# Nous — wiki-index (top of mind)", ""]
-    for score, name in ranked:
-        lines.append(f"- [[{slugify(name)}]] {name} (score: {score:.3f})")
+    for score, name, filename in ranked:
+        lines.append(f"- [[{filename}]] {name} (score: {score:.3f})")
     (wiki_dir_path / "_index.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     return {"indexed": len(ranked)}

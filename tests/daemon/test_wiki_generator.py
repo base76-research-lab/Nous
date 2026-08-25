@@ -158,3 +158,22 @@ def test_generate_wiki_index_excludes_non_qualifying_concepts(tmp_path, monkeypa
 
     index_text = (tmp_path / "wiki" / "_index.md").read_text(encoding="utf-8")
     assert "Unsourced Concept" not in index_text
+
+
+def test_generate_wiki_pages_disambiguates_slug_collisions(tmp_path, monkeypatch):
+    # Verified against the live graph 2026-08-25: names differing only by
+    # case/punctuation (CONTEXT / Context / context) collapse to the same
+    # slug and, without disambiguation, silently overwrite each other.
+    monkeypatch.setenv("NOUSE_WIKI_DIR", str(tmp_path / "wiki"))
+    field = _mk_field(tmp_path)
+    field.add_relation("Context", "relates_to", "X", source_tag="file")
+    field.add_relation("CONTEXT", "relates_to", "Y", source_tag="file")
+    field.add_relation("context", "relates_to", "Z", source_tag="file")
+
+    result = generate_wiki_pages(field)
+
+    # All three qualify and are distinct concepts -- none should be silently
+    # dropped just because they collide on slugify().
+    assert result["generated"] >= 3
+    written = list((tmp_path / "wiki").glob("context*.md"))
+    assert len(written) >= 3
