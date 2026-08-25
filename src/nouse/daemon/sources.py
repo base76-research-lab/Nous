@@ -34,6 +34,11 @@ DEFAULT_EXCLUDED_DIR_NAMES = frozenset(
         ".ruff_cache",
         ".venv",
         "venv",
+        ".virtualenvs",  # virtualenvwrapper-konventionen (~/.virtualenvs/<namn>/) —
+                         # missad tidigare eftersom den inte matchar .venv/venv;
+                         # hittad 2026-08-25 via source_tag-granskning av den
+                         # riktiga grafen (site-packages-filer hade läckt in som
+                         # koncept-källor, t.ex. httpx/_exceptions.py, psutil/*).
         ".cache",
         "cache",
         "tmp",
@@ -44,6 +49,9 @@ DEFAULT_EXCLUDED_DIR_NAMES = frozenset(
         ".nuxt",
         ".idea",
         ".vscode",
+        "wiki",  # genererad utdata (daemon/wiki_generator.py), inte en källa —
+                 # annars läser Nous förr eller senare in sina egna
+                 # sammanfattningar som om de vore ny extern text.
     }
 )
 

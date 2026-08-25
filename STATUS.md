@@ -1,5 +1,73 @@
 # Nous — status
 
+## 2026-08-25T12:42Z — Markdown-wiki-lager: byggt via lokal agent-delegering, NightRun-inkoppling väntar
+
+Björns "skicka agenterna" — första riktiga test av att delegera kod-
+skrivning till en lokal Ollama-modell (`qwen3.5:9b`, per `~/CLAUDE.md`s
+"AI execution routing") i stället för att skriva allt själv, per
+[[feedback_delegate_coding_to_local_agents]]. Bygger på designen i
+`IIC/04_SYSTEM/agents/nous-wiki-layer-design.md` (nu uppdaterad med en
+korrigering, se nedan).
+
+**Metod:** Ollamas HTTP-API (`/api/generate`, `think:false` — CLI:t
+`ollama run` fastnade i ett ändlöst `<thinking>`-resonemang första
+försöket och kapade av innan någon kod alls skrevs). 5 anrop totalt:
+huvudmodulen (avbröts på tokengränsen två gånger, patchad tillbaka
+ihop), en riktad bugfix-runda, testfilen (samma mönster). Total
+lokal-modell-tid: ~6 minuter.
+
+**Levererat:** `src/nouse/daemon/wiki_generator.py` (6 funktioner) +
+`tests/daemon/test_wiki_generator.py` (9 tester). 476 gröna, 1 skipped,
+0 failed i hela sviten efter tillägget.
+
+**Tre riktiga buggar hittade vid granskning av modellens kod (inte
+gissade, körda/verifierade):**
+1. Fel importsökväg (`from src.nouse...` i stället för `from nouse...`).
+2. `out_relations()`/`in_relations()` slogs ihop till en lista och
+   försökte sedan skiljas åt igen via `if rel.get("target")` — fungerar
+   inte, `in_relations()`-rader har OCKSÅ en "target"-nyckel (satt till
+   konceptets eget namn). Skulle ha producerat felformaterade rader för
+   varje inkommande relation.
+3. En `UnboundLocalError`-krasch när ett koncept har noll "starka"
+   relationer (den vanliga vägen för nya koncept) — en `*_str`-variabel
+   sattes bara i en av två grenar.
+   Plus en fjärde jag hittade själv vid slutmontering: `f"{score:.2f}"`
+   utan None-koll, trots att specen uttryckligen la relationer med
+   `evidence_score is None` i just den gren som skulle formatera
+   `score` som ett tal.
+
+**En femte, allvarligare bugg — i den ursprungliga DESIGNEN, inte bara
+implementationen:** tröskeln "minst en relation där `source_support is
+not None`" visade sig vara verkningslös mot riktig data. Verifierat
+direkt mot `~/.local/share/nouse/field.sqlite` (read-only): 0 av 26 647
+relationer har `evidence_score IS NULL` — `add_relation()` beräknar
+alltid ett riktigt tal, aldrig NULL, även när anroparen skickar
+`evidence_score=None` explicit. 98% av alla relationer ligger redan på
+≥ 0.75. En evidence_score-baserad tröskel filtrerar bort nästan
+INGENTING. Bytte till `source_tag`-baserad kvalificering (namngiven
+källa vs. det generiska `"auto"`-standardvärdet) — verifierat att detta
+FAKTISKT diskriminerar: 8 005/20 544 koncept (39%) kvalificerar, mot
+48–98% för vilken evidence_score-tröskel som helst. Detaljer och
+konsekvenser: `nous-wiki-layer-design.md`s nya "Korrigering"-avsnitt.
+
+**Bonusfynd under samma granskning, samma commit:** `.virtualenvs`
+(virtualenvwrapper-katalogkonventionen) saknades i
+`daemon/sources.py::DEFAULT_EXCLUDED_DIR_NAMES` — bara `.venv`/`venv`
+fanns. Förklarar varför site-packages-filer (`httpx/_exceptions.py`,
+`psutil/*`, etc.) läckt in som koncept-källor i den riktiga grafen.
+Tillagd, plus en rad för `wiki/`-katalogen själv (annars läser Nous
+förr eller senare in sina egna genererade sidor som om de vore ny
+extern text — samma cirkel som designdokumentet redan varnade för).
+Städar bara FRAMÅT, rensar inte redan ingesterade koncept.
+
+**INTE gjort, medvetet:** NightRun-inkopplingen (skulle göra
+sidgenerering automatisk varje cykel) är kvar. 8 005 sidor vid första
+körningen är en hel del, och source_tag-granskningen avslöjade att en
+del av det är utvecklings-brus (pip-paket-internals), inte riktig
+kunskap — Björns beslut om det ska strama åt ytterligare innan det
+körs automatiskt, inte mitt. `generate_wiki_pages()` går att köra
+manuellt när som helst utan att röra daemonen.
+
 ## 2026-08-25T12:07Z — Brain View: anatomisk 3D-modell klar
 
 Fortsättning av checkpoint 2:s öppna task ("Brain View: ersätt klotet med
