@@ -1,5 +1,46 @@
 # Nous — status
 
+## 2026-08-25T19:31Z — Historisk kontaminering från evidens-cirkulariteten sanerad (45 relationer)
+
+Uppföljning på 15:00Z-fixen. Ett tredje modellperspektiv (Björn:
+"kolla med [OpenRouter-modellen] stealth/ox-alpha också") pekade på
+något varken jag eller Codex tänkt på: att fixa koden stoppar framtida
+drift, men gör inget åt relationer som REDAN hann klättra över
+promote-golvet (0.65) innan fixen. Verifierat direkt, inte antaget:
+grafen hade en tydlig, onaturlig topp — 86 relationer klumpade exakt
+vid ~0.64, 84 till strax över 0.65 — precis den signatur upprepad
+`+0.01`-drift skulle lämna, inte en naturlig fördelning.
+
+**Saneringsskript:** `scripts/remediate_evidence_circularity.py`
+(`--dry-run` / `--apply`). **En riktig bugg hittad och fixad INNAN den
+kördes mot produktionsgrafen** — ett första utkast av kriteriet
+("evidence_score >= 0.65 OCH bara generisk source_tag") matchade
+**16 817 relationer** (~60% av hela grafen!), nästan alla med
+`ev=1.000` — det är INTE bugg-kontaminering, det är den vanliga,
+legitima `add_relation()`-fallbacken (why angivet, ingen explicit
+evidence_score → `ev = min(1.0, strength)`, strength defaultar till
+1.0). Hade det körts oöversett hade det nollställt tusentals
+korrekt poängsatta relationer — ett mycket större misstag än buggen
+det skulle laga. Fångat av `--dry-run` INNAN `--apply`, inte efteråt.
+
+**Rätt, avgränsat kriterium** (grundat i det faktiska histogrammet,
+inte gissat): bara relationer i det smala misstänkta fönstret
+(0.63–0.75) som FAKTISKT korsat 0.65-golvet OCH saknar varje spår av
+riktig, namngiven källa. **45 relationer**, värden exakt konsekventa
+med heltals-cent-drift (0.65, 0.73, 0.75 — inte spridda slumpmässiga
+tal). Kapade till 0.64 (ett steg under golvet) — ångrar den specifika
+orättmätiga befordran utan att gissa vad "rätt" värde borde vara.
+Full logg med varje relations id/käll/mål/typ/före/efter:
+`logs/evidence_remediation_20260825T193048Z.json` (lokal, inte
+committad — `logs/` är gitignorad sedan tidigare, men hela listan
+finns i git-historiken via den här STATUS.md-raden ändå).
+
+**Inte gjort:** relationer som fortfarande sitter under 0.65 i samma
+fönster (0.63–0.649) rördes INTE — de har aldrig befordrats
+orättmätigt, de reflekterar redan ärligt "inte tillräckligt stark".
+Ingen ytterligare historisk sanering bortom den här specifika,
+verifierade signaturen.
+
 ## 2026-08-25T15:00Z — Kritisk fix: aktivering/NightRun kunde höja evidence_score utan nytt bevis
 
 Björn: "skickar en dialog till codex om hur ni tillsammans bäst uppnår
