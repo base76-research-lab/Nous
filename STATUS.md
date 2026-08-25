@@ -1,5 +1,54 @@
 # Nous — status
 
+## 2026-08-25T14:05Z — relay:codex inkopplat, delegerings-svaret pollas nu tillbaka (commit 6707da3)
+
+Föddes ur ett `@tanke`-samtal om att skicka en fråga till Codex i
+bakgrunden för en andra åsikt, och en fråga om det hänger ihop med
+eval-idén. Verifierat innan något byggdes, inte antaget: `jarvis-
+policy.md` beskrev redan `relay:claude`/`relay:codex` som två skilda
+executor-val, men `pipeline.py`s dispatch (`executor.startswith
+("relay:")`) läste aldrig vad som stod efter kolonet — `open_relay_
+executor()` hade inget `engine`-argument alls, spawnade alltid Claude.
+
+**Byggt:**
+- `spawn_codex_headless()` — samma säkerhetsnivå som den befintliga
+  `spawn_claude_headless()`: `codex exec --sandbox read-only`
+  (verifierat via `codex exec --help`) är Codex motsvarighet till
+  Claudes plan-läge, ren läsning/analys, ingen sidoeffekt. `-o <fil>`
+  ger en ren slutresultat-fil i stället för att behöva parsa en
+  JSONL-händelseström.
+- `open_relay_executor(..., engine="claude"|"codex")` — dispatchar nu
+  faktiskt till rätt spawn-funktion. `pipeline.py` skickar igenom
+  `executor`-strängens del efter kolonet.
+- `check_relay_delegation()` — stänger luckan `spawn_claude_headless()`s
+  egen docstring redan flaggade ("nothing polls it back into the relay
+  session yet"). Kollar om processen avslutats (`os.kill(pid, 0)`),
+  läser resultatet (Codex: `-o`-filen, Claude: `result`-fältet i JSON-
+  loggen, verifierat mot en riktig `claude -p --output-format json`-
+  körning samma dag), flyttar relay-sessionen till `relay_ready` —
+  återanvänder ett statusvärde som redan fanns i schemat, ingen ny
+  status uppfunnen.
+
+**Verifierat end-to-end mot RIKTIGA processer, inte bara mockat:** en
+riktig Codex-körning spawnad, väntat på att processen faktiskt
+avslutades, `check_relay_delegation()` läste rätt resultat och flyttade
+sessionen till `relay_ready` korrekt. En riktig `claude -p` testkörning
+gjordes tidigare samma dag för att verifiera JSON-formen (kostade
+~$0.08, litet men verkligt). Testartefakter (relay-sessionsfil,
+scratch-katalog) städade bort efteråt.
+
+8 nya tester (mockad subprocess/filsystem för de deterministiska
+fallen), 500 gröna totalt.
+
+**Inte gjort:** ingen ny agentkort/hårdregel i `jarvis-policy.md` —
+detta ändrar inte auktoritetsnivån (fortfarande read-only/plan-läge på
+båda modellerna), bara vilka modeller den redan existerande, redan
+godkända mekanismen kan nå. Inget UI/kommando kopplar in
+`check_relay_delegation()` i en faktisk polling-loop än — den finns och
+är verifierad, men något (Jarvis-cykeln, ett CLI-kommando, eller Björn
+manuellt) behöver faktiskt anropa den periodiskt för att "få tillbaks
+insikten" ska hända utan att någon kommer ihåg att fråga.
+
 ## 2026-08-25T13:50Z — Första riktiga wiki-körningen mot den levande grafen, klar och verifierad
 
 Björns "då kan vi starta den nu... sätt en lokal övervakning" — kört
