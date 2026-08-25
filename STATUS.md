@@ -1,6 +1,49 @@
 # Nous — status
 
-## CHECKPOINT `2026-08-25T09:05Z` — tag `checkpoint-2026-08-25-frontier-cleanup`, commit `007047b`
+## CHECKPOINT 2 `2026-08-25T11:22Z` — tag `checkpoint-2026-08-25-brain-visualization`, commit `e509fcc`
+
+Skriven för att contexttönt närmar sig och en compact är nära. Fortsättning
+från checkpoint 1 nedan — allt tekniskt är committat (`git status` rent
+förutom två filer som aldrig var mina). Efter checkpoint 1 hände två spår:
+
+**Filosofiskt/design (inget kodat, tre nya IIC-dokument i
+`04_SYSTEM/agents/`):** ett långt samtal om Nous grundvision landade i
+`nous-prediction-and-validation-model.md` (koherens vs. korrespondens,
+ekokammare i två former, distrikt-påfyllnadsloop, kopplat till Björns
+egen "Larynx Problem"-tes). En session-note-mall etablerades
+(`04_SYSTEM/sessions/`, yaml+id+tid+oneliner+summering).
+
+**Tekniskt UI-fynd, inte kod ännu:** upptäckte att Nous redan har ett
+levande, interaktivt 3D-webbgränssnitt (`http://127.0.0.1:8767`,
+Three.js) med flera lägen (Concept Atlas, Domain Blocks, Ripple Pulse,
+Thread Path, **Brain View**, Tools) — screenshotat och läst koden
+(`web/static/brain_view.js`). Brain View använder redan riktiga 3D-
+regioner (x/y/z, glow, live data) men "hjärnan" är en generisk
+`THREE.SphereGeometry`, ingen anatomisk form. Läste sedan
+neurotorium.org:s neurobiologi-grundkurs och korsade den mot
+`daemon/brain_atlas.py` + `LimbicState`
+(`nous-neurobiology-grounding.md`): signalämnena (dopamin/noradrenalin/
+acetylkolin) är grundade i verklig neurovetenskap, men `basal_ganglia`
+(den riktiga platsen för belöningsdriven vanebildning — direkt kopplat
+till dagens `strengthen()`/`weaken()`-resonemang) och `thalamus` saknas
+helt i regionlistan.
+
+**Tre nya Tududi-tasks i Nous-projektet (inga körda än):**
+1. Ablation-sweepen (n=40/60/100, verifierat modellpar, väntar "kör")
+2. Brain View: ersätt klotet med en riktig anatomisk 3D-modell (2 subtasks)
+3. Lägg till `basal_ganglia`/`thalamus` i `brain_atlas.py`
+
+**Även gjort:** `IIC/01_PROJECTS/nous/STATUS.md` skapad (Nous saknade
+helt en ingång i Björns egen projektöversikt — hittat vid en verktygs-
+genomgång på Björns begäran). En visuell roadmap-artifact publicerad.
+Ett minne sparat om Björns kognitiva profil (ADHD/autism/dyslexi,
+grundat i `PERSON.md` — påverkar hur allt framåt bör presenteras:
+visuellt, en rekommendation i taget, inte flera alternativ).
+
+**Näst i tur, ingen ordning påtvingad:** något av de tre Tududi-tasksen
+ovan, eller fortsätta det filosofiska spåret. Inget är blockerat.
+
+## CHECKPOINT 1 `2026-08-25T09:05Z` — tag `checkpoint-2026-08-25-frontier-cleanup`, commit `007047b`
 
 Björn bad om en summering med tidsstämpel och ID innan sessionen
 fortsätter — se git-taggen ovan för exakt återvändspunkt
