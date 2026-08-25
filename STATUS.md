@@ -1,5 +1,42 @@
 # Nous — status
 
+**2026-08-25, genererare+domare-par för den riktiga sweepen verifierat mot
+NVIDIA:s API på riktigt, inte gissat:**
+
+Björn bad om två separata modeller (en genererar, en dömer/validerar) i
+stället för att en modell dömer sig själv, och att jag faktiskt
+verifierade valet i stället för att gå på antaganden. Testade tre
+kandidater direkt mot `https://integrate.api.nvidia.com`:
+
+- `openai/gpt-oss-120b` — **trasig via NVIDIA:s API**, timeout efter 90s,
+  inget svar alls. Skulle ha spenderat pengar på genereringsanrop utan
+  att producera en enda giltig dom i en riktig körning.
+- `meta/llama-3.3-70b-instruct` — 503 "ResourceExhausted", överbelastad
+  på gratisnivån.
+- `nvidia/nemotron-3-ultra-550b-a55b` — fungerar, men 1 av 4 anrop gav
+  samma 503 innan fixen nedan.
+
+**Bifynd, fixat samtidigt:** `_resolve_provider()` i `run_eval.py`
+antar att alla NVIDIA-modeller heter `nvidia/något` — tredjepartsmodeller
+i katalogen (`openai/...`, `meta/...`, 100+ modeller totalt) routas fel.
+Inte fixat — inte blockerande för valet ovan (som är `nvidia/`-prefixat),
+flaggat som en känd begränsning.
+
+**Fixat:** `call_llm()` retry:ade bara 429, inte 503 — samma transienta
+kapacitetsproblem, borde behandlas lika. La även märke till och fixade en
+latent bugg: uttömda 429-retries föll igenom till `data["choices"][0]`
+med `data=None` och kastade ett kryptiskt TypeError i stället för ett
+läsbart felmeddelande. 4 nya tester (mockade, inga riktiga anrop).
+Verifierat efteråt mot riktiga API:t: 3/3 domar-anrop lyckades rent genom
+hela harnesset efter fixen.
+
+**Slutgiltig, verifierad konfiguration för den riktiga sweepen:**
+- Genererar: `nvidia/nemotron-3.5-lightning-30b-a3b`
+- Dömer: `nvidia/nemotron-3-ultra-550b-a55b`
+- Reservation: Ultra är läromästaren Lightning destillerades från (samma
+  familj) — inte helt oberoende, men det enda av tre testade alternativ
+  som faktiskt fungerar pålitligt.
+
 **2026-08-25, ablation-sweepen mekaniskt validerad gratis lokalt — redo
 för riktig körning, inte körd på riktigt än:**
 
