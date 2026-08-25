@@ -237,8 +237,14 @@ async def call_llm(client, model: str, system: str, user: str,
         }
         async def _one_request() -> tuple[int, dict | None, str]:
             r = await hx.post(f"{base_url}/chat/completions", json=payload, headers=headers, timeout=timeout)
-            if r.status_code == 429:
-                return 429, None, r.headers.get("retry-after", "")
+            # 503 added 2026-08-25: NVIDIA NIM returns 503 "ResourceExhausted"
+            # for congested models (observed directly testing candidate judge
+            # models — meta/llama-3.3-70b-instruct consistently 503'd, and
+            # nvidia/nemotron-3-ultra-550b-a55b hit it in 1 of 4 real calls).
+            # Same retry treatment as 429 — transient capacity, not a real
+            # failure.
+            if r.status_code in (429, 503):
+                return r.status_code, None, r.headers.get("retry-after", "")
             r.raise_for_status()
             return r.status_code, r.json(), ""
 
@@ -248,20 +254,25 @@ async def call_llm(client, model: str, system: str, user: str,
             await _throttle_provider(base_url)
             try:
                 status, data, retry_after = await asyncio.wait_for(_one_request(), timeout=hard_timeout)
-                if status == 429 and attempt < max_retries:
-                    try:
-                        delay = max(1.0, float(retry_after)) if retry_after else 2.0 ** (attempt + 1)
-                    except ValueError:
-                        delay = 2.0 ** (attempt + 1)
-                    await asyncio.sleep(delay)
-                    continue
+                if status in (429, 503):
+                    if attempt < max_retries:
+                        try:
+                            delay = max(1.0, float(retry_after)) if retry_after else 2.0 ** (attempt + 1)
+                        except ValueError:
+                            delay = 2.0 ** (attempt + 1)
+                        await asyncio.sleep(delay)
+                        continue
+                    # Pre-2026-08-25 this fell through to data["choices"][0]
+                    # with data=None, raising an opaque TypeError instead of
+                    # a readable exhaustion message.
+                    return f"[ERROR: {status} (retries exhausted)]"
                 content = data["choices"][0]["message"]["content"] or ""
                 return _THINK_BLOCK_RE.sub("", content).strip()
             except (asyncio.TimeoutError, TimeoutError):
                 return "[TIMEOUT]"
             except Exception as e:
                 return f"[ERROR: {e}]"
-        return "[ERROR: 429 Too Many Requests (retries exhausted)]"
+        return "[ERROR: retries exhausted]"  # defensive; loop always returns above
 
 
 async def run_single(client, model: str, question: dict,
