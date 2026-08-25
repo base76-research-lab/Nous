@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from nouse.daemon import salience
+
 if TYPE_CHECKING:
     from nouse.field.surface import FieldSurface
 
@@ -114,6 +116,9 @@ def render_wiki_page(field: "FieldSurface", name: str) -> str:
     related_terms = kw.get("related_terms", [])
     related_str = " · ".join(f"[[{t}]]" for t in related_terms) if related_terms else "(inga ännu)"
 
+    depth = salience.concept_depth(field, name)
+    top_of_mind = salience.concept_top_of_mind_score(field, name)
+
     frontmatter = f"""---
 concept: "{name}"
 domain: "{domain}"
@@ -121,6 +126,8 @@ scope: {scope}
 evidence_backed: {str(qualifies).lower()}
 parametric_hypothesis: {str(has_parametric).lower()}
 revision_count: {revision_count}
+depth: {depth}
+top_of_mind_score: {top_of_mind:.3f}
 last_generated: "{now_utc}"
 ---"""
 
@@ -207,3 +214,36 @@ def generate_wiki_pages(field: "FieldSurface", *, limit: int = 5000) -> dict:
             continue
 
     return {"generated": generated_count, "skipped": skipped_count, "total_concepts": total_concepts}
+
+
+def generate_wiki_index(field: "FieldSurface", *, limit: int = 5000) -> dict:
+    """Writes wiki/_index.md: qualifying concepts ranked by top_of_mind_score,
+    highest first — a snapshot of what Nous is currently "thinking about",
+    not just an alphabetical file listing."""
+    wiki_dir_path = wiki_dir()
+    wiki_dir_path.mkdir(parents=True, exist_ok=True)
+
+    try:
+        concepts_meta = field.get_concepts_with_metadata(limit=limit)
+    except Exception:
+        return {"indexed": 0}
+
+    ranked: list[tuple[float, str]] = []
+    for concept_row in concepts_meta:
+        name = concept_row.get("id")
+        if not name or not concept_qualifies_for_page(field, name):
+            continue
+        try:
+            score = salience.concept_top_of_mind_score(field, name)
+        except Exception:
+            continue
+        ranked.append((score, name))
+
+    ranked.sort(key=lambda pair: pair[0], reverse=True)
+
+    lines = ["# Nous — wiki-index (top of mind)", ""]
+    for score, name in ranked:
+        lines.append(f"- [[{slugify(name)}]] {name} (score: {score:.3f})")
+    (wiki_dir_path / "_index.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    return {"indexed": len(ranked)}

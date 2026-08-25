@@ -1,5 +1,56 @@
 # Nous — status
 
+## 2026-08-25T13:34Z — Salience-modell (tid × use × djup) klar: top_of_mind_score i inject.py + wiki-index
+
+Björns "kör" (två gånger — en för designrundan, en för byggstarten),
+fortsättning direkt från wiki-lagret ovan. Design i
+`IIC/04_SYSTEM/agents/nous-salience-model.md` (två designrundor, den
+andra löste tre öppna frågor: djup on-demand/in-degree-baserad, formeln
+är TVÅ axlar inte tre, `inject.py` kompletteras men ersätter aldrig
+evidens-sorteringen).
+
+**Byggt (lokal agent-delegering igen, `qwen3.5:9b`, HTTP-API,
+`think:false` — samma metod som wiki-lagret, mindre friktion denna
+gång: modulen blev klar på första försöket):**
+
+- `src/nouse/daemon/salience.py` (ny modul): `looks_like_dependency_source()`,
+  `concept_depth()`, `use_component()`, `recency_decay()`,
+  `top_of_mind_score()`, `concept_top_of_mind_score()`. 11 tester.
+- `field/surface.py`: `out_relations()`/`in_relations()` returnerar nu
+  även `created` (fanns redan i NetworkX-grafens edge-data, bara inte
+  exponerat) — samma additiva mönster som `valid_from`/`valid_until`
+  fick tidigare samma session.
+- `inject.py`: nytt fält `Axiom.top_of_mind_score`, beräknat i
+  `_rows_to_axioms()` via en egen, medvetet DUPLICERAD (inte
+  importerad) formel — modulen hade noll `nouse.*`-beroenden innan,
+  har det fortfarande. Evidens-sorteringen (`axioms.sort(key=lambda a:
+  -a.evidence)`) rörd INTE, exakt beslutet från designrundan. 1 nytt
+  test (`test_inject_attach.py`).
+- `wiki_generator.py`: sidor får nu `depth`/`top_of_mind_score` i
+  frontmatter. Ny funktion `generate_wiki_index()` skriver
+  `wiki/_index.md`, koncept rankade efter poängen — det här är steget
+  som gör Björns poäng sann (wikin blir en ögonblicksbild, inte bara en
+  lista). 3 nya tester.
+
+**491 gröna, 1 skipped, 0 failed i hela sviten** (upp från 476).
+
+**Verifierat mot riktig data igen, inte bara syntetisk:** `str`/
+`Exception` (Python-inbyggda typer som läckt in via kod-ingestion) fick
+in-degree 70/61 rått, 20/22 efter kodsökvägsfiltret — filtret fungerar,
+men bara delvis: `ROOT`/`System`/`text` (57-84 rått) fick NOLL
+reduktion — deras uppblåsthet kommer inte från kod-sökvägar utan
+troligen generiska ord som legitimt förekommer i massor av riktigt
+(icke-kod-) material. Känt, dokumenterat, inte löst — djup används
+bara som informativ etikett, inte för rankning, så det korrumperar inte
+den faktiska poängen. Björns egna forskningskoncept (PLG-modellen,
+Perceptual Legitimacy Gap, capability debt) scorar ~0.92-0.93 på
+top_of_mind_score — mekanismen känner igen riktigt aktivt använt
+material korrekt, vilket är det som faktiskt spelar roll.
+
+**Inte gjort:** ingen NightRun-inkoppling för `generate_wiki_index()`
+än heller (samma väntar-på-skalbeslut-läge som `generate_wiki_pages()`
+redan är i). Går att köra manuellt när som helst.
+
 ## 2026-08-25T12:42Z — Markdown-wiki-lager: byggt via lokal agent-delegering, NightRun-inkoppling väntar
 
 Björns "skicka agenterna" — första riktiga test av att delegera kod-

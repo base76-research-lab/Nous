@@ -1241,6 +1241,7 @@ class FieldSurface:
                 "source_tag": data.get("source_tag", "auto"),
                 "valid_from": data.get("valid_from"),
                 "valid_until": data.get("valid_until"),
+                "created": data.get("created"),
             })
         _queue_indications(name, rows)
         return rows
@@ -1258,6 +1259,7 @@ class FieldSurface:
                 "source_tag": data.get("source_tag", "auto"),
                 "valid_from": data.get("valid_from"),
                 "valid_until": data.get("valid_until"),
+                "created": data.get("created"),
             })
         return rows
 

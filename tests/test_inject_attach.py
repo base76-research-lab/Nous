@@ -65,6 +65,22 @@ def test_query_returns_incoming_relation_for_target(tmp_path):
     ]
 
 
+def test_query_axiom_has_top_of_mind_score_close_to_ceiling_for_fresh_relation(tmp_path):
+    brain = inject.NouseBrain(db_path=tmp_path / "field.sqlite")
+    brain.add(
+        "evidence", "supports", "reproducibility",
+        why="A complete run includes raw outputs.", evidence_score=0.82,
+    )
+
+    result = brain.query("reproducibility")
+
+    assert len(result.axioms) == 1
+    # Just created -> recency_decay ~= 1.0, strength=1.0 (never strengthened)
+    # -> use_component floor 0.45, so top_of_mind_score should sit near 0.45,
+    # not near 0 (no timestamp-parsing bug) and not above the 0.95 ceiling.
+    assert 0.40 < result.axioms[0].top_of_mind_score <= 0.5
+
+
 def test_http_add_propagates_server_errors():
     class Response:
         def raise_for_status(self):

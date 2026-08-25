@@ -8,6 +8,7 @@ from nouse.daemon.wiki_generator import (
     render_wiki_page,
     should_regenerate,
     generate_wiki_pages,
+    generate_wiki_index,
 )
 from nouse.field.surface import FieldSurface
 
@@ -120,3 +121,40 @@ def test_render_wiki_page_never_calls_a_write_method(tmp_path):
     render_wiki_page(field, concept_name)
     after_count = field.concept_knowledge(concept_name)["revision_count"]
     assert before_count == after_count
+
+
+def test_render_wiki_page_includes_depth_and_top_of_mind_score(tmp_path):
+    field = _mk_field(tmp_path)
+    field.add_relation("Test Concept", "related_to", "Target", source_tag="file:///source.md")
+    content = render_wiki_page(field, "Test Concept")
+    assert "depth:" in content
+    assert "top_of_mind_score:" in content
+
+
+def test_generate_wiki_index_ranks_strengthened_concept_above_untouched_one(tmp_path, monkeypatch):
+    monkeypatch.setenv("NOUSE_WIKI_DIR", str(tmp_path / "wiki"))
+    field = _mk_field(tmp_path)
+
+    field.add_relation("Hot Concept", "relates_to", "H", source_tag="file")
+    field.strengthen("Hot Concept", "H", delta=2.0)
+
+    field.add_relation("Cold Concept", "relates_to", "C", source_tag="file")
+
+    generate_wiki_pages(field)
+    result = generate_wiki_index(field)
+
+    assert result["indexed"] >= 2
+    index_text = (tmp_path / "wiki" / "_index.md").read_text(encoding="utf-8")
+    assert index_text.index("Hot Concept") < index_text.index("Cold Concept")
+
+
+def test_generate_wiki_index_excludes_non_qualifying_concepts(tmp_path, monkeypatch):
+    monkeypatch.setenv("NOUSE_WIKI_DIR", str(tmp_path / "wiki"))
+    field = _mk_field(tmp_path)
+    field.add_relation("Unsourced Concept", "relates_to", "Other")  # default "auto" tag
+
+    generate_wiki_pages(field)
+    generate_wiki_index(field)
+
+    index_text = (tmp_path / "wiki" / "_index.md").read_text(encoding="utf-8")
+    assert "Unsourced Concept" not in index_text

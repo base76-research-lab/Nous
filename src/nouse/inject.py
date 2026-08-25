@@ -15,7 +15,9 @@ Eval usage:
 """
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -44,6 +46,8 @@ class Axiom:
         # "parametric_hypothesis": stored via domain_bootstrap() — an LLM's
         # own parametric-knowledge guess, not independently verified. See
         # docs/EVIDENCE_MODEL.md. Never trust this as grounding on its own.
+    top_of_mind_score: float = 0.0  # use × recency — additive, not a
+        # replacement for `evidence` (that's truth, this is current relevance).
 
     @property
     def is_strong(self) -> bool:
@@ -311,8 +315,28 @@ def _rows_to_axioms(src_name: str, rows: list[dict]) -> list[Axiom]:
             strength=strength,
             source_support=source_support,
             provenance_class=provenance_class,
+            top_of_mind_score=_top_of_mind_score(strength, r.get("created")),
         ))
     return out
+
+
+def _top_of_mind_score(strength: float, created_iso: str | None,
+                        *, half_life_days: float = 21.0) -> float:
+    # Duplicated from daemon/salience.py rather than imported: this module
+    # has zero nouse.* dependencies today (verified 2026-08-25) and stays
+    # that way on purpose, same reasoning as the ev-fallback formula above
+    # already being inlined rather than shared.
+    use = min(0.95, max(0.45, 0.45 + (strength - 1.0) * 0.25))
+    if not created_iso:
+        return use
+    try:
+        created = datetime.fromisoformat(created_iso.replace("Z", "+00:00"))
+        if created.tzinfo is None:
+            created = created.replace(tzinfo=timezone.utc)
+        days_since = max(0.0, (datetime.now(timezone.utc) - created).total_seconds() / 86400.0)
+    except Exception:
+        return use
+    return use * math.exp(-math.log(2) / half_life_days * days_since)
 
 
 def _compute_confidence_breakdown(all_axioms: list[Axiom], strong: list[Axiom]) -> dict:
