@@ -30,10 +30,24 @@ def wiki_dir() -> Path:
 _GENERIC_SOURCE_TAGS = frozenset({None, "", "auto"})
 
 
+def _is_qualifying_source_tag(source_tag: str | None) -> bool:
+    """A named, non-dependency source tag. Two checks that used to live in
+    two different places with two different rules (found via a real
+    relay:codex dialogue, 2026-08-25, see
+    nous-codex-dialogue-2026-08-25-concept-noise.md): concept_depth() in
+    salience.py already excluded dependency paths, but this module's own
+    qualification check didn't, so a site-packages path counted as a
+    "named source" for getting a wiki page even though the same path was
+    correctly treated as noise for depth. Reused, not reimplemented, from
+    salience.py — one rule, not two."""
+    return source_tag not in _GENERIC_SOURCE_TAGS and not salience.looks_like_dependency_source(source_tag)
+
+
 def concept_qualifies_for_page(field: "FieldSurface", name: str) -> bool:
-    """A concept gets a page only if it has at least one relation with a real, named
-    source_tag (a file path, domain_bootstrap, curiosity_loop:..., etc.) — not the
-    generic "auto" default.
+    """A concept gets a page only if it has at least one relation with a
+    named, non-dependency source_tag (a file path, domain_bootstrap,
+    curiosity_loop:..., etc.) — not the generic "auto" default, and not a
+    site-packages/.venv/node_modules path.
 
     NOT evidence_score >= threshold: verified against the live graph
     (~/.local/share/nouse/field.sqlite, 2026-08-25) that add_relation() always
@@ -44,9 +58,20 @@ def concept_qualifies_for_page(field: "FieldSurface", name: str) -> bool:
     graph, defeating the whole point of a threshold. source_tag is what actually
     varies: ~4053/20544 concepts have a non-generic one, vs. an evidence_score
     filter passing nearly all 20544.
+
+    ALSO excludes code-only concepts (salience.is_code_only_concept):
+    bare identifiers (ROOT, str, __version__, ...) that only ever came from
+    parsing raw source code through a prose-oriented extractor never
+    represented real architectural understanding to begin with -- Nous's
+    actual self-knowledge already flows in through STATUS.md, design docs,
+    and docstrings, which are prose. A concept discussed anywhere in prose
+    stays included regardless of how generic its name looks; only concepts
+    with ZERO non-code grounding are cut.
     """
     all_rels = field.out_relations(name) + field.in_relations(name)
-    return any(rel.get("source_tag") not in _GENERIC_SOURCE_TAGS for rel in all_rels)
+    if not any(_is_qualifying_source_tag(rel.get("source_tag")) for rel in all_rels):
+        return False
+    return not salience.is_code_only_concept(field, name)
 
 
 def slugify(name: str) -> str:
@@ -109,7 +134,7 @@ def render_wiki_page(field: "FieldSurface", name: str) -> str:
         score_str = f"{score:.2f}" if score is not None else "n/a"
         line = (f"- {name} —[{rel.get('type','')}]→ [[{rel.get('target','')}]] "
                 f"(evidens: {score_str}, källa: {rel.get('source_tag','')})")
-        if rel.get("source_tag") not in _GENERIC_SOURCE_TAGS:
+        if _is_qualifying_source_tag(rel.get("source_tag")):
             strong_lines.append(line)
         else:
             uncertain_lines.append(line)
@@ -119,7 +144,7 @@ def render_wiki_page(field: "FieldSurface", name: str) -> str:
         score_str = f"{score:.2f}" if score is not None else "n/a"
         line = (f"- [[{rel.get('source','')}]] —[{rel.get('type','')}]→ {name} "
                 f"(evidens: {score_str}, källa: {rel.get('source_tag','')})")
-        if rel.get("source_tag") not in _GENERIC_SOURCE_TAGS:
+        if _is_qualifying_source_tag(rel.get("source_tag")):
             strong_lines.append(line)
         else:
             uncertain_lines.append(line)

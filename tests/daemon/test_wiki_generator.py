@@ -177,3 +177,33 @@ def test_generate_wiki_pages_disambiguates_slug_collisions(tmp_path, monkeypatch
     assert result["generated"] >= 3
     written = list((tmp_path / "wiki").glob("context*.md"))
     assert len(written) >= 3
+
+
+def test_concept_does_not_qualify_when_every_relation_is_code_only(tmp_path):
+    # ROOT/str/__version__-style noise: named source_tag, so it would have
+    # passed the OLD check, but every relation traces to a .py file and it
+    # was never once grounded in prose. See
+    # nous-codex-dialogue-2026-08-25-concept-noise.md.
+    field = _mk_field(tmp_path)
+    field.add_relation("ROOT", "used_in", "sources.py", source_tag="/x/daemon/sources.py")
+    field.add_relation("ROOT", "used_in", "main.py", source_tag="/x/daemon/main.py")
+    assert concept_qualifies_for_page(field, "ROOT") is False
+
+
+def test_concept_qualifies_when_code_concept_also_has_prose_grounding(tmp_path):
+    field = _mk_field(tmp_path)
+    field.add_relation("salience", "used_in", "salience.py", source_tag="/x/daemon/salience.py")
+    field.add_relation("salience", "discussed_in", "STATUS.md", source_tag="/x/STATUS.md")
+    assert concept_qualifies_for_page(field, "salience") is True
+
+
+def test_concept_does_not_qualify_with_dependency_source_tag(tmp_path):
+    # From the same relay:codex dialogue as the code-only fix above: a
+    # site-packages path used to count as a "named source" here even
+    # though concept_depth() already treated it as noise.
+    field = _mk_field(tmp_path)
+    field.add_relation(
+        "My Concept", "related_to", "Other Thing",
+        source_tag="/home/x/.virtualenvs/research/lib/python3.14/site-packages/httpx/_exceptions.py",
+    )
+    assert concept_qualifies_for_page(field, "My Concept") is False
