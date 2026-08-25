@@ -1,5 +1,52 @@
 # Nous — status
 
+**2026-08-25, säkerhetsfynd under "hela systemets hjärna"-diskussionen:
+`research_plg` saknades i `SENSITIVE_SCOPES` — fixat i kod, INTE live än:**
+
+- Björn frågade hur Nous blir "hela systemets hjärna och medvetande" (både
+  Computer och IIC). Innan jag byggde vidare på det verifierade jag vad
+  daemonen som redan bevakar hela hemkatalogen faktiskt exponerar externt.
+- **Fynd:** `field/surface.py::SENSITIVE_SCOPES` innehöll bara
+  `personal_health`/`user_model` — INTE `research_plg`. `/api/context` och
+  `bisociative_solver.py::scheduled_bisociation_pass()` (default aktiverad
+  via `BISOC_SOLVER_ENABLED`, körs periodiskt i huvudloopen,
+  `daemon/main.py` rad ~1622) exkluderar bara `SENSITIVE_SCOPES` innan de
+  skickar grafinnehåll till Cerebras/OpenRouter. Björns faktiska akademiska
+  forskning (`research_plg`-scopat) var alltså berättigad att skickas
+  externt — i strid med den tidigare uttalade regeln att IIC-forskning
+  aldrig lämnar disken utan explicit tillåtelse.
+- **Verifierat, inte gissat:** körande daemon-processen (PID 1314833) har
+  riktiga `CEREBRAS_API_KEY`/`OPENROUTER_API_KEY` laddade (`.env` via
+  `EnvironmentFile=` i den installerade systemd-enheten + `nouse/__init__.py`s
+  ovillkorliga `load_env_files()`) — mekanismen är alltså live, inte
+  teoretisk. Journalen för den aktuella daemon-körningen (sedan
+  2026-08-24 16:09:58) visar dock INGEN faktisk "Bisociation-pass:
+  N par utforskade"-rad än — bara `GET .../models`-anrop (modell-lista, inte
+  chat completion). Så vitt loggen visar har inget skickats ännu i den här
+  körningen, men mekanismen var laddad och riskerade att göra det.
+- **Kodfix (klar, committad, INTE live förrän omstart):**
+  1. `research_plg` tillagd i `SENSITIVE_SCOPES`.
+  2. Computer/IIC-uppdelningen från `~/CLAUDE.md` gjord explicit i
+     scope-systemet: två nya scopes, `iic_general` (allt under `~/IIC/`
+     utan egen regel) och `computer_general` (allt annat i hemkatalogen
+     utan egen regel) — båda sensitiva som standard, i stället för att
+     tyst falla på det gamla oskyddade `"general"`.
+  3. `scope_from_path()` i `daemon/sources.py` uppdaterad i samma ordning
+     (specifika regler går fortfarande före zon-fallbacken).
+  4. 9 nya/uppdaterade tester (`tests/field/test_scoped_memory.py`,
+     `tests/daemon/test_sources_scope.py`) — inklusive ett funktionellt
+     test som bevisar att en `research_plg`-scopad koncept faktiskt
+     exkluderas av samma anropsform `/api/context`/bisociation använder,
+     inte bara att scopet finns i en mängd.
+- **Planerad action (kräver Björns explicita "kör", separat från
+  scope-taxonomi-uppdraget ovan):** starta om `nouse-daemon` för att denna
+  fix ska ta effekt på den körande daemonen. Risk: låg (samma mönster som
+  tidigare omstarter i den här loggen, additiv scope-utökning, ingen
+  schemamigration). Verifiering efter omstart: kontrollera att en
+  `research_plg`-scopad koncept inte längre kommer med i ett
+  `/api/context`-svar.
+- **Fullständig svit:** `pytest tests/` → 450 passed, 1 skipped.
+
 **2026-08-25, occipital-regionen får äkta källmaterial (Tududi-subtask 1):**
 
 - Ingen katalog routades tidigare till `occipital_lobe` alls (varken via

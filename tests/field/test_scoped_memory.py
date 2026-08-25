@@ -115,3 +115,43 @@ def test_migration_adds_scope_column_with_general_default_to_legacy_db(tmp_path)
     reopened.add_concept("post_migration_node", domain="x")
     row = next(r for r in reopened.get_concepts_with_metadata() if r["id"] == "post_migration_node")
     assert row["scope"] == "general"
+
+
+def test_research_plg_is_sensitive():
+    """Regression guard for the 2026-08-25 gap: research_plg (Björns eget
+    forskningsspann) var tidigare INTE i SENSITIVE_SCOPES, vilket gjorde det
+    berättigat att skickas till Cerebras/OpenRouter via
+    bisociative_solver.py::scheduled_bisociation_pass() — i strid med regeln
+    att IIC-forskning aldrig lämnar disken utan explicit tillåtelse."""
+    assert "research_plg" in SENSITIVE_SCOPES
+
+
+def test_iic_general_and_computer_general_are_sensitive():
+    assert "iic_general" in SENSITIVE_SCOPES
+    assert "computer_general" in SENSITIVE_SCOPES
+
+
+def test_research_plg_scoped_concept_excluded_from_external_facing_query(tmp_path):
+    """Functional proof, not just set membership: a research_plg concept
+    must not appear in the same filtered result personal_health already
+    doesn't — this is the exact call shape /api/context and
+    bisociative_solver.py::_search_nouse use."""
+    field = _mk_field(tmp_path)
+    field.add_concept("plg_finding", domain="sociology", scope="research_plg")
+    field.add_concept("public_note", domain="general_topic", scope="general")
+
+    visible = field.concepts(exclude_scopes=SENSITIVE_SCOPES)
+    names = {r["name"] for r in visible}
+
+    assert "public_note" in names
+    assert "plg_finding" not in names
+
+
+def test_iic_general_and_computer_general_scopes_are_accepted_not_downgraded(tmp_path):
+    field = _mk_field(tmp_path)
+    field.add_concept("iic_node", domain="x", scope="iic_general")
+    field.add_concept("computer_node", domain="x", scope="computer_general")
+
+    rows = {r["id"]: r["scope"] for r in field.get_concepts_with_metadata()}
+    assert rows["iic_node"] == "iic_general"
+    assert rows["computer_node"] == "computer_general"

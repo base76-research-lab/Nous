@@ -40,7 +40,7 @@ PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING = float(
     os.getenv("NOUSE_PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING", "0.70")
 )
 
-# ── Skopat minne (Fas 2 steg 5, 2026-08-23) ──────────────────────────────────
+# ── Skopat minne (Fas 2 steg 5, 2026-08-23; utökad 2026-08-25) ──────────────
 # Google Memory Bank / Mem0-mönster: en formell gräns mellan källtyper i
 # stället för lösa domäntaggar. `domain` förblir fri ämnestaxonomi
 # ("topologi", "musikteori"); `scope` är källgränsen som avgör vad som får
@@ -48,6 +48,20 @@ PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING = float(
 # (domain_tda_profile) och /api/context — de två ställena som antingen
 # skickar grafinnehåll till en extern LLM (bisociative_solver.py) eller
 # serverar det till externa agenter. Se docs/NOUS_NEXT_GENERATION_PLAN.md.
+#
+# 2026-08-25: `research_plg` saknades här — Björns faktiska akademiska
+# forskning kunde alltså skickas till Cerebras/OpenRouter via
+# `bisociative_solver.py::scheduled_bisociation_pass()` (default aktiverad,
+# `daemon/main.py::BISOC_SOLVER_ENABLED`), trots en uttrycklig, tidigare
+# uttalad regel: IIC-forskning lämnar aldrig disken utan explicit tillåtelse.
+# Verifierat att mekanismen är live (riktiga API-nycklar laddade i den
+# körande daemon-processen, `EnvironmentFile=.env`) men INTE ännu observerad
+# ha skickat något i den aktuella daemon-körningens logg. Samtidigt infördes
+# en explicit Computer/IIC-zonuppdelning (se `~/CLAUDE.md`): allt som inte
+# redan matchar en känd, granskad regel nedan blir `iic_general` eller
+# `computer_general` — båda sensitiva som standard. Denna kod tar inte
+# effekt på den redan körande daemonen förrän den startas om (kräver
+# Björns explicita "kör", se STATUS.md).
 KNOWN_SCOPES = {
     "personal_health",  # Björns hälsodata — se IIC/01_PROJECTS/halsa-glp1/STATUS.md
     "nous_system",       # Nous egen kod/dokumentation
@@ -58,9 +72,27 @@ KNOWN_SCOPES = {
                           # som personal_health: en profil om hur man bäst
                           # bemöter honom ska inte läcka till externa LLM:er
                           # via bisociation/context utan uttrycklig override.
-    "general",           # allt annat — standard
+    "iic_general",       # Allt under ~/IIC/ som inte redan fångas av en mer
+                          # specifik regel ovan — durable research/projects/
+                          # beslut per ~/CLAUDE.md. Sensitiv som standard:
+                          # samma "lämnar aldrig disken"-regel som research_plg,
+                          # bara bredare (IIC:s 01_PROJECTS/03_WORKBENCH/
+                          # 04_SYSTEM/05_ARCHIVE har ingen egen regel än).
+    "computer_general",  # Allt UTANFÖR ~/IIC/ som inte redan fångas ovan —
+                          # OS, appar, credentials, personlig administration,
+                          # runtime-state per ~/CLAUDE.md:s systemuppdelning.
+                          # Sensitiv som standard av samma skäl: detta är inte
+                          # ett kuraterat forskningskorpus, det kan innehålla
+                          # vad som helst.
+    "general",           # Reservfall för sökvägar som varken ligger under
+                          # ~/IIC/ eller $HOME (t.ex. om bevakningen någon
+                          # gång utökas utanför hemkatalogen). Normalt aldrig
+                          # nått i praktiken idag.
 }
-SENSITIVE_SCOPES = {"personal_health", "user_model"}
+SENSITIVE_SCOPES = {
+    "personal_health", "user_model", "research_plg",
+    "iic_general", "computer_general",
+}
 DEFAULT_SCOPE = "general"
 
 # Fas 3 punkt 9 (multi-timescale synaptisk styrka): halveringstid för den

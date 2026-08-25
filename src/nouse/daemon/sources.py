@@ -410,4 +410,14 @@ def scope_from_path(path: Path) -> str:
         return "voice_notes"
     if "library/research" in p or ("02_library" in p and "research" in p):
         return "research_plg"
+    # 2026-08-25 (Computer/IIC-uppdelningen i ~/CLAUDE.md görs explicit i
+    # scope-systemet): allt som inte redan matchade en granskad regel ovan
+    # faller nu på den strukturella zon-gränsen — under ~/IIC/ eller inte —
+    # i stället för att tyst bli "general" (som historiskt behandlats som
+    # ofarligt att skicka externt, se SENSITIVE_SCOPES-kommentaren i
+    # field/surface.py). Båda nya scopes är sensitiva som standard.
+    if "/iic/" in p:
+        return "iic_general"
+    if "/home/" in p:
+        return "computer_general"
     return "general"
