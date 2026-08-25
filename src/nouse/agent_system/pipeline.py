@@ -468,7 +468,13 @@ async def _stage04_execution_and_generation(
         return final
 
     if executor.startswith("relay:"):
-        result = open_relay_executor(goal=raw_text, run_dir=run_dir)
+        # jarvis-policy.md already documents both relay:claude and
+        # relay:codex as distinct executor choices; this used to ignore
+        # which one was requested and always spawn Claude regardless
+        # (verified 2026-08-25 — open_relay_executor() had no engine
+        # param at all until now).
+        engine = executor.split(":", 1)[1] or "claude"
+        result = open_relay_executor(goal=raw_text, run_dir=run_dir, engine=engine)
         final = {
             "ok": result["ok"],
             "error_code": None,
