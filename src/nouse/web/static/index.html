@@ -913,6 +913,18 @@
 
 <!-- 3D Force Graph via CDN -->
 <script src="https://unpkg.com/three@0.155.0/build/three.min.js"></script>
+<!-- r150+ no longer ships a global (non-module) GLTFLoader build, only the
+     jsm ES module — pulled in via import map and hung onto the same
+     window.THREE the classic build above already created, so brain_view.js
+     (a plain script, not a module) can keep using THREE.GLTFLoader as if it
+     were part of the global build. -->
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.155.0/build/three.module.js" } }
+</script>
+<script type="module">
+  import { GLTFLoader } from "https://unpkg.com/three@0.155.0/examples/jsm/loaders/GLTFLoader.js";
+  window.THREE.GLTFLoader = GLTFLoader;
+</script>
 <script src="https://unpkg.com/3d-force-graph@1.73.3/dist/3d-force-graph.min.js"></script><script src="/static/brain_view.js"></script>
 
 <script>

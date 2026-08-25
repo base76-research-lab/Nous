@@ -1,5 +1,76 @@
 # Nous — status
 
+## 2026-08-25T12:07Z — Brain View: anatomisk 3D-modell klar
+
+Fortsättning av checkpoint 2:s öppna task ("Brain View: ersätt klotet med
+en riktig anatomisk 3D-modell", Tududi `khjbjr8bspcffy5`/`5w1i6e060mx32qw`)
+— nu klar. Björn laddade ner en hjärnmodell från Sketchfab (`.glb`, 8MB,
+manuellt eftersom Sketchfabs download-API kräver ett inloggat konto) och
+gav filvägen; resten byggdes och verifierades i den här passen.
+
+**Byggt:**
+- `three@0.155.0` slutade skeppa en global (icke-modul) `GLTFLoader` från
+  r150+ — bara `examples/jsm/` (ES-modul) finns kvar. Löst i `index.html`
+  med en `importmap` + en liten `<script type="module">` som hänger
+  `GLTFLoader` på samma `window.THREE` som den klassiska `three.min.js`
+  redan skapar. Resten av appen (`brain_view.js`, `3d-force-graph`)
+  förblir vanliga scripts, ingen modul-konvertering. Kostnad: en andra
+  Three.js-instans laddas parallellt (~600KB extra, syns som "multiple
+  instances"-varning i konsolen) — accepterad avvägning, fungerar
+  korrekt i praktiken.
+- `brain_view.js::loadAnatomicalBrainModel()`: laddar modellen asynkront
+  och ersätter sfär-fallbacken när den är klar — progressiv förbättring,
+  ingen blank scen medan de ~8MB hämtas. Om laddningen misslyckas
+  behålls sfären tyst (samma mönster som `loadTdaRegionPositions()`).
+
+**Tre buggar hittade via skärmdump (Playwright + `--channel=chrome`),
+inte antagna:**
+1. `depthWrite:false` på en tät, vikt yta (tusentals överlappande
+   gyri/sulci) blandar ihop alla lager till en formlös dis vid rendering
+   — såg först ut som en skalningsbugg, var det inte. Fix:
+   `depthWrite:true`, opacity 0.5→0.8.
+2. Skalning mot "längsta axeln" (modellens Z mot gamla sfärens Z=264)
+   missade att modellen är proportionerligt rundare än den handgjorda
+   0.85/1.2-sträckta sfären var — Y-axeln blev ~30% högre än sfären
+   någonsin var, fyllde hela bildrutan vertikalt. Fix: contain-fit mot
+   alla tre axlarna samtidigt (sfärens fulla mått 220×187×264,
+   `scale = min(...)` över alla tre kvoter, inte bara en).
+3. Modellen är rent reflektionsbelyst (ingen `emissive`), till skillnad
+   från regionsfärerna som är self-lit — scenens point lights var för
+   svaga/vinkelberoende (tänkta för en nästan osynlig 0.08-opacity-
+   sfär), så sidan som inte mötte ett ljus vid given rotationsfas blev
+   nästan svart. Fix: högre ljusintensitet, ett tredje kameranära ljus,
+   och ett lågt `emissive`-golv (0x3a2620 @ 0.45) så formen syns
+   oavsett rotationsvinkel.
+
+**Verifierat, inte antaget:** filens tre GLB-noder (`BRAIN`, `cerebellum`,
+`BRAIN_LOW`) gav först en bounding box som såg trasig ut. Isolerad
+rendering (tillfällig `_debug_inspect.html`, borttagen igen efteråt)
+visade att alla tre är legitima anatomiska delar — cortex, cerebellum,
+hjärnstam (materialnamnet bekräftar `BRAIN_STEM_1002` trots att
+nod-namnet bara säger "BRAIN"). Alla tre används i den slutgiltiga
+modellen.
+
+**Inte löst, medvetet:** en identisk `console.error 404` syns i alla
+körningar, även i den allra första före några ändringar — men matchar
+ingen nätverksrespons Playwright kan se (varken `response`- eller
+`requestfailed`-lyssnare fångar den). Sannolikt en ofarlig
+favicon-request, inte kopplad till modellen: alla texturer är
+embeddade som `bufferView` i själva `.glb`:n, inte externa `uri`
+(verifierat direkt i filens JSON-chunk). Inte spårat vidare.
+
+**Öppen fråga till Björn, inte mitt beslut:** `models/human_brain.glb`
+är `.gitignore`:ad i stället för committad. `Work/nous` är ett publikt
+GitHub-repo och jag vet inte vilken licens den specifika Sketchfab-
+modellen har för vidaredistribution. Servern fungerar identiskt lokalt
+oavsett (filen ligger redan på disk), och `brain_view.js` faller
+tillbaka till klotet om filen saknas — så det här blockerar inget, men
+avgör om andra som klonar repot ser klotet eller den riktiga modellen.
+
+**Kvar från checkpoint 2, oförändrat läge:** markdown-wiki-lagret
+(design klar i `IIC/04_SYSTEM/agents/nous-wiki-layer-design.md`, väntar
+"kör" för bygge) och ablations-sweepen (redo, väntar på N + "kör").
+
 ## CHECKPOINT 2 `2026-08-25T11:22Z` — tag `checkpoint-2026-08-25-brain-visualization`, commit `e509fcc`
 
 Skriven för att contexttönt närmar sig och en compact är nära. Fortsättning

@@ -36,6 +36,7 @@
   };
 
   let scene, camera, renderer, brainGroup;
+  let fallbackBrainParts = [];  // sphere + fissures — undanröjs när GLB-modellen laddat klart
   let regionMeshes = {};
   let heatData = {};
   let pulseEffects = [];
@@ -98,20 +99,34 @@
     scene.add(brainGroup);
 
     // Ambient light
-    const ambient = new THREE.AmbientLight(0x404050, 0.6);
+    // Höjd från 0.6 (tänkt för den gamla, nästan osynliga 0.08-opacity-
+    // sfären) — den texturerade GLB-skalen (opacity 0.8) behöver
+    // faktiskt scenljus för att läsas som en igenkännbar hjärna i
+    // stället för en mörk, formlös siluett. Skärmdumpsverifierat.
+    const ambient = new THREE.AmbientLight(0x404050, 0.9);
     scene.add(ambient);
 
     // Point lights
-    const keyLight = new THREE.PointLight(0xd88d3f, 1.2, 600);
+    const keyLight = new THREE.PointLight(0xd88d3f, 1.8, 600);
     keyLight.position.set(100, 150, 200);
     scene.add(keyLight);
 
-    const fillLight = new THREE.PointLight(0x4e9af1, 0.4, 400);
+    const fillLight = new THREE.PointLight(0x4e9af1, 0.6, 400);
     fillLight.position.set(-150, -50, -100);
     scene.add(fillLight);
 
+    // Kameraljus — de två ovan sitter åt sidorna/ovanför; utan ett ljus
+    // nära kamerans egen position blir sidan som faktiskt vetter mot
+    // betraktaren (vid initial vy, innan auto-rotationen hunnit runt)
+    // underbelyst. Neutral vit, måttlig intensitet — ska inte platta ut
+    // ythöjdskuggorna som gör vecken (gyri/sulci) synliga.
+    const camLight = new THREE.PointLight(0xfff4e8, 0.9, 500);
+    camLight.position.set(0, 60, 300);
+    scene.add(camLight);
+
     // Build brain geometry
     buildBrain();
+    loadAnatomicalBrainModel();  // asynkron, ersätter sfären när ~8MB-filen laddat klart
     await loadTdaRegionPositions();
     buildRegions();
     buildNervePaths();
@@ -156,6 +171,7 @@
 
     const brainMesh = new THREE.Mesh(brainGeo, brainMat);
     brainGroup.add(brainMesh);
+    fallbackBrainParts.push(brainMesh);
 
     // Fissure lines (subtle grooves)
     const fissureMat = new THREE.LineBasicMaterial({
@@ -170,7 +186,9 @@
     const centralGeo = new THREE.BufferGeometry().setFromPoints(
       centralPoints.map(p => new THREE.Vector3(0, p.y, p.x * 0.9))
     );
-    brainGroup.add(new THREE.Line(centralGeo, fissureMat));
+    const centralLine = new THREE.Line(centralGeo, fissureMat);
+    brainGroup.add(centralLine);
+    fallbackBrainParts.push(centralLine);
 
     // Lateral fissure (sylvian)
     const lateralPoints = [];
@@ -181,7 +199,116 @@
       lateralPoints.push(new THREE.Vector3(x, 5, z));
     }
     const lateralGeo = new THREE.BufferGeometry().setFromPoints(lateralPoints);
-    brainGroup.add(new THREE.Line(lateralGeo, fissureMat));
+    const lateralLine = new THREE.Line(lateralGeo, fissureMat);
+    brainGroup.add(lateralLine);
+    fallbackBrainParts.push(lateralLine);
+  }
+
+  // ── Anatomisk hjärnmodell (GLB) ────────────────────────────────────
+  // Sfären ovan renderas direkt (noll väntetid). Den riktiga anatomiska
+  // modellen (~8MB) laddas asynkront i bakgrunden och ersätter sfären
+  // när den är klar — progressiv förbättring i stället för en blank
+  // scen medan filen hämtas. Om laddningen misslyckas (nätverk, trasig
+  // fil, GLTFLoader saknas) behålls sfären tyst, samma fallback-mönster
+  // som loadTdaRegionPositions() ovan.
+  function loadAnatomicalBrainModel() {
+    if (typeof THREE.GLTFLoader !== 'function') {
+      console.warn('Brain View: GLTFLoader saknas, behåller sfär-fallback');
+      return;
+    }
+
+    const loader = new THREE.GLTFLoader();
+    loader.load(
+      '/static/models/human_brain.glb',
+      (gltf) => {
+        const model = gltf.scene;
+
+        // Centrera modellen kring origo och skala den till samma
+        // ungefärliga rymd sfären upptog, så kamera (fast position,
+        // fov 50° @ dist 280), regionsfärer (radie 18) och nervbanor
+        // fortsätter se proportionerliga ut utan att någon annan kod
+        // behöver ändras. Bevarar modellens egna proportioner (skalar
+        // enhetligt, inte per-axel) — en riktig anatomisk skanning är
+        // en mer trovärdig källa till hjärnans facon än den handgjorda
+        // 1.0/0.85/1.2-sträckningen ovan.
+        //
+        // VIKTIGT (hittat via skärmdump, inte antaget): matcha bara
+        // längsta axeln mot sfärens längsta axel duger INTE — modellen
+        // är proportionerligt "rundare" än den hårt Z-sträckta gamla
+        // sfären (Y/Z-kvot 0.92 mot sfärens 0.71), så en sådan skalning
+        // gjorde modellen ~30% högre än sfären någonsin var och fyllde
+        // hela bildrutan vertikalt. Contain-fit mot alla tre axlarna
+        // (sfärens fulla mått 220×187×264) i stället — tar min() av de
+        // tre kvoterna så ingen axel någonsin blir större än sfären var.
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+        const sphereEnvelope = { x: 220, y: 187, z: 264 };
+        const scale = Math.min(
+          sphereEnvelope.x / (size.x || 1),
+          sphereEnvelope.y / (size.y || 1),
+          sphereEnvelope.z / (size.z || 1)
+        );
+
+        model.position.set(-center.x, -center.y, -center.z);
+        const wrapper = new THREE.Group();
+        wrapper.add(model);
+        wrapper.scale.setScalar(scale);
+
+        // Halvgenomskinlig, men INTE depthWrite:false — testat mot en
+        // isolerad diagnosscen (fri:_debug_inspect.html) och bekräftat:
+        // med depthWrite:false blandas tusentals överlappande
+        // gyri/sulci-ytor (vecken i cortex) samman till en formlös dis,
+        // eftersom inget sorterar vilken yta som är "framför" en annan
+        // inom samma mesh. depthWrite:true låter skalets egna veck
+        // ockludera varandra korrekt (formen blir igenkännbar) på
+        // bekostnad av att inte visa tvärs igenom till motsatt sida —
+        // acceptabelt eftersom brainGroup roterar kontinuerligt, så alla
+        // sidor blir synliga över tid.
+        model.traverse((child) => {
+          if (!child.isMesh) return;
+          const mats = Array.isArray(child.material) ? child.material : [child.material];
+          for (const mat of mats) {
+            if (!mat) continue;
+            mat.transparent = true;
+            mat.opacity = 0.8;
+            mat.depthWrite = true;
+            mat.side = THREE.DoubleSide;
+            // Regionsfärerna är emissive (self-lit) och syns därför
+            // lika bra oavsett rotationsvinkel. Detta skal är rent
+            // reflektionsbelyst (scenens point lights) — vinkelberoende,
+            // så sidan som INTE råkar möta ett ljus i stunden blev
+            // nästan svart (skärmdumpsverifierat på initial vy, ~15°
+            // in i auto-rotationen). Ett lågt emissive-golv i samma
+            // varma vävnadston som texturen ger en synlighetsbotten
+            // oavsett vinkel, utan att dränka de riktningsberoende
+            // skuggorna som gör gyri/sulci-vecken faktiskt synliga.
+            if ('emissive' in mat) {
+              mat.emissive = new THREE.Color(0x3a2620);
+              mat.emissiveIntensity = 0.45;
+            }
+          }
+        });
+
+        brainGroup.add(wrapper);
+
+        // Sfär-fallback är inte längre behövd — ta bort den nu när den
+        // riktiga modellen är på plats, i stället för att lägga dem
+        // ovanpå varandra.
+        for (const part of fallbackBrainParts) {
+          brainGroup.remove(part);
+          part.geometry.dispose();
+          part.material.dispose();
+        }
+        fallbackBrainParts = [];
+
+        console.log(`Brain View: anatomisk modell laddad (skala ${scale.toFixed(3)}, ursprunglig storlek ${size.x.toFixed(0)}×${size.y.toFixed(0)}×${size.z.toFixed(0)})`);
+      },
+      undefined,
+      (err) => {
+        console.warn('Brain View: kunde inte ladda anatomisk modell, behåller sfär-fallback', err);
+      }
+    );
   }
 
   // ── Region spheres ──────────────────────────────────────────────

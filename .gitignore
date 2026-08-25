@@ -1,3 +1,9 @@
+# Tredjeparts 3D-tillgångar (Sketchfab m.fl.) — okänd licens för
+# vidaredistribution, Work/nous är ett publikt repo. brain_view.js
+# faller tillbaka till en generisk sfär om filen saknas, så det här är
+# säkert att lämna lokalt-only tills licensen är bekräftad.
+src/nouse/web/static/models/
+
 __pycache__/
 *.py[cod]
 *.egg-info/
