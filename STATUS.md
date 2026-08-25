@@ -1,5 +1,58 @@
 # Nous — status
 
+## 2026-08-25T14:37Z — Codex-dialogens tre buggar fixade + kod-brus-filter, wiki omgenererad (commit 9ccc802)
+
+Björn: "bygg det och åtgärda problemen som codex hittade; du kan be
+codex fixa buggarna medans du bygger ut och förfinar." Arbetsdelning:
+Codex skrev fix-koden för de tre buggarna det själv hittade (fortfarande
+`--sandbox read-only`, skrev bara i sitt textsvar, ingen direktskrivning
+till repot), jag byggde `is_code_only_concept()` parallellt och
+granskade/tillämpade Codex kod efteråt.
+
+**Tre Codex-fixade buggar, granskade och applicerade:**
+- `concept_depth()`: räknar nu distinkta grannar, inte MultiDiGraph-
+  kantrader. Verifierat oberoende mot den levande grafen INNAN Codex
+  kod accepterades: ROOT hade 84 filtrerade rader men bara 15 distinkta
+  grannar — matchade Codex siffror exakt.
+- `concept_top_of_mind_score()`: exkluderar nu beroende-sökvägar,
+  konsekvent med `concept_depth()`.
+- `wiki_generator.py`: en delad `_is_qualifying_source_tag()`-regel
+  (återanvänder `salience.looks_like_dependency_source()`) i stället
+  för två olika, inkonsekventa filter — även `render_wiki_page()`s
+  starka/osäkra-uppdelning använder nu samma regel.
+
+**Byggt parallellt, mitt eget uppdrag:** `is_code_only_concept()` —
+exkluderar koncept vars NAMNGIVNA bevis uteslutande är kodfiler, aldrig
+någon gång förankrat i prosa. Björns ram: "Nous behöver förstå sin
+egen uppsättning för att kunna utvecklas" — men det är arkitektonisk
+självkännedom (redan inflödande via STATUS.md/designdokument), inte
+råa kodsymboler. Hittade en riktig bugg i min EGEN första version via
+riktig data, inte antaget: den räknade "auto"-taggade relationer
+(obestämt ursprung, varken prosa eller kod) som bevis MOT kod-brus,
+vilket skyddade ROOT trots att 100% av dess namngivna bevis var kod.
+Fixat: bara namngivna relationer bedöms.
+
+**9 nya/uppdaterade tester (Codex 4 regressionstester + mina egna),
+512 gröna totalt.**
+
+**Wiki omgenererad från grunden** (gamla exporten raderad först — helt
+regenererbar, gitignorad, ingen anledning att försöka förena gammalt
+med nytt när kvalificeringsreglerna ändrats i grunden):
+**8702 → 590 kvalificerande sidor.** Stor minskning, verifierad inte
+bara accepterad: stickprov visar riktigt, varierat innehåll (forsknings-
+PDF:er, projekt-READMEs, IIC-dokument, `curiosity_loop`-taggat
+material) — inte kollateral skada. `ROOT`/`text`/`str`/`Exception`
+korrekt exkluderade. Finkornig precision bekräftad: `CONTEXT` (riktig
+grund) behölls medan `Context`/`context` (samma slug, ingen grund)
+exkluderades; `version` (ordet, riktig grund) behölls medan
+`__version__`/`VERSION` (kodsymboler) exkluderades — filtret skiljer
+på enskilda namn, inte en trubbig stoppslista.
+
+**Inte löst, medvetet:** den bredare frågan om VARFÖR grafen har så
+många kod-symbol-varianter i första taget (extraktorns 2200-tecken-
+gräns, ingen kanonisering vid inskrivning) — Codex föreslog SKOS-
+liknande alias-modellering som ett separat, större spår, inte byggt.
+
 ## 2026-08-25T14:05Z — relay:codex inkopplat, delegerings-svaret pollas nu tillbaka (commit 6707da3)
 
 Föddes ur ett `@tanke`-samtal om att skicka en fråga till Codex i
