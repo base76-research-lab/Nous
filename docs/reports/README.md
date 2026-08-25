@@ -6,7 +6,11 @@ is substantial enough to document properly — not every log entry needs one.
 
 Naming convention: `REPORT-NNN-short-slug.md`.
 
-No reports yet. Two natural first candidates, per the current evidence ledger
+- [`2026-04-intent-disambiguation-pilot.md`](2026-04-intent-disambiguation-pilot.md)
+  — historical pilot, incomplete provenance, moved here 2026-08-25 from a
+  wiki page that presented it as confident headline evidence.
+
+Two natural next candidates, per the current evidence ledger
 ([`../../eval/RESULTS_INDEX.md`](../../eval/RESULTS_INDEX.md)):
 
 1. The LongMemEval task-shape diagnosis (why the relation vocabulary doesn't
