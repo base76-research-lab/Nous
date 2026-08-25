@@ -38,9 +38,13 @@ results/metrics/
 
 # ICM agent-pipeline run artifacts — regenerated per run, not source-controlled
 runs/
-logs/llm/
-logs/nous/
+logs/
 stages/*/output/
+
+# Wiki layer output (daemon/wiki_generator.py) — a generated view over the
+# graph, not source. Committing it would mean thousands of files that add
+# nothing a rebuild can't reproduce (see nous-wiki-layer-design.md).
+wiki/
 
 # Internal strategy/negotiation docs — not for the public repo (2026-08-25)
 /FRONTIER_PLAN.md

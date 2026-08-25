@@ -1,5 +1,61 @@
 # Nous — status
 
+## 2026-08-25T13:50Z — Första riktiga wiki-körningen mot den levande grafen, klar och verifierad
+
+Björns "då kan vi starta den nu... sätt en lokal övervakning" — kört
+manuellt (`scripts/run_wiki_generation.py`, read-only `FieldSurface`,
+rör aldrig produktionsgrafen), loggat till `logs/`. INTE kopplad till
+NightRun än (samma väntar-läge som tidigare).
+
+**Två riktiga buggar hittade av övervakningen själv, båda fixade och
+verifierade innan de lämnades:**
+
+1. **Tyst 5000-koncept-trunkering** (commit `8e51ed9`): alla tre
+   funktionerna i `wiki_generator.py` ärvde `get_concepts_with_metadata()`s
+   `limit=5000`-default. Grafen har 21 000+ koncept — 75% hade tyst
+   fallit bort, både ur domän/scope-uppslagningen och ur hela körningens
+   omfattning. Aldrig synlig i tester (alla använde små syntetiska
+   grafer). Fångad INNAN första körningen, inte efteråt.
+2. **Slug-kollisioner** (commits `b92b5ae`, föregånget av ett ofullständigt
+   första försök): verifierat att namn som bara skiljer sig i
+   skiftläge/interpunktion (`Context`/`CONTEXT`/`context`,
+   `__version__`/`_version`/`VERSION`/... — 7 namn) kollapsar till samma
+   slug. Utan särskiljning skriver den sist bearbetade tyst över de
+   tidigares filer — bekräftat av att första körningen rapporterade
+   "8148 genererade" men bara 8052 riktiga filer fanns. Grundorsaken satt
+   djupare än den första fixen: `should_regenerate()` läste OCKSÅ den
+   krockande vägen oberoende, hittade en annan koncepts nyss skrivna fil,
+   och drog slutsatsen "inget har ändrats" — hoppade över skrivningen
+   INNAN särskiljningslogiken ens nåddes. Fånget av ett nytt
+   regressionstest, inte av produktionskörningen (som redan hade körts en
+   gång och sett fel, men skadan var bara i den statiska exporten, aldrig
+   i grafen).
+
+**Slutgiltig, verifierad körning (efter båda fixarna):**
+- Första passet: 8148 sidor, andra passet (efter fixen, samma graf
+  minuter senare): 680 nya/tidigare-kolliderade sidor, resten korrekt
+  överhoppade (redan uppdaterade, `should_regenerate()` fungerar som
+  tänkt).
+- **8702 riktiga filer på disk, 8703 indexerade — verifierat direkt med
+  `ls`, inte bara litat på skriptets egna räknare.** 558 filer har nu
+  ett särskiljande hash-suffix (`--xxxxxx`), bekräftat att alla tre
+  `context`-varianterna och `version`-familjen fick egna filer.
+- Övervakningsskriptets egen avvikelselarm ("ANOMALY: generated=680
+  indexed=8703, >50% divergens") **var en falsk positiv** — tog inte
+  höjd för att en andra körning förväntas hoppa över det mesta
+  (redan uppdaterat). Bekräftat genom att faktiskt räkna filerna, inte
+  bara läsa larmet. Värt att förbättra heuristiken om skriptet körs
+  igen, inte kritiskt nu.
+
+**Kvarstående, känt, inte löst:** `generate_wiki_index()` gör sin egen
+oberoende särskiljningsomgång i stället för att dela state med
+`generate_wiki_pages()` — matchar i praktiken (samma körning, minimal
+grafdrift mellan de två anropen) men är ingen hård garanti om grafen
+muterar mycket mellan dem. Den djupare frågan om VARFÖR grafen har så
+många kod-interna dubbletter (`__version__` m.fl.) i första taget är
+inte adresserad — det är en extraktions-/ingestion-fråga, inte en
+wiki-lager-fråga, ett eget framtida spår om det blir viktigt.
+
 ## 2026-08-25T13:34Z — Salience-modell (tid × use × djup) klar: top_of_mind_score i inject.py + wiki-index
 
 Björns "kör" (två gånger — en för designrundan, en för byggstarten),
