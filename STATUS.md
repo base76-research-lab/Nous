@@ -1,5 +1,33 @@
 # Nous — status
 
+**2026-08-25, occipital-regionen får äkta källmaterial (Tududi-subtask 1):**
+
+- Ingen katalog routades tidigare till `occipital_lobe` alls (varken via
+  `daemon/sources.py::_domain_from_path()` eller `brain_atlas.py`) — inte
+  en fråga om att byta ut syntetiskt material, utan frånvaro av routning.
+  Björn bekräftade (fråga ställd, inte gissad) att hans eget
+  perceptionsforskningsspann PCPE ("Perceptual Coherence and Perceived
+  Exclusion", `IIC/02_LIBRARY/RESEARCH/papers/preprints/` +
+  `papers/ongoing/PCPE/`) är rätt material.
+- `_domain_from_path()` returnerar nu `"perception"` för PCPE-sökvägar
+  (matchar `occipital_lobe`s `domain_keywords` i `brain_atlas.py`, verifierat
+  direkt: `classify_domain("perception") == "occipital_lobe"`), placerat
+  före den generella research/paper-regeln så det inte fångas som
+  "AI-forskning" i stället.
+- **Ingen daemon-/systemd-åtgärd behövdes.** Den installerade
+  `~/.config/systemd/user/nouse-daemon.service` sätter redan
+  `NOUSE_WATCH_EXTRA_PATHS=/home/bjornwikstrom` (verifierat direkt i
+  filen) — hela hemkatalogen, IIC inkluderat, bevakas redan. Nästa
+  fil-ingestion av PCPE-materialet (daemonens vanliga bevakningscykel,
+  ingen manuell trigger) routar det till occipital utan vidare åtgärd.
+- Ny testfil `tests/daemon/test_sources_domain.py` (4 tester, gröna) —
+  täcker både path→domain-mappningen och hela kedjan till
+  `occipital_lobe`.
+- Repots committade `systemd/nouse-daemon.service`-mall är fortfarande
+  inaktuell mot den installerade (annan user, andra sökvägar, andra
+  modellnamn) — inte fixat i den här passen, flaggas som en separat,
+  icke-gated dokumentationsstädning.
+
 **2026-08-25, Fas 3 punkt 7 (Global Workspace): status löst, designskiss
 gjord, IKKE byggd:**
 

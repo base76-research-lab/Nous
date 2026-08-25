@@ -377,6 +377,15 @@ def _domain_from_path(path: Path) -> str:
         return "fysik"
     if any(k in p for k in ["math", "matematik", "algebra"]):
         return "matematik"
+    # 2026-08-25 (Tududi-task "Nous — återstående nästa steg", subtask 1):
+    # occipital_lobe i brain_atlas.py klassificerar via "perception" i sitt
+    # domain_keywords, men ingen sökväg routades dit tidigare — Björns eget
+    # perceptionsforskningsspann (PCPE, "Perceptual Coherence and Perceived
+    # Exclusion") är det bekräftade källmaterialet. Måste stå FÖRE den
+    # generella research/paper-regeln nedan, annars fångas PCPE-filer där
+    # och blir "AI-forskning" i stället.
+    if "pcpe" in p or "perceptual coherence and perceived exclusion" in p:
+        return "perception"
     if any(k in p for k in ["bisociat", "research", "paper"]):
         return "AI-forskning"
     if any(k in p for k in ["bio", "svamp", "fungi"]):
