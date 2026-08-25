@@ -1,5 +1,31 @@
 # Nous — status
 
+## 2026-08-25T23:10Z — Brain View Steg 1: riktigt punktmoln i hjärnformen
+
+Björn korrigerade riktningen på Brain View med fem referensbilder (DTI-
+traktografi, punktmoln-cortex m.fl.): hela nodklustret ska BILDA
+hjärnformen, inte 11 lösa bollar bredvid en silhuett. Ox Alpha levererade
+en full teknisk plan ("Living Tractograph", 4 lager, ~3,5-4 pass). Steg 1
+byggt och skärmdumps-verifierat mot den levande daemonen.
+
+`scripts/generate_brain_template.py` (nytt, `uv run --extra
+brain_template`): voxel-fyller den riktiga GLB-modellen, tilldelar varje
+voxel närmaste av 11 regioner, radial-bias PER REGION (inte globalt — en
+global bias svalt nästan hela `brainstem` till 7 punkter, fixat) med ett
+golv så ingen region kollapsar. `brain_view.js::buildNodeCloud()`: domän
+→ region-tabell (~18 poster, INTE Björn-granskad än), deterministisk
+hash per nod-id → stabil punkt, ingen omblandning vid omladdning.
+
+**Viktigt fynd, inte i Ox Alphas antagande:** bara 1500 av grafens
+riktiga noder laddades någonsin till klienten (`index.html`, hårdkodad
+`/api/graph?limit=1500`) — HUD:ens "Nodes"-siffra är en separat
+servertotal. Höjt till 10 000, verifierat (~3s sidladdning, tydlig
+glödande hjärnform framträder). Påverkar ALLA vyer — bör bekräftas som
+permanent, inte bara antas.
+
+Committat lokalt (`4457e6d`), INTE pushat. `brain_template.json` (2,9 MB,
+genererad) är gitignored under `models/`, samma mönster som GLB-filen.
+
 ## 2026-08-25T22:40Z — Arbitrerings-KONTRAKT (P3) byggt + read-only tool-loop för Ox Alpha
 
 Björn: "vi skulle kunna ge OA tillgång till Nouse och se vad den gör" —
