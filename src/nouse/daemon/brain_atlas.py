@@ -220,6 +220,46 @@ BRAIN_ATLAS: dict[str, BrainRegion] = {
             "alarm", "alert", "warning", "critical", "attention",
         ],
     ),
+    "basal_ganglia": BrainRegion(
+        # 2026-08-25 (neurotorium.org regional neuroscience, see
+        # docs/EVIDENCE_MODEL.md-adjacent IIC note
+        # nous-neurobiology-grounding.md): the real anatomical seat of
+        # reward-driven HABIT formation — distinct from hippocampus's
+        # declarative/episodic memory below. strength/strength_fast
+        # (field/surface.py) and the dopamine signal (limbic/signals.py)
+        # already implement exactly this mechanism; it never had a home
+        # region. Not a new function — a correct name for one that
+        # already exists.
+        name="Basal Ganglia",
+        primary_function="Reward-driven habit formation, action selection, procedural (not declarative) memory",
+        effect_of_damage="Loss of automatic/habitual behavior, impaired action selection, motor rigidity",
+        x=0.5, y=-0.6,  # deep, slightly anterior, mid-ventral — near hippocampus/amygdala
+        signal_decay_rate=0.91,  # reinforced patterns should persist strongly, like amygdala/cerebellum
+        domain_keywords=[
+            # Habit & procedure — the core distinction from hippocampus's declarative memory
+            "habit", "routine", "procedural", "automaticity", "repetition",
+            "vana", "rutin",
+            # Reward & reinforcement
+            "reward", "reinforcement", "dopamine", "belöning", "förstärkning",
+            # Action selection
+            "action_selection", "gating", "motor_control", "striatum",
+        ],
+    ),
+    "thalamus": BrainRegion(
+        # 2026-08-25 (same source as basal_ganglia above): the central
+        # sensory/signal relay — every existing "route this request
+        # somewhere" mechanism (MCP gateway, capability/graph.py routing,
+        # the Tools panel's Route Control) had no region either.
+        name="Thalamus",
+        primary_function="Central relay station — routes signals to the appropriate region",
+        effect_of_damage="Sensory processing failure, inability to route/prioritize incoming signals",
+        x=0.0, y=0.0,  # the literal center — matches its real anatomical position
+        signal_decay_rate=0.94,  # a relay hub should lose little in transit, close to brainstem's 0.95
+        domain_keywords=[
+            "relay", "routing", "route", "dispatch", "gateway",
+            "channel", "relä", "forward", "mcp",
+        ],
+    ),
 }
 
 
