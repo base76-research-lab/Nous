@@ -55,15 +55,39 @@ def test_spawn_codex_headless_builds_read_only_sandbox_command(tmp_path, monkeyp
     assert meta["pid"] == 4242
 
 
+def test_spawn_codex_headless_points_at_the_given_workspace_not_the_artifact_dir(tmp_path, monkeypatch):
+    # Found and fixed 2026-08-25: without this, the delegated process's cwd
+    # was run_dir/relay_delegation (just log/meta artifacts) -- the model
+    # would never actually see the codebase it was asked about.
+    monkeypatch.setattr(executors.shutil, "which", lambda name: "/usr/bin/codex")
+    captured = {}
+
+    def fake_popen(cmd, cwd=None, **kwargs):
+        captured["cmd"] = cmd
+        captured["cwd"] = cwd
+        return _FakeProc()
+
+    monkeypatch.setattr(executors.subprocess, "Popen", fake_popen)
+
+    real_repo = tmp_path / "the_actual_repo"
+    real_repo.mkdir()
+
+    spawn_codex_headless(goal="find the bug", run_dir=tmp_path / "runs" / "run1", workspace=real_repo)
+
+    assert captured["cwd"] == str(real_repo)
+    cmd = captured["cmd"]
+    assert cmd[cmd.index("-C") + 1] == str(real_repo)
+
+
 def test_open_relay_executor_dispatches_to_codex_when_requested(tmp_path, monkeypatch):
     _mk_relay_dir(tmp_path, monkeypatch)
     calls = []
 
-    def fake_spawn_codex(*, goal, run_dir):
+    def fake_spawn_codex(*, goal, run_dir, workspace=None):
         calls.append("codex")
         return {"ok": True, "pid": 1, "log_path": str(run_dir / "codex.log")}
 
-    def fake_spawn_claude(*, goal, run_dir):
+    def fake_spawn_claude(*, goal, run_dir, workspace=None):
         calls.append("claude")
         return {"ok": True, "pid": 2, "log_path": str(run_dir / "claude.log")}
 
@@ -86,7 +110,7 @@ def test_open_relay_executor_defaults_to_claude_for_unknown_engine(tmp_path, mon
     calls = []
     monkeypatch.setattr(
         executors, "spawn_claude_headless",
-        lambda *, goal, run_dir: calls.append("claude") or {"ok": True, "pid": 1, "log_path": "x"},
+        lambda *, goal, run_dir, workspace=None: calls.append("claude") or {"ok": True, "pid": 1, "log_path": "x"},
     )
 
     open_relay_executor(goal="x", run_dir=tmp_path, engine="some-unrecognized-value")

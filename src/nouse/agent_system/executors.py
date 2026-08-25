@@ -68,7 +68,7 @@ async def call_model_executor(
         return {"ok": False, "content": "", "error": f"TOOL_UNAVAILABLE: {exc}"}
 
 
-def spawn_claude_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
+def spawn_claude_headless(*, goal: str, run_dir: Path, workspace: Path | None = None) -> dict[str, Any]:
     """Detached, non-blocking headless Claude Code invocation for a
     delegated task.
 
@@ -80,16 +80,25 @@ def spawn_claude_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
     explicit "kör" in the session): a delegated background run must not
     inherit more authority than that.
 
+    `workspace` is the directory the delegated model actually operates in
+    (reads/greps/explores) — defaults to the caller's own cwd. This is
+    NOT `run_dir`: run_dir/relay_delegation only holds this call's own
+    log/meta artifacts (always absolute paths, unaffected by workspace).
+    Found and fixed 2026-08-25 before the first real cross-model question
+    was sent: without this, the subprocess's cwd was the artifact
+    directory, and the delegated model would never have actually seen the
+    codebase it was asked about — a generic answer, not a grounded one.
+
     The process is detached (`start_new_session=True`) so it survives this
     CLI invocation's own exit — `nouse agent run` is a one-shot process,
     an `asyncio` task here would die with it. Output goes to a log file
-    under `run_dir`; nothing polls it back into the relay session yet
-    (that's the next slice, not this one).
+    under `run_dir`.
     """
     claude_bin = shutil.which("claude")
     if not claude_bin:
         return {"ok": False, "error": "TOOL_UNAVAILABLE: claude CLI not found on PATH"}
 
+    workspace_dir = Path(workspace) if workspace else Path.cwd()
     delegation_dir = run_dir / "relay_delegation"
     delegation_dir.mkdir(parents=True, exist_ok=True)
     log_path = delegation_dir / "claude_headless.log"
@@ -108,7 +117,7 @@ def spawn_claude_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
     with open(log_path, "w", encoding="utf-8") as log_f:
         proc = subprocess.Popen(
             cmd,
-            cwd=str(delegation_dir),
+            cwd=str(workspace_dir),
             stdout=log_f,
             stderr=subprocess.STDOUT,
             start_new_session=True,
@@ -117,7 +126,7 @@ def spawn_claude_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
     meta = {
         "pid": proc.pid,
         "cmd": cmd,
-        "cwd": str(delegation_dir),
+        "cwd": str(workspace_dir),
         "log_path": str(log_path),
         "permission_mode": "plan",
         "engine": "claude",
@@ -126,7 +135,7 @@ def spawn_claude_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
     return {"ok": True, "pid": proc.pid, "log_path": str(log_path)}
 
 
-def spawn_codex_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
+def spawn_codex_headless(*, goal: str, run_dir: Path, workspace: Path | None = None) -> dict[str, Any]:
     """Detached, non-blocking headless Codex invocation — the `relay:codex`
     counterpart to spawn_claude_headless() above. Same safety posture:
     `--sandbox read-only` is Codex's equivalent of Claude's plan mode
@@ -139,6 +148,7 @@ def spawn_codex_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
     if not codex_bin:
         return {"ok": False, "error": "TOOL_UNAVAILABLE: codex CLI not found on PATH"}
 
+    workspace_dir = Path(workspace) if workspace else Path.cwd()
     delegation_dir = run_dir / "relay_delegation"
     delegation_dir.mkdir(parents=True, exist_ok=True)
     log_path = delegation_dir / "codex_headless.log"
@@ -152,6 +162,8 @@ def spawn_codex_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
         "--sandbox",
         "read-only",
         "--json",
+        "-C",
+        str(workspace_dir),
         "-o",
         str(result_path),
     ]
@@ -159,7 +171,7 @@ def spawn_codex_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
     with open(log_path, "w", encoding="utf-8") as log_f:
         proc = subprocess.Popen(
             cmd,
-            cwd=str(delegation_dir),
+            cwd=str(workspace_dir),
             stdout=log_f,
             stderr=subprocess.STDOUT,
             start_new_session=True,
@@ -168,7 +180,7 @@ def spawn_codex_headless(*, goal: str, run_dir: Path) -> dict[str, Any]:
     meta = {
         "pid": proc.pid,
         "cmd": cmd,
-        "cwd": str(delegation_dir),
+        "cwd": str(workspace_dir),
         "log_path": str(log_path),
         "result_path": str(result_path),
         "sandbox": "read-only",
@@ -182,7 +194,8 @@ _SPAWN_BY_ENGINE = {"claude": spawn_claude_headless, "codex": spawn_codex_headle
 
 
 def open_relay_executor(
-    *, goal: str, run_dir: Path, requested_by: str = "jarvis", engine: str = "claude"
+    *, goal: str, run_dir: Path, requested_by: str = "jarvis", engine: str = "claude",
+    workspace: Path | None = None,
 ) -> dict[str, Any]:
     """Open a nouse relay session for a delegated task, kick off a detached
     headless run (`engine="claude"` or `"codex"`, matching the
@@ -190,12 +203,16 @@ def open_relay_executor(
     already documents), and return immediately — this is the async
     escalation path. Jarvis never blocks waiting for the delegated work
     to finish; call check_relay_delegation() later to pull the result in.
+
+    `workspace`: the directory the delegated model should actually explore
+    (defaults to the caller's own cwd) — see spawn_claude_headless()'s
+    docstring for why this isn't just run_dir.
     """
     spawn_fn = _SPAWN_BY_ENGINE.get(engine, spawn_claude_headless)
     relay = relay_open(goal, model=requested_by)
     session_id = relay.get("session_id")
 
-    spawn = spawn_fn(goal=goal, run_dir=run_dir)
+    spawn = spawn_fn(goal=goal, run_dir=run_dir, workspace=workspace)
 
     if spawn.get("ok"):
         relay_update(
