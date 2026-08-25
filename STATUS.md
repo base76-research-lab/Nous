@@ -1,5 +1,52 @@
 # Nous — status
 
+**2026-08-25, Fas 3 punkt 7 (Global Workspace): status löst, designskiss
+gjord, IKKE byggd:**
+
+- **Punkt 8-motsägelsen (rad ~567 nedan säger "INTE live än", rad ~447
+  säger "klar ... PID 936012") är löst med en read-only koll, inte en
+  gissning.** `systemctl --user status nouse-daemon.service` visar
+  körande PID 1314833, uppe sedan 2026-08-24 16:09:58 — en SENARE omstart
+  än 02:53-omstarten som aktiverade punkt 8. Rad 567 är en äldre logg-post
+  som aldrig markerades inaktuell efter att omstarten faktiskt hände;
+  ingen indikation i loggen om att punkt 8 reverterats däremellan.
+  **Slutsats: punkt 8 är live**, och har överlevt minst en omstart sedan
+  dess. Per Björns egen 10→9→8→7-ordning (beslut 2026-08-23) är punkt 7
+  därmed tekniskt olåst — se nedan för vad som ändå gör att den inte
+  byggs i den här passen.
+- **Designskiss för punkt 7 (ingen kod ändrad):** dagens
+  `orchestrator/global_workspace.py::GlobalWorkspace.competition_step()`
+  (Hopfield WTA + lateral inhibition, se docstring där) är redan riktig
+  och oförändrad-värd — det som saknas är att `conductor.py::
+  run_cognitive_cycle()` Steg 6 (rad ~475-506) bygger sina tre
+  `WorkspaceProposal` (episodic_memory, tda_bisociation,
+  limbic_homeostasis) som en hårdkodad listlitteral i stället för att
+  samla in dem dynamiskt. Föreslagen väg, i tre separat granskningsbara
+  steg:
+  1. Inför en `TypedProcessor`-protokoll (`async def propose(self, ctx)
+     -> WorkspaceProposal | None`) och en registreringsmekanism på
+     `GlobalWorkspace` (`register_processor()` / `collect_proposals(ctx)`
+     som `asyncio.gather`:ar alla registrerade processorers `propose()`,
+     med per-processor try/except så en trasig processor inte kraschar
+     hela cykeln).
+  2. Rena refactor: linda dagens tre hårdkodade förslag som tre konkreta
+     `TypedProcessor`-klasser, byt `run_cognitive_cycle`s Steg 6 mot
+     `proposals = await self.workspace.collect_proposals(ctx)`.
+     Beteende ska vara identiskt före/efter — ren strukturell ändring,
+     verifierbar med befintliga conductor-tester.
+  3. Lägg till nya processorer en i taget (predictive-surprise/punkt 8,
+     curiosity/goal-directed, ev. kamera/occipital) som egna, separat
+     granskade steg — inte i samma omgång som steg 1-2.
+- **Varför detta inte byggs nu:** Björn beskrev punkt 7 själv som "störst,
+  mest genomgripande" och lade den sist medvetet (se
+  `docs/NOUS_NEXT_GENERATION_PLAN.md` rad ~95-108). Steg 2 och 3 ovan
+  ändrar vad som faktiskt körs i produktionscykeln och kräver en
+  daemon-omstart för att bli live — det är precis den typen av åtgärd som
+  enligt CLAUDE.md alltid kräver ett explicit "kör" i sessionen, inte bara
+  en allmän "fria händer att bygga"-instruktion. Steg 1-2 (protokoll +
+  ren refactor) skulle kunna byggas och committas utan gate om Björn vill
+  det som nästa steg — de ändrar inte cykelns beteende.
+
 **2026-08-25, ablation/controlled-baseline scaffolding (P1/P2, ej körd):**
 
 Byggt utifrån samma 2026-08-25 repo-review: infrastrukturen för det
