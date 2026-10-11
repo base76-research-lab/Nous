@@ -584,6 +584,7 @@ async def _write_bridge_chain(
                 why=f"[bridge:{sig_a.concept}↔{sig_b.concept}] {hop_why}",
                 evidence_score=score,
                 source_tag="bridge_finder",
+                provenance_class="model_hypothesis",
             )
             coordinator.on_fact(
                 src, rel, tgt,
@@ -628,6 +629,7 @@ async def _write_bridge_chain(
                 why=f"[1+1=3] {synthesis_why}",
                 evidence_score=confidence,
                 source_tag="bridge_finder",
+                provenance_class="model_hypothesis",
             )
             field_surface.add_relation(
                 src=sig_b.concept,
@@ -636,6 +638,7 @@ async def _write_bridge_chain(
                 why=f"[1+1=3] {synthesis_why}",
                 evidence_score=confidence,
                 source_tag="bridge_finder",
+                provenance_class="model_hypothesis",
             )
             # Syntesen är en instans av båda sina föräldrar
             field_surface.add_relation(
@@ -645,6 +648,7 @@ async def _write_bridge_chain(
                 why=synthesis_why,
                 evidence_score=confidence,
                 source_tag="bridge_finder",
+                provenance_class="model_hypothesis",
             )
             field_surface.add_relation(
                 src=synthesis_name,
@@ -653,6 +657,7 @@ async def _write_bridge_chain(
                 why=synthesis_why,
                 evidence_score=confidence,
                 source_tag="bridge_finder",
+                provenance_class="model_hypothesis",
             )
             coordinator.on_fact(
                 sig_a.concept, "genererar_syntes", synthesis_name,
@@ -687,6 +692,7 @@ async def _write_bridge_chain(
             why=meta_why,
             evidence_score=confidence,
             source_tag="bridge_finder",
+            provenance_class="model_hypothesis",
         )
         field_surface.add_relation(
             src=sig_b.concept,
@@ -695,6 +701,7 @@ async def _write_bridge_chain(
             why=meta_why,
             evidence_score=confidence,
             source_tag="bridge_finder",
+            provenance_class="model_hypothesis",
         )
     except Exception as e:
         _log.debug("Kunde inte skapa META-brygga: %s", e)

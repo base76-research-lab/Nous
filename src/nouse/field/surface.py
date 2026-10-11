@@ -40,6 +40,46 @@ PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING = float(
     os.getenv("NOUSE_PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING", "0.70")
 )
 
+# Evidence is about support for a claim, not about how plausible a model found
+# it or how often the graph retrieved it.  Every writer must declare which of
+# these it is.  Missing/unknown provenance fails closed below the strong-fact
+# threshold; otherwise a newly added writer can silently recreate the exact
+# `domain_bootstrap` bypass this guard was introduced to stop.
+PROVENANCE_CLASSES = frozenset({
+    "observed_source",       # named, inspectable source material
+    "user_assertion",        # Björn's own stated observation/decision
+    "model_hypothesis",      # an LLM-generated candidate
+    "structural_derivation", # graph/rule inference, not independent support
+    "unknown",               # legacy or undeclared writer: fail closed
+})
+EVIDENCE_CEILINGS = {
+    "model_hypothesis": PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING,
+    "structural_derivation": PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING,
+    "unknown": PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING,
+}
+_MODEL_DERIVED_SOURCE_TAGS = frozenset({
+    "domain_bootstrap", "llm_bootstrap", "llm_teacher", "llm_teacher_answer",
+    "bridge_finder", "axon_growth_cone", "syntes",
+})
+
+
+def _provenance_class(provenance_class: str | None, source_tag: str) -> str:
+    """Normalize provenance at the write boundary, never at retrieval time."""
+    if provenance_class in PROVENANCE_CLASSES:
+        return provenance_class
+    if source_tag in _MODEL_DERIVED_SOURCE_TAGS:
+        return "model_hypothesis"
+    return "unknown"
+
+
+def _evidence_for_provenance(
+    score: float, provenance_class: str, has_named_support: bool = False,
+) -> float:
+    if provenance_class == "observed_source" and not has_named_support:
+        return min(score, PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING)
+    ceiling = EVIDENCE_CEILINGS.get(provenance_class)
+    return min(score, ceiling) if ceiling is not None else score
+
 # ── Skopat minne (Fas 2 steg 5, 2026-08-23; utökad 2026-08-25) ──────────────
 # Google Memory Bank / Mem0-mönster: en formell gräns mellan källtyper i
 # stället för lösa domäntaggar. `domain` förblir fri ämnestaxonomi
@@ -262,6 +302,8 @@ class FieldSurface:
         self._migrate_concept_scope_column()
         self._migrate_relation_multitimescale_columns()
         self._migrate_relation_source_tag_column()
+        self._migrate_relation_provenance_class_column()
+        self._migrate_relation_source_support_table()
 
     def _migrate_concept_scope_column(self) -> None:
         """Fas 2 steg 5 (2026-08-23): formell källgräns, se KNOWN_SCOPES ovan."""
@@ -356,6 +398,51 @@ class FieldSurface:
             cur.execute("UPDATE relation SET source_tag = 'auto' WHERE source_tag IS NULL")
         self._sql.commit()
 
+    def _migrate_relation_provenance_class_column(self) -> None:
+        """Store the semantic kind of support on every relation.
+
+        Historical rows are intentionally `unknown`: assigning a generous
+        provenance class retrospectively would manufacture evidence.  This is
+        additive and does not alter any existing score during migration.
+        """
+        cur = self._sql.cursor()
+        existing = {row["name"] for row in cur.execute("PRAGMA table_info(relation)")}
+        if "provenance_class" not in existing:
+            cur.execute("ALTER TABLE relation ADD COLUMN provenance_class TEXT")
+            cur.execute("UPDATE relation SET provenance_class = 'unknown' "
+                        "WHERE provenance_class IS NULL")
+        self._sql.commit()
+
+    def _migrate_relation_source_support_table(self) -> None:
+        """Create append-only, named support records for relation evidence.
+
+        Evidence can be revised by superseding a relation, never by silently
+        overwriting or deleting its original support trail.  SQLite triggers
+        make this true even if a future writer bypasses this class API.
+        """
+        cur = self._sql.cursor()
+        cur.executescript("""
+            CREATE TABLE IF NOT EXISTS relation_source_support (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                relation_id INTEGER NOT NULL,
+                source_ref TEXT NOT NULL,
+                provenance_class TEXT NOT NULL,
+                detail TEXT NOT NULL DEFAULT '',
+                recorded TEXT NOT NULL,
+                UNIQUE(relation_id, source_ref),
+                FOREIGN KEY (relation_id) REFERENCES relation(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_relation_source_support_relation
+                ON relation_source_support(relation_id);
+            CREATE TRIGGER IF NOT EXISTS relation_source_support_no_update
+                BEFORE UPDATE ON relation_source_support
+                BEGIN SELECT RAISE(ABORT, 'relation source support is append-only'); END;
+            CREATE TRIGGER IF NOT EXISTS relation_source_support_no_delete
+                BEFORE DELETE ON relation_source_support
+                BEGIN SELECT RAISE(ABORT, 'relation source support is append-only'); END;
+        """)
+        self._sql.commit()
+
     def _load_graph_into_networkx(self) -> None:
         G = self._G
         G.clear()
@@ -373,7 +460,7 @@ class FieldSurface:
         for row in cur.execute(
             "SELECT id, src, tgt, type, why, strength, created, "
             "evidence_score, assumption_flag, valid_from, valid_until, derived_from, "
-            "source_tag FROM relation"
+            "source_tag, provenance_class FROM relation"
         ):
             if not row["src"] or not row["tgt"]:
                 continue
@@ -386,7 +473,8 @@ class FieldSurface:
                        valid_from=row["valid_from"] or row["created"],
                        valid_until=row["valid_until"],
                        derived_from=row["derived_from"],
-                       source_tag=row["source_tag"] or "auto")
+                       source_tag=row["source_tag"] or "auto",
+                       provenance_class=row["provenance_class"] or "unknown")
 
     def _nx_add_concept(self, name, domain, granularity, source, created,
                         dormant_since=None, scope=None):
@@ -397,13 +485,14 @@ class FieldSurface:
     def _nx_add_relation(self, row_id, src, tgt, rel_type, why, strength,
                          created, evidence_score, assumption_flag,
                          valid_from=None, valid_until=None, derived_from=None,
-                         source_tag=None):
+                         source_tag=None, provenance_class=None):
         self._G.add_edge(src, tgt, key=row_id, id=row_id,
                          type=rel_type, why=why, strength=strength,
                          created=created, evidence_score=evidence_score,
                          assumption_flag=assumption_flag,
                          valid_from=valid_from or created, valid_until=valid_until,
-                         derived_from=derived_from, source_tag=source_tag or "auto")
+                         derived_from=derived_from, source_tag=source_tag or "auto",
+                         provenance_class=provenance_class or "unknown")
 
     # ── Write operations ─────────────────────────────────────────────────────
 
@@ -477,7 +566,8 @@ class FieldSurface:
                      source_tag="auto", evidence_score=None, assumption_flag=None,
                      domain_src="external", domain_tgt="external",
                      valid_from=None, valid_until=None, derived_from=None,
-                     scope_src=None, scope_tgt=None):
+                     scope_src=None, scope_tgt=None, provenance_class=None,
+                     support_refs=None):
         ts = datetime.utcnow().isoformat()
         for name, domain, scope in ((src, domain_src, scope_src), (tgt, domain_tgt, scope_tgt)):
             self.add_concept(name, domain=domain, granularity=1,
@@ -485,8 +575,9 @@ class FieldSurface:
         why_clean = (why or "").strip()
         ev = float(evidence_score) if evidence_score is not None else (
             min(1.0, max(0.0, float(strength))) if why_clean else 0.35)
-        if source_tag == "domain_bootstrap":
-            ev = min(ev, PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING)
+        provenance = _provenance_class(provenance_class, source_tag)
+        refs = tuple(dict.fromkeys(str(ref).strip() for ref in (support_refs or ()) if str(ref).strip()))
+        ev = _evidence_for_provenance(ev, provenance, bool(refs))
         af = bool(assumption_flag) if assumption_flag is not None else (not bool(why_clean))
         vf = valid_from or ts
         df = int(derived_from) if derived_from is not None else None
@@ -495,16 +586,73 @@ class FieldSurface:
             cur = self._sql.execute(
                 "INSERT INTO relation (src, tgt, type, why, strength, created, "
                 "evidence_score, assumption_flag, valid_from, valid_until, derived_from, "
-                "source_tag) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "source_tag, provenance_class) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (src, tgt, rel_type, why, strength, ts, ev, int(af), vf, valid_until, df,
-                 source_tag))
+                 source_tag, provenance))
             self._sql.commit()
             row_id = cur.lastrowid
         self._nx_add_relation(row_id, src, tgt, rel_type, why, strength, ts, ev, af,
                               valid_from=vf, valid_until=valid_until, derived_from=df,
-                              source_tag=source_tag)
+                              source_tag=source_tag, provenance_class=provenance)
+        for source_ref in refs:
+            self.add_source_support(row_id, source_ref, provenance_class=provenance)
         self._enrich_nodes_from_relation(src, rel_type, tgt, why, source_tag)
         return row_id
+
+    def add_source_support(self, relation_id, source_ref, *, provenance_class="observed_source", detail=""):
+        """Append a named support record once; model output is not support."""
+        ref = str(source_ref or "").strip()
+        if not ref or ref.lower() in {"auto", "unknown", "model", "llm"}:
+            raise ValueError("source support requires a named source reference")
+        if provenance_class not in {"observed_source", "user_assertion"}:
+            raise ValueError("only observed or user sources may support evidence")
+        now = datetime.utcnow().isoformat()
+        with self._lock:
+            row = self._sql.execute("SELECT id FROM relation WHERE id = ?", (relation_id,)).fetchone()
+            if row is None:
+                raise ValueError("unknown relation for source support")
+            cur = self._sql.execute(
+                "INSERT OR IGNORE INTO relation_source_support "
+                "(relation_id, source_ref, provenance_class, detail, recorded) VALUES (?, ?, ?, ?, ?)",
+                (relation_id, ref, provenance_class, str(detail or "").strip(), now),
+            )
+            self._sql.commit()
+        return bool(cur.rowcount)
+
+    def source_support(self, relation_id):
+        return self._sql.execute(
+            "SELECT source_ref, provenance_class, detail, recorded "
+            "FROM relation_source_support WHERE relation_id = ? ORDER BY id",
+            (relation_id,),
+        ).fetchall()
+
+    def confirm_relation(self, src, rel_type, tgt, *, source_ref, evidence_score,
+                         source_tag="confirmation", detail=""):
+        """Create a sourced successor instead of rewriting a hypothesis.
+
+        The candidate remains in history with its original provenance.  The
+        confirmed relation points back to it through ``derived_from``.
+        """
+        old = self._sql.execute(
+            "SELECT id, why FROM relation WHERE src = ? AND type = ? AND tgt = ? "
+            "AND valid_until IS NULL ORDER BY id DESC LIMIT 1",
+            (src, rel_type, tgt),
+        ).fetchone()
+        if old is None:
+            raise ValueError("cannot confirm an unknown active relation")
+        ts = datetime.utcnow().isoformat()
+        with self._lock:
+            self._sql.execute("UPDATE relation SET valid_until = ? WHERE id = ?", (ts, old["id"]))
+            self._sql.commit()
+        if self._G.has_edge(src, tgt):
+            for key in self._G[src][tgt]:
+                if self._G[src][tgt][key].get("id") == old["id"]:
+                    self._G[src][tgt][key]["valid_until"] = ts
+        return self.add_relation(
+            src, rel_type, tgt, why=old["why"], source_tag=source_tag,
+            evidence_score=evidence_score, valid_from=ts, derived_from=old["id"],
+            provenance_class="observed_source", support_refs=(source_ref,),
+        )
 
     def relation_chain(self, relation_id, max_depth=20):
         """Följ `derived_from` bakåt från en relation till dess rot (Eywa-mönster,
@@ -533,7 +681,7 @@ class FieldSurface:
         return chain
 
     def supersede_relation(self, src, rel_type, tgt, new_tgt, why="",
-                           source_tag="auto", evidence_score=None):
+                           source_tag="auto", evidence_score=None, provenance_class=None):
         """Ersätt en gällande src-[rel_type]->tgt-relation med src-[rel_type]->new_tgt,
         utan att förlora historiken (Zep/Eywa-mönster, se
         docs/NOUS_NEXT_GENERATION_PLAN.md Fas 1).
@@ -566,12 +714,13 @@ class FieldSurface:
         new_id = self.add_relation(
             src, rel_type, new_tgt, why=why, source_tag=source_tag,
             evidence_score=evidence_score, valid_from=ts, derived_from=old_id,
+            provenance_class=provenance_class,
         )
         self.add_relation(
             new_tgt, "supersedes", tgt,
             why=why or f"ersätter tidigare {rel_type}-relation från {src}",
             source_tag=source_tag, evidence_score=evidence_score or 0.9,
-            valid_from=ts, derived_from=old_id,
+            valid_from=ts, derived_from=old_id, provenance_class=provenance_class,
         )
         return new_id
 
@@ -1239,6 +1388,7 @@ class FieldSurface:
                 "evidence_score": data.get("evidence_score"),
                 "assumption_flag": data.get("assumption_flag"),
                 "source_tag": data.get("source_tag", "auto"),
+                "provenance_class": data.get("provenance_class", "unknown"),
                 "valid_from": data.get("valid_from"),
                 "valid_until": data.get("valid_until"),
                 "created": data.get("created"),
@@ -1257,6 +1407,7 @@ class FieldSurface:
                 "evidence_score": data.get("evidence_score"),
                 "assumption_flag": data.get("assumption_flag"),
                 "source_tag": data.get("source_tag", "auto"),
+                "provenance_class": data.get("provenance_class", "unknown"),
                 "valid_from": data.get("valid_from"),
                 "valid_until": data.get("valid_until"),
                 "created": data.get("created"),
@@ -1378,18 +1529,12 @@ class FieldSurface:
         return float(row["evidence_score"]) if row and row["evidence_score"] is not None else None
 
     def promote_relation(self, src, rel_type, tgt, evidence_score):
-        with self._lock:
-            self._sql.execute(
-                "UPDATE relation SET evidence_score = ?, assumption_flag = 0 "
-                "WHERE src = ? AND type = ? AND tgt = ?",
-                (evidence_score, src, rel_type, tgt))
-            self._sql.commit()
-        if self._G.has_edge(src, tgt):
-            for key in self._G[src][tgt]:
-                edata = self._G[src][tgt][key]
-                if edata.get("type") == rel_type:
-                    edata["evidence_score"] = evidence_score
-                    edata["assumption_flag"] = False
+        """Deprecated unsafe operation: evidence cannot be promoted in place.
+
+        Call ``confirm_relation`` with a named source instead.  Returning
+        ``None`` is intentionally fail-closed for legacy reviewers.
+        """
+        return None
 
     def discard_relation(self, src, rel_type, tgt):
         with self._lock:

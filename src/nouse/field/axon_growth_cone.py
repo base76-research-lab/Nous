@@ -315,6 +315,7 @@ async def grow(
                 why=why,
                 evidence_score=min(1.0, match.score + 0.1),  # resonans är stark signal
                 source_tag="axon_growth_cone",
+                provenance_class="structural_derivation",
             )
 
             # Aktivera hebbisk plastisitet
@@ -379,6 +380,7 @@ async def grow(
                     why=meta_why,
                     evidence_score=match.score,
                     source_tag="axon_growth_cone",
+                    provenance_class="structural_derivation",
                 )
                 field.add_relation(
                     src=match.target_node,
@@ -387,6 +389,7 @@ async def grow(
                     why=meta_why,
                     evidence_score=match.score,
                     source_tag="axon_growth_cone",
+                    provenance_class="structural_derivation",
                 )
 
                 # Hebbisk inlärning för meta-axiomet
