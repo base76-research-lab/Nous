@@ -47,6 +47,7 @@ if TYPE_CHECKING:
 
 from nouse.llm.model_router import order_models_for_workload, record_model_result
 from nouse.llm.policy import resolve_model_candidates
+from nouse.llm.default_models import is_missing_model_error, model_for_role
 from nouse.ollama_client.client import AsyncOllama
 
 _log = logging.getLogger("nouse.decomposition")
@@ -54,10 +55,21 @@ _log = logging.getLogger("nouse.decomposition")
 # ── Konfiguration ─────────────────────────────────────────────────────────────
 
 DECOMP_MODEL = (
-    os.getenv("NOUSE_DECOMP_MODEL")
+    os.getenv("NOUSE_MODEL_DECOMP")
+    or os.getenv("NOUSE_DECOMP_MODEL")
     or os.getenv("NOUSE_OLLAMA_MODEL")
-    or "qwen3.5:latest"
+    or os.getenv("NOUSE_MODEL_DEFAULT")
+    or "qwen3.5:9b"
 ).strip()
+
+
+def resolve_decomp_model() -> str:
+    """Dynamisk decomp-modell (samma kedja, evaluerad vid anrop)."""
+    return model_for_role(
+        "decomp",
+        os.getenv("NOUSE_DECOMP_MODEL"),
+        os.getenv("NOUSE_OLLAMA_MODEL"),
+    )
 DECOMP_TIMEOUT_SEC = float(os.getenv("NOUSE_DECOMP_TIMEOUT_SEC", "20"))
 MAX_DEPTH = int(os.getenv("NOUSE_DECOMP_MAX_DEPTH", "5"))
 MIN_DOMAIN_CONVERGENCE = int(os.getenv("NOUSE_DECOMP_MIN_CONVERGENCE", "2"))
@@ -230,7 +242,10 @@ async def _decompose_one(
             subs = data.get("sub_concepts", [])
             return [str(s).strip() for s in subs if str(s).strip()]
     except Exception as e:
-        _log.debug(f"Decomposition LLM-fel ({concept}): {e}")
+        if is_missing_model_error(e):
+            _log.warning(f"Decomposition: modell saknas ({model}) — hoppar över ({e})")
+        else:
+            _log.debug(f"Decomposition LLM-fel ({concept}): {e}")
     return []
 
 
@@ -248,7 +263,7 @@ async def decompose_concept(
       - list[AxiomCandidate]: alla hittade bryggor (sub-koncept i 2+ domäner)
     """
     client = AsyncOllama(timeout_sec=DECOMP_TIMEOUT_SEC)
-    candidates: list[str] = [DECOMP_MODEL]
+    candidates: list[str] = [resolve_decomp_model()]
     candidates = order_models_for_workload("decomposition", candidates) or candidates
 
     axioms: list[AxiomCandidate] = []

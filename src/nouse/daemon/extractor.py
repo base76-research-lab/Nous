@@ -14,19 +14,51 @@ from typing import Any
 
 from nouse.llm.model_router import order_models_for_workload, record_model_result
 from nouse.llm.policy import resolve_model_candidates
+from nouse.llm.default_models import (
+    default_model,
+    is_missing_model_error,
+    log_skip_missing_model,
+    model_for_role,
+)
 from nouse.ollama_client.client import AsyncOllama, model_uses_cloud_provider
 
 _log = logging.getLogger("nouse.extractor")
 
+
+def resolve_extract_model() -> str:
+    """Dynamisk extract-modell: NOUSE_MODEL_EXTRACT → NOUSE_EXTRACT_MODEL →
+    legacy globalt → NOUSE_MODEL_DEFAULT → installerad default (qwen3.5:9b)."""
+    return model_for_role(
+        "extract",
+        os.getenv("NOUSE_EXTRACT_MODEL"),
+        os.getenv("NOUSE_OLLAMA_MODEL"),
+    )
+
+
+def resolve_synth_model() -> str:
+    """Dynamisk synth-modell, samma kedja via NOUSE_MODEL_SYNTH."""
+    return model_for_role(
+        "synth",
+        os.getenv("NOUSE_SYNTH_MODEL"),
+        resolve_extract_model(),
+    )
+
+
 MODEL = (
-    os.getenv("NOUSE_EXTRACT_MODEL")
+    os.getenv("NOUSE_MODEL_EXTRACT")
+    or os.getenv("NOUSE_EXTRACT_MODEL")
     or os.getenv("NOUSE_OLLAMA_MODEL")
-    or "deepseek-r1:1.5b"
+    or os.getenv("NOUSE_MODEL_DEFAULT")
+    or "qwen3.5:9b"
 ).strip()
 FALLBACK_MODEL = (os.getenv("NOUSE_EXTRACT_FALLBACK_MODEL") or "").strip()
 GLOBAL_CANDIDATES_RAW = (os.getenv("NOUSE_MODEL_CANDIDATES") or "").strip()
 EXTRACT_CANDIDATES_RAW = (os.getenv("NOUSE_MODEL_CANDIDATES_EXTRACT") or "").strip()
-SYNTH_MODEL = (os.getenv("NOUSE_SYNTH_MODEL") or MODEL).strip()
+SYNTH_MODEL = (
+    os.getenv("NOUSE_MODEL_SYNTH")
+    or os.getenv("NOUSE_SYNTH_MODEL")
+    or MODEL
+).strip() or default_model()
 SYNTH_FALLBACK_MODEL = (os.getenv("NOUSE_SYNTH_FALLBACK_MODEL") or "").strip()
 SYNTH_CANDIDATES_RAW = (os.getenv("NOUSE_MODEL_CANDIDATES_SYNTH") or "").strip()
 
@@ -314,7 +346,7 @@ def _extract_model_candidates(override_models: list[str] | None = None) -> list[
     defaults: list[str] = []
     defaults.extend(override_models or [])
     defaults.extend(_split_model_list(EXTRACT_CANDIDATES_RAW))
-    defaults.append(MODEL)
+    defaults.append(resolve_extract_model())
     if FALLBACK_MODEL:
         defaults.append(FALLBACK_MODEL)
     defaults.extend(_autodiscovered_models())
@@ -325,7 +357,7 @@ def _extract_model_candidates(override_models: list[str] | None = None) -> list[
 def _synth_model_candidates() -> list[str]:
     defaults: list[str] = []
     defaults.extend(_split_model_list(SYNTH_CANDIDATES_RAW))
-    defaults.append(SYNTH_MODEL)
+    defaults.append(resolve_synth_model())
     if SYNTH_FALLBACK_MODEL:
         defaults.append(SYNTH_FALLBACK_MODEL)
     defaults.extend(_autodiscovered_models())
@@ -605,11 +637,29 @@ async def extract_relations_with_diagnostics(
             record_model_result("extract", model, success=False, timeout=False)
         except Exception as e:
             timed_out = _is_timeout_error(e)
+            missing = is_missing_model_error(e) and not timed_out
             diagnostics["model_errors"].append({"model": model, "error": str(e), "timeout": timed_out})
             if timed_out:
                 diagnostics["timeouts"] = int(diagnostics.get("timeouts", 0) or 0) + 1
+            if missing:
+                diagnostics.setdefault("missing_models", []).append(model)
             record_model_result("extract", model, success=False, timeout=timed_out)
             _log.warning(f"Extraktion misslyckades (model={model}): {e}")
+
+    # Fallback-regel Fas 2: alla kandidater saknas → logga + hoppa över
+    # jobbet (köa). Eskalerar aldrig till extern leverantör härifrån;
+    # molnmodeller körs endast om de står explicit i kandidaterna.
+    missing_models = diagnostics.get("missing_models") or []
+    if (
+        candidates
+        and missing_models
+        and len(missing_models) == len(diagnostics.get("attempted_models") or [])
+    ):
+        log_skip_missing_model(
+            _log, workload="extract",
+            model=", ".join(missing_models),
+            exc=RuntimeError(str((diagnostics.get("model_errors") or [{}])[-1].get("error", ""))),
+        )
 
     if ENABLE_HEURISTIC_FALLBACK:
         heuristic = _heuristic_extract_relations(chunk, metadata)
@@ -621,6 +671,11 @@ async def extract_relations_with_diagnostics(
                 metadata.get("source", "unknown"),
             )
             return heuristic, diagnostics
+
+    if candidates and missing_models and len(missing_models) == len(
+        diagnostics.get("attempted_models") or []
+    ):
+        diagnostics["skipped_reason"] = "model_missing"
 
     return [], diagnostics
 

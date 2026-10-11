@@ -21,13 +21,35 @@ from nouse.field.surface import FieldSurface
 from nouse.limbic.signals import LimbicState
 from nouse.llm.model_router import order_models_for_workload, record_model_result
 from nouse.llm.policy import resolve_model_candidates
+from nouse.llm.default_models import (
+    is_missing_model_error,
+    log_skip_missing_model,
+    model_for_role,
+)
 from nouse.ollama_client.client import AsyncOllama
 from nouse.mcp_gateway.gateway import MCP_TOOLS, is_mcp_tool, execute_mcp_tool
 from nouse.tda.bridge import identify_knowledge_gaps
 
 log = logging.getLogger("nouse.curiosity")
 
-CHAT_MODEL = os.getenv("NOUSE_OLLAMA_MODEL", os.getenv("NOUSE_CHAT_MODEL", "qwen3.5:latest")).strip()
+
+def resolve_curiosity_model() -> str:
+    """Dynamisk curiosity-modell: NOUSE_MODEL_CURIOSITY → NOUSE_OLLAMA_MODEL →
+    NOUSE_CHAT_MODEL → NOUSE_MODEL_DEFAULT → installerad default (qwen3.5:9b)."""
+    return model_for_role(
+        "curiosity",
+        os.getenv("NOUSE_OLLAMA_MODEL"),
+        os.getenv("NOUSE_CHAT_MODEL"),
+    )
+
+
+CHAT_MODEL = (
+    os.getenv("NOUSE_MODEL_CURIOSITY")
+    or os.getenv("NOUSE_OLLAMA_MODEL")
+    or os.getenv("NOUSE_CHAT_MODEL")
+    or os.getenv("NOUSE_MODEL_DEFAULT")
+    or "qwen3.5:9b"
+).strip()
 CHAT_FALLBACK_MODEL = (os.getenv("NOUSE_CURIOSITY_FALLBACK_MODEL") or "").strip()
 GLOBAL_CANDIDATES_RAW = (os.getenv("NOUSE_MODEL_CANDIDATES") or "").strip()
 CURIOSITY_CANDIDATES_RAW = (os.getenv("NOUSE_MODEL_CANDIDATES_CURIOSITY") or "").strip()
@@ -90,7 +112,7 @@ def _curiosity_model_candidates(task: dict[str, Any] | None) -> list[str]:
         elif isinstance(custom, str):
             defaults.extend(_split_model_list(custom))
     defaults.extend(_split_model_list(CURIOSITY_CANDIDATES_RAW))
-    defaults.append(CHAT_MODEL)
+    defaults.append(resolve_curiosity_model())
     if CHAT_FALLBACK_MODEL:
         defaults.append(CHAT_FALLBACK_MODEL)
     defaults.extend(_autodiscovered_models())
@@ -317,7 +339,7 @@ async def run_curiosity_burst(
     client = AsyncOllama(timeout_sec=CURIOSITY_TIMEOUT_SEC)
     model_candidates = order_models_for_workload("curiosity", _curiosity_model_candidates(task))
     if not model_candidates:
-        model_candidates = [CHAT_MODEL]
+        model_candidates = [resolve_curiosity_model()]
     messages: list[dict] = [{"role": "system", "content": system_prompt}]
     
     # Första kick-off från systemet (användaren ber om rapporten internt)
@@ -332,6 +354,7 @@ async def run_curiosity_burst(
             resp = None
             last_model_error: Exception | None = None
             used_model = ""
+            missing_models: list[str] = []
             for model in model_candidates:
                 try:
                     resp = await client.chat.completions.create(
@@ -351,9 +374,21 @@ async def run_curiosity_burst(
                     timed_out = "timeout" in str(e).lower()
                     record_model_result("curiosity", model, success=False, timeout=timed_out)
                     last_model_error = e
+                    if is_missing_model_error(e) and not timed_out:
+                        missing_models.append(model)
                     log.warning(f"  [Curiosity] model-fel ({model}): {e}")
 
             if resp is None:
+                # Fallback-regel Fas 2: alla kandidater saknas → logga +
+                # hoppa över jobbet (köa), aldrig krascha, aldrig eskalera
+                # till extern leverantör utan grind.
+                if missing_models and len(missing_models) == len(model_candidates):
+                    log_skip_missing_model(
+                        log, workload="curiosity",
+                        model=", ".join(missing_models),
+                        exc=last_model_error or RuntimeError("model missing"),
+                    )
+                    return None
                 if last_model_error is not None:
                     raise last_model_error
                 raise RuntimeError("Curiosity saknar tillgänglig modell")

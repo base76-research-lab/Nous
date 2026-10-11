@@ -639,6 +639,18 @@ async def brain_loop(
     camera_watcher = CameraWatcher(field=field, interval=120)  # Occipital lobe (syn)
     speech_listener = SpeechListener(field=field, interval=60)  # Temporal lobe (hörsel)
     speech_speaker = SpeechSpeaker(field=field)                # Frontal lobe (tal/Broca)
+    # Sensor opt-in-status (FIX 1, daemon-teststart 2026-10-11): sensorer är
+    # AV som default och kräver NOUSE_CAMERA_ENABLED / NOUSE_MIC_ENABLED.
+    try:
+        from nouse.daemon.camera import is_camera_enabled as _cam_on
+        from nouse.daemon.speech import is_mic_enabled as _mic_on
+        log.info(
+            "Sensor opt-in: camera=%s (NOUSE_CAMERA_ENABLED), microphone=%s (NOUSE_MIC_ENABLED)",
+            "enabled" if _cam_on() else "disabled — opt-in required",
+            "enabled" if _mic_on() else "disabled — opt-in required",
+        )
+    except Exception:
+        pass
 
     # Ladda in externa självskrivna plugins
     load_plugins()

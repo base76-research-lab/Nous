@@ -45,6 +45,28 @@ from typing import Any
 
 log = logging.getLogger("nouse.speech")
 
+#: Opt-in-grind (daemon-teststart 2026-10-11): mikrofoninspelning är AV som
+#: default. Sätt NOUSE_MIC_ENABLED=1/true/yes/on för explicit samtycke.
+#: Legacy NOUSE_SPEECH_LISTEN_ENABLED hedras som alias men parsas strikt
+#: ("0"/"false"/"off"/"" = av — tidigare gjorde bool("0") den alltid sann).
+_OPT_IN_TRUE = {"1", "true", "yes", "on"}
+
+
+def _parse_opt_in(raw: str | None) -> bool:
+    return (raw or "").strip().lower() in _OPT_IN_TRUE
+
+
+def is_mic_enabled() -> bool:
+    """True endast vid explicit opt-in via NOUSE_MIC_ENABLED (eller legacy
+    NOUSE_SPEECH_LISTEN_ENABLED satt till ett sant värde)."""
+    if _parse_opt_in(os.getenv("NOUSE_MIC_ENABLED")):
+        return True
+    return _parse_opt_in(os.getenv("NOUSE_SPEECH_LISTEN_ENABLED"))
+
+
+#: Aktuell opt-in-status vid import (läs alltid via is_mic_enabled()).
+MIC_ENABLED = is_mic_enabled()
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -102,7 +124,13 @@ def record_audio(duration: float = 5.0, output_path: str | None = None) -> str |
     """Record audio from microphone using arecord.
 
     Returns path to WAV file, or None on failure.
+
+    Kräver explicit opt-in (NOUSE_MIC_ENABLED) — annars ingen inspelning
+    och ingen tmpdir.
     """
+    if not is_mic_enabled():
+        log.info("Microphone disabled (NOUSE_MIC_ENABLED not set) — skipping recording")
+        return None
     if output_path is None:
         tmpdir = tempfile.mkdtemp(prefix="nouse_stt_")
         output_path = os.path.join(tmpdir, "recording.wav")
@@ -235,6 +263,9 @@ def hear(duration: float = 5.0) -> HearingResult | None:
     3. Transcribe with Whisper
     4. Return structured result
     """
+    if not is_mic_enabled():
+        log.info("Microphone disabled (NOUSE_MIC_ENABLED not set) — skipping listen")
+        return None
     # Record
     tmpdir = tempfile.mkdtemp(prefix="nouse_stt_")
     audio_path = record_audio(duration=duration,
@@ -395,10 +426,18 @@ class SpeechListener:
         self.field = field
         self.interval = interval
         self._last_listen = 0.0
-        self._enabled = bool(os.getenv("NOUSE_SPEECH_LISTEN_ENABLED", "0"))
+        # Opt-in-grind: aldrig aktiv utan NOUSE_MIC_ENABLED (strikt parsad;
+        # legacy NOUSE_SPEECH_LISTEN_ENABLED accepteras som alias).
+        self._enabled = is_mic_enabled()
+        if self._enabled:
+            log.info("Speech listener enabled (microphone opt-in active)")
+        else:
+            log.info("Speech listener disabled (NOUSE_MIC_ENABLED not set) — opt-in required")
 
     def tick(self) -> HearingResult | None:
         """Called each daemon cycle. Listens if interval has elapsed."""
+        if not is_mic_enabled():
+            return None
         if not self._enabled:
             return None
 

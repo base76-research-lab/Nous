@@ -36,6 +36,19 @@ from typing import Any
 
 log = logging.getLogger("nouse.camera")
 
+#: Opt-in-grind (daemon-teststart 2026-10-11): kameran är AV som default.
+#: Sätt NOUSE_CAMERA_ENABLED=1/true/yes/on för explicit samtycke.
+_OPT_IN_TRUE = {"1", "true", "yes", "on"}
+
+
+def is_camera_enabled() -> bool:
+    """True endast vid explicit opt-in via NOUSE_CAMERA_ENABLED."""
+    return (os.getenv("NOUSE_CAMERA_ENABLED", "") or "").strip().lower() in _OPT_IN_TRUE
+
+
+#: Aktuell opt-in-status vid import (läs alltid via is_camera_enabled()).
+CAMERA_ENABLED = is_camera_enabled()
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -82,7 +95,13 @@ def capture_frame(output_path: str | None = None) -> str | None:
 
     Uses ffmpeg for V4L2 capture — reliable and available on most Linux systems.
     Returns path to captured image, or None on failure.
+
+    Kräver explicit opt-in (NOUSE_CAMERA_ENABLED) — annars ingen capture
+    och ingen tmpdir.
     """
+    if not is_camera_enabled():
+        log.info("Camera disabled (NOUSE_CAMERA_ENABLED not set) — skipping capture")
+        return None
     if output_path is None:
         tmpdir = tempfile.mkdtemp(prefix="nouse_cam_")
         output_path = os.path.join(tmpdir, "frame.jpg")
@@ -135,6 +154,9 @@ def capture_sequence(n_frames: int = 3, interval: float = 1.0) -> list[str]:
     Useful for observing changes in the environment over time.
     Returns list of image paths.
     """
+    if not is_camera_enabled():
+        log.info("Camera disabled (NOUSE_CAMERA_ENABLED not set) — skipping sequence")
+        return []
     paths = []
     for i in range(n_frames):
         tmpdir = tempfile.mkdtemp(prefix="nouse_cam_")
@@ -158,6 +180,9 @@ def observe(vision_model: Any = None) -> CameraObservation | None:
     2. Process with vision model
     3. Return structured observation
     """
+    if not is_camera_enabled():
+        log.info("Camera disabled (NOUSE_CAMERA_ENABLED not set) — skipping observation")
+        return None
     # Capture
     tmpdir = tempfile.mkdtemp(prefix="nouse_cam_")
     image_path = capture_frame(output_path=os.path.join(tmpdir, "observation.jpg"))
@@ -202,6 +227,9 @@ def observe_environment(duration: float = 30.0, interval: float = 5.0) -> list[C
     Captures frames at regular intervals and processes them.
     This is Nous "watching" its environment.
     """
+    if not is_camera_enabled():
+        log.info("Camera disabled (NOUSE_CAMERA_ENABLED not set) — skipping observation")
+        return []
     observations: list[CameraObservation] = []
     start = time.time()
 
@@ -238,13 +266,22 @@ class CameraWatcher:
         self.interval = interval or CAMERA_INTERVAL
         self._last_capture = 0.0
         self._consecutive_failures = 0
-        self._enabled = os.path.exists(CAMERA_DEVICE)
+        # Opt-in-grind: aldrig aktiv utan NOUSE_CAMERA_ENABLED, oavsett
+        # interval-argument från daemonen. Enhetsnärvaro kontrolleras
+        # separat vid capture (capture_frame loggar saknad enhet).
+        self._enabled = is_camera_enabled()
+        if self._enabled:
+            log.info("Camera watcher enabled (NOUSE_CAMERA_ENABLED=1)")
+        else:
+            log.info("Camera watcher disabled (NOUSE_CAMERA_ENABLED not set) — opt-in required")
 
     def tick(self) -> CameraObservation | None:
         """Called each daemon cycle. Captures frame if interval has elapsed.
 
         Returns observation if captured, None otherwise.
         """
+        if not is_camera_enabled():
+            return None
         if not self._enabled or self.interval <= 0:
             return None
 

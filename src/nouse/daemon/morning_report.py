@@ -11,6 +11,7 @@ import logging
 import os
 from datetime import datetime
 from nouse.field.surface import FieldSurface
+from nouse.llm.default_models import is_missing_model_error, model_for_role
 from nouse.ollama_client.client import AsyncOllama
 from nouse.limbic.signals import load_state
 
@@ -61,9 +62,9 @@ async def generate_morning_report(field: FieldSurface) -> str:
     )
 
     client = AsyncOllama()
-    model = os.getenv("NOUSE_OLLAMA_MODEL", "qwen3.5:latest")
+    model = model_for_role("morning_report", os.getenv("NOUSE_OLLAMA_MODEL"))
     try:
-        log.info("Genererar morning report via LLM ...")
+        log.info(f"Genererar morning report via LLM (model={model}) ...")
         messages = [
             {"role": "user", "content": prompt}
         ]
@@ -75,5 +76,8 @@ async def generate_morning_report(field: FieldSurface) -> str:
         )
         return resp.message.content or "Ingen rapport genererad."
     except Exception as e:
+        if is_missing_model_error(e):
+            log.warning(f"Morning report: modell saknas ({model}) — hoppar över ({e})")
+            return "Självreflektionen hoppades över (modellen saknas)."
         log.error(f"Fel vid generering av morning report: {e}")
         return f"Fel: {e}"
