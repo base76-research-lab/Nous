@@ -23,11 +23,56 @@ import json
 import math
 import os
 import re
+import warnings
 
 import kuzu
 
+warnings.warn(
+    "nouse.field.surface_kuzu är deprecated: KuzuDB-backenden saknar "
+    "evidenstak, confirm/supersede/discard och source_support. Använd "
+    "nouse.field.surface (SQLite WAL + NetworkX). Denna modul finns kvar "
+    "enbart för migrations-skriptet scripts/migrate_kuzu_to_sqlite.py.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 _DEFAULT_DB = Path.home() / ".local" / "share" / "nouse" / "field.kuzu"
 _STRONG_FACT_MIN_SCORE = float(os.getenv("NOUSE_STRONG_FACT_MIN_SCORE", "0.65"))
+
+# Samma tak som SQLite-backenden (nouse.field.surface.
+# PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING, default 0.70). Duplicerad här för
+# att undvika en tung importkedja i migrationsverktyg; håll värdena synkade.
+_PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING = float(
+    os.getenv("NOUSE_PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING", "0.70")
+)
+_MODEL_DERIVED_SOURCE_TAGS = frozenset({
+    "domain_bootstrap", "llm_bootstrap", "llm_teacher", "llm_teacher_answer",
+    "bridge_finder", "axon_growth_cone", "syntes",
+    "homeostasis_bootstrap", "graph_enricher", "deepdive_axiom",
+    "curiosity_loop",
+})
+
+
+def _provenance_class_kuzu(provenance_class: str | None, source_tag: str) -> str:
+    if provenance_class in {"observed_source", "user_assertion",
+                            "model_hypothesis", "structural_derivation",
+                            "unknown"}:
+        return provenance_class
+    tag = str(source_tag or "")
+    if tag in _MODEL_DERIVED_SOURCE_TAGS:
+        return "model_hypothesis"
+    if ":" in tag and tag.split(":", 1)[0] in _MODEL_DERIVED_SOURCE_TAGS:
+        return "model_hypothesis"
+    return "unknown"
+
+
+def _evidence_for_provenance_kuzu(score: float, provenance_class: str) -> float:
+    # Kuzu-backenden har inget source_support-lager, så observed_source utan
+    # namngivet stöd kan inte verifieras här — falla tillbaka till taket.
+    if provenance_class in {"model_hypothesis", "structural_derivation",
+                            "unknown", "observed_source"}:
+        return min(score, _PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING)
+    return score
 
 
 def _queue_indications(src_node: str, rows: list[dict]) -> None:
@@ -245,7 +290,8 @@ class FieldSurface:
                      evidence_score: float | None = None,
                      assumption_flag: bool | None = None,
                      domain_src: str = "external",
-                     domain_tgt: str = "external") -> None:
+                     domain_tgt: str = "external",
+                     provenance_class: str | None = None) -> None:
         ts = datetime.utcnow().isoformat()
         for name, domain in ((src, domain_src), (tgt, domain_tgt)):
             self.add_concept(
@@ -260,6 +306,10 @@ class FieldSurface:
         ev = float(evidence_score) if evidence_score is not None else (
             min(1.0, max(0.0, float(strength))) if why_clean else 0.35
         )
+        # Samma tak som SQLite-backenden (Fas 1-review hål 4): utan tak här
+        # blir Kuzu-vägen en tyst nedgradering av evidenskontraktet.
+        provenance = _provenance_class_kuzu(provenance_class, source_tag)
+        ev = _evidence_for_provenance_kuzu(ev, provenance)
         af = bool(assumption_flag) if assumption_flag is not None else (not bool(why_clean))
 
         params = {

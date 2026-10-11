@@ -332,7 +332,10 @@ def promote_axioms_to_graph(
     Returnerar antal tillagda kanter.
 
     Axiom är INTE textextraherade relationer — de är strukturellt
-    motiverade broar som uppstår ur topologin. Förses med hög evidens.
+    motiverade broar som uppstår ur topologin. De skrivs därför med
+    provenance_class="structural_derivation" och takas av add_relation()
+    till det parametriska taket; högre evidens kräver en separat
+    confirm_relation() med namngiven källa.
 
     Om coordinator skickas med körs AxonGrowthCone efter att axiom lagts till
     i grafen — growth cone söker korsdomän-isomorfer för varje nytt axiom.
@@ -350,10 +353,10 @@ def promote_axioms_to_graph(
         for i, d_a in enumerate(axiom.domains):
             for d_b in axiom.domains[i+1:]:
                 try:
-                    field.upsert_relation(
-                        src=f"{d_a}::{axiom.concept}",
-                        tgt=f"{d_b}::{axiom.concept}",
-                        rel_type="är_universellt_primitiv_i",
+                    field.add_relation(
+                        f"{d_a}::{axiom.concept}",
+                        "är_universellt_primitiv_i",
+                        f"{d_b}::{axiom.concept}",
                         why=(
                             f"Axiom: '{axiom.concept}' förekommer i '{d_a}' och '{d_b}'. "
                             f"Hittades via rekursiv nedbrytning av '{axiom.source_insight}' "
@@ -363,6 +366,8 @@ def promote_axioms_to_graph(
                         domain_src=d_a,
                         domain_tgt=d_b,
                         assumption_flag=False,
+                        source_tag="decomposition_axiom",
+                        provenance_class="structural_derivation",
                     )
                     added += 1
                     # Registrera axiom-nod för growth cone-körning efter loopen

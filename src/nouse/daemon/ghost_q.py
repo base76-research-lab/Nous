@@ -202,6 +202,36 @@ async def _ask_llm(topic: str, model_router) -> str:
 
 # ── Huvud-funktion ────────────────────────────────────────────────────────────
 
+def persist_extracted_relations(field, rels: list[dict], *, source_tag: str) -> int:
+    """Skriv extraherade relationer via taket i FieldSurface.add_relation.
+
+    extract_relations() extraherar bara — utan detta steg skrevs 0 kanter
+    trots att statistiken jämfördes före/efter (död väg, se Fas 1-review
+    hål 6). Returnerar antal skrivna relationer.
+    """
+    written = 0
+    for rel in rels or []:
+        src = str((rel or {}).get("src") or "").strip()
+        tgt = str((rel or {}).get("tgt") or "").strip()
+        if not src or not tgt:
+            continue
+        rel_type = str(rel.get("type") or rel.get("rel_type") or "relaterar_till").strip()
+        try:
+            field.add_relation(
+                src, rel_type, tgt,
+                why=str(rel.get("why") or ""),
+                evidence_score=float(rel.get("evidence_score") or 0.5),
+                source_tag=source_tag,
+                domain_src=str(rel.get("domain_src") or "okänd"),
+                domain_tgt=str(rel.get("domain_tgt") or "okänd"),
+            )
+            written += 1
+        except Exception as e:
+            _log.debug("persist_extracted_relations: kunde inte skriva %s→%s: %s",
+                       src, tgt, e)
+    return written
+
+
 async def run_ghost_q(
     field,
     model_router,
@@ -251,11 +281,12 @@ async def run_ghost_q(
         # Extrahera och lagra relationer
         before_stats = field.stats()
         try:
-            await extract_relations(
+            rels = await extract_relations(
                 f"Koncept: {topic}\n\n{answer}",
-                field,
-                source_tag="ghost_q",
+                {"source": "ghost_q", "path": f"ghost_q:{topic}",
+                 "domain_hint": topic},
             )
+            persist_extracted_relations(field, rels, source_tag="ghost_q")
         except Exception as e:
             _log.warning("extract_relations failed for '%s': %s", topic, e)
             result.errors.append(f"extract_error:{topic}")

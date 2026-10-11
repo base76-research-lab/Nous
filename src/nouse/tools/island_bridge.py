@@ -225,7 +225,38 @@ def _llm_classify_batch(
     return {}
 
 
-def run_domain_fusion(db: sqlite3.Connection, dry_run: bool = False) -> dict[str, str]:
+def apply_domain_fusion_via_surface(field, merge_map: dict[str, str]) -> int:
+    """Applicera en domän→kanonisk-mappning via FieldSurface.set_concept_domain.
+
+    Till skillnad från den råa SQL-vägen i run_domain_fusion() går varje
+    ändring genom surface-låset och NetworkX-synken, så SQL och grafen
+    aldrig divergerar (Fas 1-review hål 7). Returnerar antal ändrade koncept.
+    """
+    changed = 0
+    for old_domain, new_domain in (merge_map or {}).items():
+        if not old_domain or not new_domain or old_domain == new_domain:
+            continue
+        try:
+            names = [
+                row["name"]
+                for row in field._sql.execute(
+                    "SELECT name FROM concept WHERE domain = ?", (old_domain,)
+                ).fetchall()
+                if row["name"]
+            ]
+        except Exception:
+            continue
+        for name in names:
+            try:
+                if field.set_concept_domain(name, new_domain):
+                    changed += 1
+            except Exception:
+                continue
+    _log.info("Domain fusion via surface: %d koncept flyttade", changed)
+    return changed
+
+
+def run_domain_fusion(db: sqlite3.Connection, dry_run: bool = False, *, field=None) -> dict[str, str]:
     """
     Phase 1: Merge duplicate domains into canonical ones.
     Returns the full domain → canonical mapping applied.
@@ -283,6 +314,16 @@ def run_domain_fusion(db: sqlite3.Connection, dry_run: bool = False) -> dict[str
             print(f"  {old} ({count}) → {new}")
         return merge_map
 
+    if field is not None:
+        # Föredragen väg: genom surface-låset + NetworkX-synken (hål 7).
+        apply_domain_fusion_via_surface(field, merge_map)
+        return merge_map
+
+    _log.warning(
+        "Domain fusion via rå SQL: går förbi FieldSurface-låset och "
+        "NetworkX-synken. Föredra apply_domain_fusion_via_surface(field, ...) "
+        "när en FieldSurface finns tillgänglig."
+    )
     merged_count = 0
     for old_domain, new_domain in changes.items():
         cur = db.execute(

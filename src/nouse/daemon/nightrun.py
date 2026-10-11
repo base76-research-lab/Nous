@@ -145,6 +145,33 @@ class ConsolidationResult:
     duration:        float = 0.0
 
 
+#: Explicit källa för co-occurrence-kanter (Fas 1-review hål 8). Anonyma
+#: "modelsessions"-skrivningar landade som ospårbar `unknown`-proveniens.
+CO_OCCURRENCE_SOURCE_TAG = "nightrun_cooccurrence"
+
+
+def write_cooccurrence_relations(field, sessions) -> int:
+    """Skriv co_occurs_with-kanter för topics som förekommer ihop i sessioner.
+
+    Egen helper så källtaggen är kontrakttestbar. Returnerar antal skrivna
+    relationer.
+    """
+    written = 0
+    for s in sessions or []:
+        nodes_used = (s or {}).get("nodes_used") or []
+        for i, a in enumerate(nodes_used):
+            for b in nodes_used[i + 1:]:
+                if a != b:
+                    field.add_relation(
+                        a, "co_occurs_with", b,
+                        why="modelsessions",
+                        strength=0.5,
+                        source_tag=CO_OCCURRENCE_SOURCE_TAG,
+                    )
+                    written += 1
+    return written
+
+
 async def run_night_consolidation(
     field,         # FieldSurface
     inbox,         # NodeInbox
@@ -211,12 +238,7 @@ async def run_night_consolidation(
                         if tgt and typ:
                             field.strengthen(name, tgt, delta=0.05 * (count-1))
         # Bygg co_occurs_with-relationer mellan topics som ofta förekommer ihop
-        for s in sessions:
-            nodes_used = s.get("nodes_used") or []
-            for i, a in enumerate(nodes_used):
-                for b in nodes_used[i+1:]:
-                    if a != b:
-                        field.add_relation(a, "co_occurs_with", b, why="modelsessions", strength=0.5)
+        write_cooccurrence_relations(field, sessions)
         _log.info("NightRun: modelsessions replay och co-occurrence klar")
     except Exception as e:
         _log.warning("NightRun: modelsessions replay/co-occurrence misslyckades: %s", e)

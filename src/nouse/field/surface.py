@@ -60,6 +60,8 @@ EVIDENCE_CEILINGS = {
 _MODEL_DERIVED_SOURCE_TAGS = frozenset({
     "domain_bootstrap", "llm_bootstrap", "llm_teacher", "llm_teacher_answer",
     "bridge_finder", "axon_growth_cone", "syntes",
+    "homeostasis_bootstrap", "graph_enricher", "deepdive_axiom",
+    "curiosity_loop",
 })
 
 
@@ -67,7 +69,11 @@ def _provenance_class(provenance_class: str | None, source_tag: str) -> str:
     """Normalize provenance at the write boundary, never at retrieval time."""
     if provenance_class in PROVENANCE_CLASSES:
         return provenance_class
-    if source_tag in _MODEL_DERIVED_SOURCE_TAGS:
+    tag = str(source_tag or "")
+    if tag in _MODEL_DERIVED_SOURCE_TAGS:
+        return "model_hypothesis"
+    # Prefixed writers (t.ex. "curiosity_loop:hypotes") klassas efter sin stam.
+    if ":" in tag and tag.split(":", 1)[0] in _MODEL_DERIVED_SOURCE_TAGS:
         return "model_hypothesis"
     return "unknown"
 

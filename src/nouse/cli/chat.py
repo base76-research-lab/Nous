@@ -266,6 +266,7 @@ def execute_tool(field: FieldSurface, name: str, args: dict) -> Any:
             args["src"], args["rel_type"], args["tgt"],
             why=args.get("why", ""),
             source_tag="chat",
+            provenance_class="model_hypothesis",
         )
         _announce_growth(args)
         return {"added": True, "relation": f"{args['src']} --[{args['rel_type']}]--> {args['tgt']}"}

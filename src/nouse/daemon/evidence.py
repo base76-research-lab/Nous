@@ -15,10 +15,11 @@ Bayesian-inspired heuristic model:
 Aktiveringsackumulator:
   - activate_relation(): varje aktivering (query-träff, bisociation) → w+=0.02.
     Rör ALDRIG evidence_score — se fix 2026-08-25 nedan.
-  - confirm_relation(): avsedd för bekräftelse från en NY källa, men har
-    ingen anropare i repot och ingen faktisk källidentitet/deduplicering
-    än — namnet är inte ännu en verkställd epistemisk gräns, bara en
-    avsikt. Lämnad oansluten tills en riktig confirmation-identitet finns.
+  - confirm_relation(): BORTTAGEN ur denna modul 2026-10-11 (Fas 1-review
+    hål 3). Den skuggade FieldSurface.confirm_relation() med samma namn men
+    gjorde en taklös in-place-bump utan namngiven källa. Enda legitima
+    bekräftelsevägen är FieldSurface.confirm_relation(), som stänger
+    kandidaten och skapar en källstödd efterträdare.
   - run_evidence_pass(): AVSTÄNGD 2026-08-25 (verifierad relay:codex-
     dialog, se nous-codex-dialogue-2026-08-25-evidence-circularity.md).
     Den gamla SQL-WHERE-satsen (0.35 < ev < 0.65) gjorde promote/demote-
@@ -260,33 +261,6 @@ def activate_relation(
         return False
 
 
-def confirm_relation(
-    field,
-    src: str,
-    tgt: str,
-    *,
-    rel_type: str | None = None,
-    confidence: float = 0.0,
-    source: str = "corroboration",
-) -> bool:
-    """
-    Bekräfta en relation från ny källa.
-
-    evidence_score += CONFIRMATION_DELTA (eller confidence om angivet)
-    Styrkan förstärks proportionellt.
-    """
-    delta = confidence if confidence > 0 else CONFIRMATION_DELTA
-    try:
-        _bump_evidence(field, src, tgt, delta=delta, rel_type=rel_type)
-        field.strengthen(src, tgt, delta=delta * 0.4,
-                         rel_type=rel_type, ceiling=STRENGTH_CAP)
-        _log.debug("Bekräftade: %s→%s (ev+%.3f, källa=%s)", src, tgt, delta, source)
-        return True
-    except Exception as e:
-        _log.warning("Bekräftelsefel för %s→%s: %s", src, tgt, e)
-        return False
-
-
 def run_evidence_pass(
     field,
     *,
@@ -373,50 +347,107 @@ def measure_crystallization(field) -> CrystallizationMetrics:
 
 # ── Interna hjälpfunktioner ────────────────────────────────────────────────────
 
+def _relation_ceiling(field, relation_id: int, provenance: str) -> float:
+    """Högsta tillåtna evidence_score för en relation utan ny namngiven support.
+
+    Modellhärledd/strukturell/okänd proveniens — samt observed_source utan
+    namngiven support-rad — får aldrig passera det parametriska taket. En
+    namngiven observed/user-support lyfter till det globala taket (1.0).
+    """
+    from nouse.field.surface import (
+        PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING,
+        _evidence_for_provenance,
+    )
+    has_support = False
+    try:
+        row = field._sql.execute(
+            "SELECT 1 FROM relation_source_support WHERE relation_id = ? LIMIT 1",
+            (relation_id,),
+        ).fetchone()
+        has_support = row is not None
+    except Exception:
+        has_support = False
+    # _evidence_for_provenance returnerar min(score, tak); anropa med 1.0
+    # för att enbart extrahera taket för denna proveniens/support-kombination.
+    capped = _evidence_for_provenance(1.0, provenance, has_support)
+    if capped >= 1.0:
+        return EVIDENCE_CAP
+    return min(EVIDENCE_CAP, capped, PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING)
+
+
 def _bump_evidence(field, src, tgt, delta, *, rel_type=None):
-    """Öka evidence_score på en relation med delta, taket 1.0."""
+    """Öka evidence_score med delta — aldrig över relationens provenienstak.
+
+    WHERE filtrerar på `type` när rel_type ges, så SQL och NetworkX-synken
+    träffar samma rader. Varje rad takas individuellt efter sin egen
+    proveniensklass och sina egna namngivna support-rader.
+    """
+    from nouse.field.surface import _provenance_class
     try:
         with field._lock:
-            cur = field._sql.execute(
-                "SELECT evidence_score FROM relation WHERE src = ? AND tgt = ?",
-                (src, tgt),
-            )
-            row = cur.fetchone()
-            if row is None:
+            sql = ("SELECT id, evidence_score, provenance_class, source_tag "
+                   "FROM relation WHERE src = ? AND tgt = ?")
+            params: list = [src, tgt]
+            if rel_type is not None:
+                sql += " AND type = ?"
+                params.append(rel_type)
+            rows = field._sql.execute(sql, params).fetchall()
+            if not rows:
                 return
-            old_ev = float(row["evidence_score"] or 0.5)
-            new_ev = min(EVIDENCE_CAP, old_ev + delta)
-            field._sql.execute(
-                "UPDATE relation SET evidence_score = ? WHERE src = ? AND tgt = ?",
-                (new_ev, src, tgt),
-            )
+            new_by_id: dict[int, float] = {}
+            for row in rows:
+                old_ev = float(row["evidence_score"] or 0.5)
+                provenance = (row["provenance_class"]
+                              or _provenance_class(None, row["source_tag"] or "auto"))
+                ceiling = _relation_ceiling(field, int(row["id"]), provenance)
+                new_ev = min(EVIDENCE_CAP, ceiling, old_ev + delta)
+                field._sql.execute(
+                    "UPDATE relation SET evidence_score = ? WHERE id = ?",
+                    (new_ev, row["id"]),
+                )
+                new_by_id[int(row["id"])] = new_ev
             field._sql.commit()
 
-        # Synka NetworkX
+        # Synka NetworkX — kantnycklar är relation.id, så samma radmängd träffas.
         if hasattr(field, "_G") and field._G.has_edge(src, tgt):
             for key in field._G[src][tgt]:
-                if rel_type and field._G[src][tgt][key].get("type") != rel_type:
-                    continue
-                field._G[src][tgt][key]["evidence_score"] = new_ev
+                if key in new_by_id:
+                    field._G[src][tgt][key]["evidence_score"] = new_by_id[key]
     except Exception as e:
         _log.debug("Evidence bump-fel för %s→%s: %s", src, tgt, e)
 
 
 def _set_evidence(field, src, tgt, evidence_score, *, rel_type=None):
-    """Sätt evidence_score direkt på en relation."""
+    """Sätt evidence_score direkt — aldrig över relationens provenienstak."""
+    from nouse.field.surface import _provenance_class
     try:
         with field._lock:
-            field._sql.execute(
-                "UPDATE relation SET evidence_score = ? WHERE src = ? AND tgt = ?",
-                (evidence_score, src, tgt),
-            )
+            sql = ("SELECT id, provenance_class, source_tag "
+                   "FROM relation WHERE src = ? AND tgt = ?")
+            params: list = [src, tgt]
+            if rel_type is not None:
+                sql += " AND type = ?"
+                params.append(rel_type)
+            rows = field._sql.execute(sql, params).fetchall()
+            if not rows:
+                return
+            new_by_id: dict[int, float] = {}
+            for row in rows:
+                provenance = (row["provenance_class"]
+                              or _provenance_class(None, row["source_tag"] or "auto"))
+                ceiling = _relation_ceiling(field, int(row["id"]), provenance)
+                new_ev = min(EVIDENCE_CAP, ceiling, float(evidence_score))
+                field._sql.execute(
+                    "UPDATE relation SET evidence_score = ? WHERE id = ?",
+                    (new_ev, row["id"]),
+                )
+                new_by_id[int(row["id"])] = new_ev
             field._sql.commit()
 
         if hasattr(field, "_G") and field._G.has_edge(src, tgt):
             for key in field._G[src][tgt]:
-                if rel_type and field._G[src][tgt][key].get("type") != rel_type:
-                    continue
-                field._G[src][tgt][key]["evidence_score"] = evidence_score
+                if key in new_by_id:
+                    field._G[src][tgt][key]["evidence_score"] = new_by_id[key]
     except Exception as e:
         _log.debug("Evidence set-fel för %s→%s: %s", src, tgt, e)
 

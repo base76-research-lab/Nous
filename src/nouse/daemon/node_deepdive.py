@@ -428,15 +428,12 @@ async def _apply_verdict(
 ) -> None:
     """Skriv verdict till grafen."""
     if verdict.outcome == REVIEW_PROMOTE:
-        # Uppdatera befintlig relation: ta bort assumption_flag, höj score
-        try:
-            field.promote_relation(src, rel_type, tgt, verdict.new_score)
-            _log.info(
-                "Verdict PROMOTE: %s -[%s]-> %s, ev=%.2f, assumption_flag=False",
-                src, rel_type, tgt, verdict.new_score,
-            )
-        except Exception as e:
-            _log.warning("Kunde inte applicera PROMOTE: %s", e)
+        # Model votes are not a named external support.  Leave the candidate
+        # unchanged and require a later confirm_relation() with source_ref.
+        _log.info(
+            "Verdict PROMOTE deferred: %s -[%s]-> %s needs named source support",
+            src, rel_type, tgt,
+        )
 
     elif verdict.outcome == REVIEW_DISCARD:
         # Sätt evidence_score=0 och assumption_flag=True (markerar för pruning)
@@ -854,6 +851,7 @@ async def deepdive_node(
                     ax.src, ax.rel_type, ax.tgt,
                     why=ax.why,
                     source_tag="deepdive_axiom",
+                    provenance_class="model_hypothesis",
                     evidence_score=ax.evidence_score,
                     assumption_flag=ax.assumption_flag,
                 )

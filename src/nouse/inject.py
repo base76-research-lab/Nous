@@ -679,9 +679,16 @@ class NouseBrain:
         *,
         why: str = "",
         evidence_score: float = 0.6,
+        source: str = "inject_direct",
     ) -> None:
-        """Directly add a relation to the knowledge graph."""
-        self._field.add_relation(src, rel_type, tgt, why=why, evidence_score=evidence_score)
+        """Directly add a relation to the knowledge graph.
+
+        `source` är alltid explicit (Fas 1-review hål 8) så skrivningen
+        aldrig landar som anonym `auto`/`unknown`-proveniens.
+        """
+        self._field.add_relation(src, rel_type, tgt, why=why,
+                                 evidence_score=evidence_score,
+                                 source_tag=source)
 
     # ── Contradiction API ─────────────────────────────────────────────────────
 
@@ -970,11 +977,13 @@ class NouseBrainHTTP:
         *,
         why: str = "",
         evidence_score: float = 0.6,
+        source: str = "inject_direct",
     ) -> None:
         result = self._client.post(
             f"{self._base}/api/brain/add",
             json={"src": src, "rel_type": rel_type, "tgt": tgt,
-                  "why": why, "evidence_score": evidence_score},
+                  "why": why, "evidence_score": evidence_score,
+                  "source": source},
         )
         result.raise_for_status()
 

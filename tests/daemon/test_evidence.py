@@ -2,8 +2,18 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from nouse.daemon.evidence import activate_relation, run_evidence_pass
-from nouse.field.surface import FieldSurface
+import pytest
+
+from nouse.daemon.evidence import (
+    _bump_evidence,
+    _set_evidence,
+    activate_relation,
+    run_evidence_pass,
+)
+from nouse.field.surface import (
+    PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING,
+    FieldSurface,
+)
 
 
 def _mk_field(tmp_path: Path) -> FieldSurface:
@@ -66,3 +76,79 @@ def test_run_evidence_pass_never_mutates_evidence_score(tmp_path):
     assert result.promoted == 0
     assert result.demoted == 0
     assert result.activated == 0
+
+
+# ── Fas 1-review hål 1: _bump_evidence() måste respektera evidenstaket ─────────
+
+def test_bump_evidence_never_exceeds_ceiling_without_named_support(tmp_path):
+    # Hål 1: taklös direkt-UPDATE. En modellhärledd relation får aldrig
+    # bumpas över taket utan namngiven observed/user-support.
+    from nouse.field.surface import PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING
+    field = _mk_field(tmp_path)
+    field.add_relation("A", "suggests", "B", why="model candidate",
+                       evidence_score=0.6, source_tag="ghost_q")
+    _bump_evidence(field, "A", "B", delta=0.5)
+    after = field.out_relations("A")[0]["evidence_score"]
+    assert after <= PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING
+
+
+def test_bump_evidence_scopes_update_to_rel_type(tmp_path):
+    # Hål 1, andra halvan: WHERE saknade `type`, så SQL och NetworkX
+    # divergerade när flera typer delade samma src/tgt-par.
+    field = _mk_field(tmp_path)
+    field.add_relation("A", "relates_to", "B", why="one",
+                       evidence_score=0.5, source_tag="s:support-a",
+                       provenance_class="observed_source",
+                       support_refs=("s:support-a",))
+    field.add_relation("A", "causes", "B", why="two",
+                       evidence_score=0.5, source_tag="s:support-b",
+                       provenance_class="observed_source",
+                       support_refs=("s:support-b",))
+    _bump_evidence(field, "A", "B", delta=0.1, rel_type="causes")
+    scores = {
+        row["type"]: row["evidence_score"]
+        for row in field._sql.execute(
+            "SELECT type, evidence_score FROM relation WHERE src = 'A' AND tgt = 'B'"
+        ).fetchall()
+    }
+    assert scores["causes"] == 0.6
+    assert scores["relates_to"] == 0.5
+
+
+def test_bump_evidence_allows_named_observed_support_above_ceiling(tmp_path):
+    # Positivt kontrakt: namngiven observed-support FÅR bära evidens över taket.
+    field = _mk_field(tmp_path)
+    field.add_relation("A", "documents", "B", why="named source",
+                       evidence_score=0.9, source_tag="doi:10.1/x",
+                       provenance_class="observed_source",
+                       support_refs=("doi:10.1/x",))
+    _bump_evidence(field, "A", "B", delta=0.05)
+    after = field.out_relations("A")[0]["evidence_score"]
+    assert after == pytest.approx(0.95)
+
+
+# ── Fas 1-review hål 2: _set_evidence() måste respektera evidenstaket ──────────
+
+def test_set_evidence_never_exceeds_ceiling_without_named_support(tmp_path):
+    # Hål 2: godtycklig evidenssättning, idag oanropad men live importbar.
+    from nouse.field.surface import PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING
+    field = _mk_field(tmp_path)
+    field.add_relation("A", "suggests", "B", why="model candidate",
+                       evidence_score=0.5, source_tag="ghost_q")
+    _set_evidence(field, "A", "B", 0.99)
+    after = field.out_relations("A")[0]["evidence_score"]
+    assert after <= PARAMETRIC_HYPOTHESIS_EVIDENCE_CEILING
+
+
+# ── Fas 1-review hål 3: evidence.confirm_relation skuggar surface-versionen ────
+
+def test_evidence_confirm_relation_name_collision_removed():
+    # Hål 3: samma namn, taklös in-place-bump. Namnkrocken ska vara borta
+    # medan surface-versionen (enda legitima bekräftelsevägen) finns kvar.
+    import nouse.daemon.evidence as evidence_module
+    from nouse.field.surface import FieldSurface as _FS
+    assert not hasattr(evidence_module, "confirm_relation"), (
+        "nouse.daemon.evidence.confirm_relation skuggar fortfarande "
+        "FieldSurface.confirm_relation"
+    )
+    assert hasattr(_FS, "confirm_relation")

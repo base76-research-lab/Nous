@@ -147,11 +147,13 @@ async def _async_learn(field, user_msg: str, assistant_msg: str) -> None:
     """Extrahera och lagra relationer i grafen (bakgrundsuppgift)."""
     try:
         from nouse.daemon.extractor import extract_relations
-        await extract_relations(
+        rels = await extract_relations(
             user_msg + "\n" + assistant_msg,
-            field,
-            source_tag="nouse_run",
+            {"source": "nouse_run", "path": "run_repl",
+             "domain_hint": "nouse_run"},
         )
+        from nouse.daemon.ghost_q import persist_extracted_relations
+        persist_extracted_relations(field, rels, source_tag="nouse_run")
     except Exception:
         pass
 

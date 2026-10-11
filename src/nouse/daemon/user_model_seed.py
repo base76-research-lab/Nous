@@ -173,6 +173,7 @@ def seed_user_model(
             domain_src=row["domain_src"],
             domain_tgt=row["domain_tgt"],
             source_tag=SOURCE_TAG,
+            provenance_class="user_assertion",
             scope_src="user_model",
             scope_tgt="user_model",
         )

@@ -104,6 +104,7 @@ async def _seed_region_async(
                                 why=rel.get("why", "homeostasis bootstrap"),
                                 strength=0.5,
                                 source_tag="homeostasis_bootstrap",
+                                provenance_class="model_hypothesis",
                                 evidence_score=0.5,
                                 assumption_flag=True,
                                 domain_src=domain,

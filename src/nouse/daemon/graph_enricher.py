@@ -413,6 +413,7 @@ async def _enrich_node(
                 why=f"[graph_enricher] {why}",
                 evidence_score=score,
                 source_tag="graph_enricher",
+                provenance_class="model_hypothesis",
             )
             coordinator.on_fact(
                 src, rel, tgt,

@@ -13,7 +13,7 @@ from typing import Any
 from contextlib import asynccontextmanager
 from uuid import uuid4
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
@@ -7464,6 +7464,7 @@ class _BrainAddRequest(BaseModel):
     tgt: str
     why: str = ""
     evidence_score: float = 0.6
+    source: str = ""
 
 
 @app.post("/api/brain/query")
@@ -7532,7 +7533,8 @@ async def brain_learn(req: _BrainLearnRequest):
                 field.add_concept(r["tgt"], r.get("domain_tgt", "external"), source=req.source)
                 field.add_relation(r["src"], r["type"], r["tgt"],
                                    why=r.get("why", ""),
-                                   evidence_score=float(r.get("evidence_score") or 0.5))
+                                   evidence_score=float(r.get("evidence_score") or 0.5),
+                                   source_tag=req.source or "brain_learn")
             return len(rels)
 
         added = await enqueue_write(_write())
@@ -7543,14 +7545,27 @@ async def brain_learn(req: _BrainLearnRequest):
 
 @app.post("/api/brain/add")
 async def brain_add(req: _BrainAddRequest):
-    """Directly add a single relation to the graph."""
+    """Directly add a single relation to the graph.
+
+    `source` är obligatorisk (Fas 1-review hål 8): anonyma skrivningar
+    landade som ospårbar `unknown`-proveniens. Saknas den svarar endpointen
+    400 utan att skriva något.
+    """
     from nouse.daemon.write_queue import enqueue_write
     field = get_field()
+
+    source = str(req.source or "").strip()
+    if not source:
+        return JSONResponse(
+            status_code=400,
+            content={"ok": False, "error": "source is required"},
+        )
 
     async def _write():
         field.add_relation(req.src, req.rel_type, req.tgt,
                            why=req.why,
-                           evidence_score=max(0.0, min(1.0, req.evidence_score)))
+                           evidence_score=max(0.0, min(1.0, req.evidence_score)),
+                           source_tag=source)
 
     try:
         await enqueue_write(_write())
