@@ -102,6 +102,29 @@ try:
 except ValueError:
     SYNTH_TIMEOUT_SEC = 45.0
 
+# 2026-10-11: qwen3.5:9b är en resonemangsmodell — utan think=False +
+# num_predict-tak tänker den obegränsat och varje anrop timeoutar (mätt:
+# >120 s med tänkande, ~5 s utan, giltig JSON). Tänket stängs av som
+# default; sätt NOUSE_MODEL_THINK=1 för att återaktivera per anropstyp.
+try:
+    EXTRACT_NUM_PREDICT = max(
+        64, int((os.getenv("NOUSE_EXTRACT_NUM_PREDICT") or "512").strip())
+    )
+except ValueError:
+    EXTRACT_NUM_PREDICT = 512
+
+try:
+    SYNTH_NUM_PREDICT = max(
+        64, int((os.getenv("NOUSE_SYNTH_NUM_PREDICT") or "1024").strip())
+    )
+except ValueError:
+    SYNTH_NUM_PREDICT = 1024
+
+MODEL_THINK_ENABLED = (
+    (os.getenv("NOUSE_MODEL_THINK", "0") or "").strip().lower()
+    in {"1", "true", "yes", "on"}
+)
+
 _BOOL_TRUE = {"1", "true", "yes", "on"}
 AUTO_DISCOVER_MODELS = ((os.getenv("NOUSE_MODEL_AUTODISCOVER") or "1").strip().lower() in _BOOL_TRUE)
 ENABLE_HEURISTIC_FALLBACK = (
@@ -519,6 +542,9 @@ async def _extract_with_model(
     extra: dict[str, Any] = {}
     if model_uses_cloud_provider(model):
         extra["max_tokens"] = EXTRACT_CLOUD_MAX_TOKENS
+    else:
+        extra["options"] = {"num_predict": EXTRACT_NUM_PREDICT}
+        extra["think"] = MODEL_THINK_ENABLED
     resp = await client.chat.completions.create(
         model=model,
         messages=[
@@ -726,7 +752,8 @@ async def synthesize_bridges(path: list[tuple], domain_a: str, domain_b: str,
                     {"role": "system", "content": _SYNTHESIZE},
                     {"role": "user",   "content": prompt},
                 ],
-                options={"temperature": temperature},
+                options={"temperature": temperature, "num_predict": SYNTH_NUM_PREDICT},
+                think=MODEL_THINK_ENABLED,
                 b76_meta={
                     "workload": "synthesize",
                     "session_id": "autonomous",
