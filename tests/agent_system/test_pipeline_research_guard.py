@@ -18,7 +18,7 @@ def test_touches_research_by_scope_catches_an_iic_path_not_in_the_marker_list(mo
     the curated marker list was never updated to include."""
     monkeypatch.delenv("NOUSE_RESEARCH_LOCAL_MARKERS", raising=False)
 
-    text = "titta på /home/bjorn/IIC/01_PROJECTS/some-new-paper/draft.md"
+    text = "titta på /home/bjorn/IIC/forskning/bibliotek/papers/ongoing/new-paper/draft.md"
     assert _touches_research_by_scope(text) is True
     assert _touches_research(text) is True
 
@@ -37,7 +37,7 @@ def test_touches_research_by_scope_excludes_health_and_user_model():
     scoping), not hard rule 1 — folding them into the research-local check
     would over-trigger it for content this rule was never about."""
     health_text = "hur var min glp1-dos den här veckan"
-    person_text = "/home/bjorn/IIC/04_SYSTEM/system/PERSON.md"
+    person_text = "/home/bjorn/IIC/system/system/PERSON.md"
 
     assert _touches_research_by_scope(health_text) is False
     assert _touches_research_by_scope(person_text) is False
@@ -47,3 +47,9 @@ def test_touches_research_by_scope_matches_nous_own_source_tree_as_not_research(
     """nous_system (Nous's own code) is a public open-source repo, not
     private research — must stay unaffected by this rule."""
     assert _touches_research_by_scope("/home/bjorn/Work/nous/src/nouse/inject.py") is False
+
+
+def test_touches_research_matches_current_forskning_path_without_env_markers(monkeypatch):
+    monkeypatch.delenv("NOUSE_RESEARCH_LOCAL_MARKERS", raising=False)
+
+    assert _touches_research("/home/bjornwikstrom/IIC/forskning/pagaende/notes.md") is True

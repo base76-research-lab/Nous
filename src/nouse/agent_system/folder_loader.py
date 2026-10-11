@@ -4,7 +4,7 @@ Two directories are scanned, same dual-dir pattern as
 `nouse.plugins.loader` (builtin + runtime):
 
 - ``NOUSE_AGENT_POLICY_DIR`` — the private, deployment-specific policy
-  overlay (e.g. ``IIC/04_SYSTEM/agents/`` for this deployment). Not set by
+  overlay (e.g. ``IIC/system/agents/`` for this deployment). Not set by
   default; stage 03 fails closed (``POLICY_UNAVAILABLE``) without it. This
   repo intentionally ships no agent cards of its own — cards encode
   deployment-specific rules and belong in the overlay, not in the public

@@ -34,7 +34,7 @@ _LOGS_NOUS_DIR = _NOUS_ROOT / "logs" / "nous"
 # specific extra markers come from NOUSE_RESEARCH_LOCAL_MARKERS (see
 # jarvis-policy.md hard rule 1) — this default is a safety net, not the
 # full rule.
-_DEFAULT_RESEARCH_MARKERS = ["02_library/research"]
+_DEFAULT_RESEARCH_MARKERS = ["/iic/forskning/", "02_library/research"]
 
 # MVP heuristic for "too large for the local front model" — deterministic,
 # not an LLM judgment call. Expected to be refined once real usage data
@@ -119,7 +119,7 @@ def _touches_research(text: str) -> bool:
 
 
 def _touches_research_by_scope(text: str) -> bool:
-    """2026-08-25 (see IIC/04_SYSTEM/agents/nous-agency-model.md, Axel 1):
+    """2026-08-25 (see IIC/system/agents/nous-agency-model.md, Axel 1):
     the marker list above is a manually maintained snapshot
     (NOUSE_RESEARCH_LOCAL_MARKERS) — real and already reasonably populated
     (it already lists "plg" etc.), but it silently drifts out of sync as
@@ -138,11 +138,9 @@ def _touches_research_by_scope(text: str) -> bool:
     other rules (workspace scoping, not this one), and folding them in
     here would over-trigger hard rule 1 for content it was never about.
 
-    Does NOT yet cover "known project names from 01_PROJECTS/*" per
-    research-guard/AGENT.md's documented intent — that needs real file-
-    path resolution earlier in the pipeline (routing_decision has no
-    structured path field today, only free-text "entities"), which is a
-    separate, larger change, deliberately not bundled into this one."""
+    Does NOT yet resolve project names into canonical file paths — that
+    needs a structured path field earlier in the pipeline (routing_decision
+    currently has only free-text "entities"), which is a separate change."""
     from nouse.daemon.sources import scope_from_path
 
     return scope_from_path(Path(text)) in {"research_plg", "iic_general"}
@@ -286,7 +284,7 @@ def _stage03_structural_validation(run_dir: Path, routing_decision: dict) -> dic
 
 # ---------- Stage 04 helpers: MCP-backed agents and voice-capture ----------
 
-_LJUDANTECKNINGAR_DIR = Path("/home/bjornwikstrom/IIC/00_INBOX/ljudanteckningar")
+_LJUDANTECKNINGAR_DIR = Path("/home/bjornwikstrom/IIC/inbox/ljudanteckningar")
 
 
 async def _verbalize(*, system_prompt: str, context: Any, raw_text: str) -> dict:

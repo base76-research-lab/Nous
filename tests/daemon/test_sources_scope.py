@@ -24,14 +24,14 @@ def test_scope_from_path_flags_voice_notes():
 
 
 def test_scope_from_path_flags_research_library():
-    assert scope_from_path(Path("/home/bjorn/IIC/02_LIBRARY/RESEARCH/papers/foo.md")) == "research_plg"
+    assert scope_from_path(Path("/home/bjorn/IIC/forskning/bibliotek/papers/foo.md")) == "research_plg"
 
 
 def test_scope_from_path_defaults_to_iic_general_for_unrelated_iic_path():
     """Var tidigare "general" (obemärkt, icke-sensitiv) innan 2026-08-25-
     fixen — se SENSITIVE_SCOPES-kommentaren i field/surface.py för varför
     ett IIC-projekt utan egen regel inte längre får falla igenom oskyddat."""
-    assert scope_from_path(Path("/home/bjorn/IIC/01_PROJECTS/cdf/kurs.md")) == "iic_general"
+    assert scope_from_path(Path("/home/bjorn/IIC/utbildning/cdf/kurs.md")) == "iic_general"
 
 
 def test_scope_from_path_falls_back_to_general_only_outside_home_and_iic():
@@ -39,7 +39,7 @@ def test_scope_from_path_falls_back_to_general_only_outside_home_and_iic():
 
 
 def test_scope_from_path_flags_person_md():
-    assert scope_from_path(Path("/home/bjorn/IIC/04_SYSTEM/system/PERSON.md")) == "user_model"
+    assert scope_from_path(Path("/home/bjorn/IIC/system/system/PERSON.md")) == "user_model"
 
 
 def test_scope_from_path_flags_claude_memory_dir():
@@ -53,8 +53,8 @@ def test_scope_from_path_flags_unmatched_iic_content_as_iic_general():
     (research_plg, voice_notes, ...) must not silently fall through to the
     old undifferentiated "general" bucket — see field/surface.py's
     SENSITIVE_SCOPES comment (2026-08-25) on why that mattered in practice."""
-    assert scope_from_path(Path("/home/bjorn/IIC/01_PROJECTS/some-project/notes.md")) == "iic_general"
-    assert scope_from_path(Path("/home/bjorn/IIC/03_WORKBENCH/ideation/draft.md")) == "iic_general"
+    assert scope_from_path(Path("/home/bjorn/IIC/business/some-project/notes.md")) == "iic_general"
+    assert scope_from_path(Path("/home/bjorn/IIC/inbox/ideas/draft.md")) == "iic_general"
 
 
 def test_scope_from_path_flags_other_home_content_as_computer_general():
@@ -64,4 +64,8 @@ def test_scope_from_path_flags_other_home_content_as_computer_general():
 def test_scope_from_path_prefers_specific_rules_over_iic_general():
     """The IIC/computer zone check must not shadow the more specific,
     already-reviewed rules above it (research_plg etc.)."""
-    assert scope_from_path(Path("/home/bjorn/IIC/02_LIBRARY/RESEARCH/papers/foo.md")) == "research_plg"
+    assert scope_from_path(Path("/home/bjorn/IIC/forskning/bibliotek/papers/foo.md")) == "research_plg"
+
+
+def test_scope_from_path_flags_current_voice_notes_path():
+    assert scope_from_path(Path("/home/bjorn/IIC/inbox/ljudanteckningar/note.md")) == "voice_notes"

@@ -416,7 +416,7 @@ def scope_from_path(path: Path) -> str:
         return "nous_system"
     if "ljudanteckningar" in p or "voicenote" in p:
         return "voice_notes"
-    if "library/research" in p or ("02_library" in p and "research" in p):
+    if "/iic/forskning/" in p or "library/research" in p or ("02_library" in p and "research" in p):
         return "research_plg"
     # 2026-08-25 (Computer/IIC-uppdelningen i ~/CLAUDE.md görs explicit i
     # scope-systemet): allt som inte redan matchade en granskad regel ovan
