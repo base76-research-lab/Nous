@@ -137,7 +137,7 @@ _GRAPH_EMBED_ENABLED = _env_bool("NOUSE_GRAPH_EMBED_ENABLED", True)
 _GRAPH_EMBED_MODEL = (
     os.getenv("NOUSE_GRAPH_EMBED_MODEL")
     or os.getenv("NOUSE_EMBED_MODEL")
-    or "nomic-embed-text-v2-moe:latest"
+    or "qwen3-embedding:8b"
 ).strip()
 _GRAPH_EMBED_BATCH = _env_int("NOUSE_GRAPH_EMBED_BATCH", 24, 1)
 _BISOC_SEMANTIC_WEIGHT = _env_float("NOUSE_BISOC_SEMANTIC_WEIGHT", 0.35, 0.0, 0.8)

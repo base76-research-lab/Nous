@@ -15,7 +15,7 @@ class OllamaEmbedder:
         except OSError:
             # T.ex. tillfälligt I/O-fel på extern disk med .env
             pass
-        self.model = (model or os.getenv("NOUSE_EMBED_MODEL") or "nomic-embed-text-v2-moe:latest").strip()
+        self.model = (model or os.getenv("NOUSE_EMBED_MODEL") or "qwen3-embedding:8b").strip()
         self.host = (host or os.getenv("NOUSE_OLLAMA_HOST") or os.getenv("OLLAMA_HOST") or "http://127.0.0.1:11434").rstrip("/")
         self.timeout_s = timeout_s
 
