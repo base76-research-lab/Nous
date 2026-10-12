@@ -33,20 +33,26 @@ matchar redan på `halsa`/`glp1`, `pcpe`, `/iic/forskning/`,
 `system/person.md` och `inbox/ljudanteckningar`, alla substrängar som
 överlever omstruktureringen. Testerna verifierar det (44 gröna).
 
-**Testläge (oförändrat av den här ändringen):** 571 gröna, 7 fel som
-faller även på `origin/main` — 4 i `test_ablation` /
-`test_confidence_breakdown` / `test_grounded_memory`, 3 i `test_mcp_gateway`.
+**Testläge efter återställning av pinnen:** 574 gröna, 4 fel. De 3
+`test_mcp_gateway`-felen är BORT — de orsakades av pinnen, som höll kvar mcp
+1.30.0 där `mcp.server.mcpserver` inte finns. Med `mcp[cli]>=1.0.0`
+installeras mcp 2.0.0, som har modulen, och de 3 testerna går gröna
+(`from mcp.server.mcpserver import MCPServer` verifierad direkt).
 
-**Korrigering av en tidigare felaktig diagnos på de 3 mcp-felen:** de beror
-INTE på `pyproject.toml`-pinnen. Verifierat genom att återställa
-`mcp[cli]>=1.0.0,<2.0.0` → `mcp[cli]>=1.0.0` och köra om: exakt samma 3
-fel. verklig orsak: `src/nouse/mcp_gateway/server.py:29` importerar
-`mcp.server.mcpserver`, en modul som inte finns i mcp 1.30.0 (den installerade
-versionen; lågmodulerna ligger under `mcp/server/lowlevel/` och
-`mcp/server/fastmcp/`). Importen har alltså aldrig fungerat mot mcp 1.x —
-pre-existing bug, orelaterad till både sökvägbyte och pin. Obegripligt var
-`try/except` som fångar det och meddelar "install mcp" — felet är ett felaktigt
-sökväg-uttryck, inte en saknad dependency.
+**Felläget underkänns två ganger i rad, dokumenterat för att det inte ska
+ske igen.** Först skrev jag att pinnen var orsaken (rätt). Sedan testade jag
+genom att återställa bara `pyproject.toml` medans `uv.lock` stod kvar med
+låsningen — samma 3 fel, och jag skrev en "korrigering" i STATUS.md som sa
+att pinnen INTE var orsaken. Det var fel: mcp 1.30.0 fanns kvar installerat i
+`.venv` eftersom låset inte hade ändrats. Först när BÅDA återställdes installerades
+2.0.0 och felen försvann. Slutsats att skriva ned: verifiera en pin-orsakad
+felsökning genom att installera om, inte genom att redigera en manifestfil och
+k köra om tester mot ett orenat lock. Låset, inte manifestet, styr vad som
+verkligen körs.
+
+De 4 kvarvarande felen (`test_ablation`, `test_confidence_breakdown` ×2,
+`test_grounded_memory`) är orelaterade till allt ovanstående och kvar sedan
+innan den här ändringen.
 
 ## 2026-08-26T08:02Z — PROJEKTET PAUSAT (inte nedlagt) — väntar på grundinsikter
 
