@@ -109,7 +109,7 @@ def _evidence_for_provenance(
 # effekt på den redan körande daemonen förrän den startas om (kräver
 # Björns explicita "kör", se STATUS.md).
 KNOWN_SCOPES = {
-    "personal_health",  # Björns hälsodata — se IIC/01_PROJECTS/halsa-glp1/STATUS.md
+    "personal_health",  # Björns hälsodata — se IIC/arkiv/halsa-glp1/STATUS.md
     "nous_system",       # Nous egen kod/dokumentation
     "research_plg",      # PLG-forskning / akademiskt arbete
     "voice_notes",       # /voicenote-transkriptioner
@@ -122,8 +122,8 @@ KNOWN_SCOPES = {
                           # specifik regel ovan — durable research/projects/
                           # beslut per ~/CLAUDE.md. Sensitiv som standard:
                           # samma "lämnar aldrig disken"-regel som research_plg,
-                          # bara bredare (IIC:s 01_PROJECTS/03_WORKBENCH/
-                          # 04_SYSTEM/05_ARCHIVE har ingen egen regel än).
+                          # bara bredare (IIC:s business/, projects/, arkiv/
+                          # har ingen egen regel än).
     "computer_general",  # Allt UTANFÖR ~/IIC/ som inte redan fångas ovan —
                           # OS, appar, credentials, personlig administration,
                           # runtime-state per ~/CLAUDE.md:s systemuppdelning.

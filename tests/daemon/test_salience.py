@@ -27,7 +27,7 @@ def test_looks_like_dependency_source_flags_site_packages_path():
 
 
 def test_looks_like_dependency_source_false_for_real_source():
-    assert looks_like_dependency_source("/home/x/IIC/02_LIBRARY/RESEARCH/paper.md") is False
+    assert looks_like_dependency_source("/home/x/IIC/forskning/bibliotek/paper.md") is False
 
 
 def test_looks_like_dependency_source_false_for_empty_or_none():
@@ -90,7 +90,7 @@ def test_concept_top_of_mind_score_zero_for_isolated_concept(tmp_path):
 
 def test_looks_like_code_file_flags_py_but_not_prose():
     assert looks_like_code_file("/home/x/Work/nous/src/nouse/daemon/sources.py") is True
-    assert looks_like_code_file("/home/x/IIC/02_LIBRARY/RESEARCH/paper.md") is False
+    assert looks_like_code_file("/home/x/IIC/forskning/bibliotek/paper.md") is False
     assert looks_like_code_file("/home/x/notes.txt") is False
     assert looks_like_code_file("") is False
     assert looks_like_code_file(None) is False

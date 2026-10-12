@@ -1,5 +1,117 @@
 # Nous — status
 
+## 2026-10-12 — IIC-sökvägar uppdaterade till nuvarande struktur
+
+IIC omorganiserades 2026-09-01 (nio zoner → innehållsnamnade mappar). Repot
+refererade fortfarande till den gamla numrerade strukturen. Alla förekomster
+utom runs/, wiki/, eval/results/, eval/dispatch_results/ och docs/archive/
+(genererade eller arkiverade) är nu utbytta.
+
+**Verifierad mappning (varje mål-katalog ls:ad, inte antaget):**
+
+| Gammal | Ny |
+| --- | --- |
+| `IIC/04_SYSTEM/agents/` | `IIC/system/agents/` |
+| `IIC/04_SYSTEM/system/PERSON.md` | `IIC/system/system/PERSON.md` |
+| `IIC/04_SYSTEM/sessions/` | `IIC/system/sessions/` |
+| `IIC/01_PROJECTS/nous/` | `IIC/verktyg/nous/` |
+| `IIC/01_PROJECTS/halsa-glp1/` | `IIC/arkiv/halsa-glp1/` |
+| `IIC/01_PROJECTS/icm-source-study/` | `IIC/arkiv/icm-source-study/` |
+| `IIC/02_LIBRARY/RESEARCH/papers/` | `IIC/forskning/bibliotek/papers/` |
+| `IIC/00_INBOX/ljudanteckningar/` | `IIC/inbox/ljudanteckningar/` |
+| `IIC/01_PROJECTS/*` (projektmatchning) | `IIC/projects/*` |
+
+**Påverkade filer:** `CLAUDE.md` (agentkortens policy-sökväg), `STATUS.md`
+(16 ställen), `eval/extraction_model_bench.py` (den enda *funktionella*
+sökvägen — pekade på `04_SYSTEM/system/PERSON.md`, filen laddades inte),
+`src/nouse/field/surface.py` (två kommentarer i `KNOWN_SCOPES`),
+`tests/daemon/test_sources_scope.py`, `tests/daemon/test_sources_domain.py`,
+`tests/daemon/test_salience.py`, `tests/test_backfill_concept_scope.py`.
+
+`scope_from_path()`/`_domain_from_path()` behövde INGEN ändring — de
+matchar redan på `halsa`/`glp1`, `pcpe`, `/iic/forskning/`,
+`system/person.md` och `inbox/ljudanteckningar`, alla substrängar som
+överlever omstruktureringen. Testerna verifierar det (44 gröna).
+
+**Testläge (oförändrat av den här ändringen):** 571 gröna, 7 fel som
+faller även på `origin/main` — 4 i `test_ablation` /
+`test_confidence_breakdown` / `test_grounded_memory`, 3 i `test_mcp_gateway`.
+
+**Korrigering av en tidigare felaktig diagnos på de 3 mcp-felen:** de beror
+INTE på `pyproject.toml`-pinnen. Verifierat genom att återställa
+`mcp[cli]>=1.0.0,<2.0.0` → `mcp[cli]>=1.0.0` och köra om: exakt samma 3
+fel. verklig orsak: `src/nouse/mcp_gateway/server.py:29` importerar
+`mcp.server.mcpserver`, en modul som inte finns i mcp 1.30.0 (den installerade
+versionen; lågmodulerna ligger under `mcp/server/lowlevel/` och
+`mcp/server/fastmcp/`). Importen har alltså aldrig fungerat mot mcp 1.x —
+pre-existing bug, orelaterad till både sökvägbyte och pin. Obegripligt var
+`try/except` som fångar det och meddelar "install mcp" — felet är ett felaktigt
+sökväg-uttryck, inte en saknad dependency.
+
+## 2026-08-26T08:02Z — PROJEKTET PAUSAT (inte nedlagt) — väntar på grundinsikter
+
+**Beslut, Björn:** "jag tror att vi ska lägga Nous på is men inte sänka det:
+snarare låta det vara tills bättre insikter är på plats." Följt av
+explicit "kör"-nivå-instruktion att koppla ur: "vi kan då även 'koppla ur'
+Nouse, så att den inte ohämmat eskalerar."
+
+**Utfört:** `nouse-daemon.service` och `nouse-watchdog.timer` stoppade och
+inaktiverade (`systemctl --user disable --now`) — daemonen körs INTE
+längre, watchdogen kommer inte starta om den. Verifierat: ingen
+`nouse daemon`-process kvar. `nouse-backup.timer`/`nouse-eval.timer`/
+`agentmail-poll.timer` lämnade orörda (backup är skyddande, inte
+eskalerande; agentmail hör till ett separat spår). Ingen produktionsgraf
+raderad eller ändrad — bara processen som skriver till den är avstängd.
+Återstart: `systemctl --user enable --now nouse-daemon.service
+nouse-watchdog.timer` när pausen hävs.
+
+**Varför (kondenserat resonemang, samma session):** en genomgång av OA:s
+riktiga fynd (evidenscirkulariteten i `bridge_finder.py`, se 2026-08-25-
+posten nedan) eskalerade till en arkitekturfråga: har Nous byggt "fel
+ände" — det yttre kunskaps-/metakognitionslagret utan grundläggande
+bas-kognition? Slutsats efter utforskning: Nous är rimligen just
+**metakognitionslagret** (mätning + reglering, jämförbart med CognOS-
+mönstret i Björns egna preprints), inte hela systemet. Vad som saknas för
+att nå bortom "välövervakat verktyg" mot faktisk "wide AI/autonomi":
+
+1. En **bas-kognitiv process** med riktig organisatorisk persistens (FNC:s
+   node-krav) — NightRun/konsolideringscykeln är den bästa kandidaten som
+   redan finns, men dess evidens är just nu förorenad av samma
+   cirkularitetsbugg.
+2. Ett **"pulserande" kunskapssubstrat** — ett riktigt neuralt nätverk som
+   kan ta emot bekräftad data och faktiskt AVLÄRA felaktig data, inte bara
+   en graf som injiceras som textkontext ("stale och narrow"). Verifierat
+   mot fältet: matchar Googles Titans/HOPE (test-time memory-uppdatering)
+   nästan exakt — se `system/sessions/`-loggen för länkar.
+3. Ett **kropps-/embodiment-lager** — utan sensorisk grundning saknas
+   sannolikt förutsättningen för FNC:s cockpit-lager (prediction-error-
+   rendering) helt. Extern parallell: Yann LeCuns avhopp från Meta
+   (nov 2025) och AMI Labs ($1,03 mdr seed, mars 2026) är exakt samma
+   vägran av LLM-centrism, med verklig insats.
+4. **Genuint internt rollspel** (inte simulerat av en modell) för
+   iteration över perspektiv — samma mekanism som gjorde Codex/OA-
+   dialogen värdefull ikväll, fast som stående kapacitet. Tempererat av
+   färsk forskning: LLM-fel är 60%+ korrelerade mellan modeller, äkta
+   mångfald (inte bara fler röster) är vad som faktiskt driver nytta.
+
+**Vad som INTE stämde in i "fel ände"-oron:** arkitekturen som redan finns
+(Hopfield-WTA i `global_workspace.py`, arbitreringskontraktet, `conductor.py`s
+bud från interna processer snarare än råa LLM-anrop) är förmodligen redan
+rätt formad FÖR ett metakognitionslager. Det som saknas är lagren under
+och omkring den, inte det som redan är byggt.
+
+**Återupptagningsvillkor:** pausen hävs när det finns en konkret riktning
+för minst en av punkterna 1–4 ovan — inte bara en idé, utan något
+verifierbart att bygga mot. Se `~/IIC/verktyg/nous/STATUS.md` för
+projektnivå-status (uppdaterad parallellt) och `PLAN.md` i samma mapp för
+de tre spåren som fortfarande gäller SOM de var vid paus — de är inte
+felaktiga, bara inte aktiva just nu.
+
+**Kvarstående okommitterat:** `CLAUDE.md`-tillägget om Jarvis/ICM-agent-
+pipelinen (se `git status`) och Brain View steg 1 (`4457e6d`, lokalt) är
+committade var för sig men inte pushade — ingen push-signal gavs, lämnas
+som de är.
+
 ## 2026-08-25T23:10Z — Brain View Steg 1: riktigt punktmoln i hjärnformen
 
 Björn korrigerade riktningen på Brain View med fem referensbilder (DTI-
@@ -156,7 +268,7 @@ Björn: "skickar en dialog till codex om hur ni tillsammans bäst uppnår
 mina mål... målet är en plan" + "det är viktigt att ni debatterar,
 ifrågasätter och konkurrerar för att få fram vem som har rätt." Ett
 tredje, öppet relay:codex-samtal (2 rundor) om Nous hela riktning, inte
-en avgränsad buggfråga. Full dialog: `IIC/04_SYSTEM/agents/
+en avgränsad buggfråga. Full dialog: `IIC/system/agents/
 nous-codex-dialogue-2026-08-25-evidence-circularity.md`.
 
 **Det viktigaste fyndet, verifierat av mig oberoende innan det
@@ -362,7 +474,7 @@ wiki-lager-fråga, ett eget framtida spår om det blir viktigt.
 
 Björns "kör" (två gånger — en för designrundan, en för byggstarten),
 fortsättning direkt från wiki-lagret ovan. Design i
-`IIC/04_SYSTEM/agents/nous-salience-model.md` (två designrundor, den
+`IIC/system/agents/nous-salience-model.md` (två designrundor, den
 andra löste tre öppna frågor: djup on-demand/in-degree-baserad, formeln
 är TVÅ axlar inte tre, `inject.py` kompletteras men ersätter aldrig
 evidens-sorteringen).
@@ -415,7 +527,7 @@ Björns "skicka agenterna" — första riktiga test av att delegera kod-
 skrivning till en lokal Ollama-modell (`qwen3.5:9b`, per `~/CLAUDE.md`s
 "AI execution routing") i stället för att skriva allt själv, per
 [[feedback_delegate_coding_to_local_agents]]. Bygger på designen i
-`IIC/04_SYSTEM/agents/nous-wiki-layer-design.md` (nu uppdaterad med en
+`IIC/system/agents/nous-wiki-layer-design.md` (nu uppdaterad med en
 korrigering, se nedan).
 
 **Metod:** Ollamas HTTP-API (`/api/generate`, `think:false` — CLI:t
@@ -545,7 +657,7 @@ tillbaka till klotet om filen saknas — så det här blockerar inget, men
 avgör om andra som klonar repot ser klotet eller den riktiga modellen.
 
 **Kvar från checkpoint 2, oförändrat läge:** markdown-wiki-lagret
-(design klar i `IIC/04_SYSTEM/agents/nous-wiki-layer-design.md`, väntar
+(design klar i `IIC/system/agents/nous-wiki-layer-design.md`, väntar
 "kör" för bygge) och ablations-sweepen (redo, väntar på N + "kör").
 
 ## CHECKPOINT 2 `2026-08-25T11:22Z` — tag `checkpoint-2026-08-25-brain-visualization`, commit `e509fcc`
@@ -555,11 +667,11 @@ från checkpoint 1 nedan — allt tekniskt är committat (`git status` rent
 förutom två filer som aldrig var mina). Efter checkpoint 1 hände två spår:
 
 **Filosofiskt/design (inget kodat, tre nya IIC-dokument i
-`04_SYSTEM/agents/`):** ett långt samtal om Nous grundvision landade i
+`system/agents/`):** ett långt samtal om Nous grundvision landade i
 `nous-prediction-and-validation-model.md` (koherens vs. korrespondens,
 ekokammare i två former, distrikt-påfyllnadsloop, kopplat till Björns
 egen "Larynx Problem"-tes). En session-note-mall etablerades
-(`04_SYSTEM/sessions/`, yaml+id+tid+oneliner+summering).
+(`system/sessions/`, yaml+id+tid+oneliner+summering).
 
 **Tekniskt UI-fynd, inte kod ännu:** upptäckte att Nous redan har ett
 levande, interaktivt 3D-webbgränssnitt (`http://127.0.0.1:8767`,
@@ -581,7 +693,7 @@ helt i regionlistan.
 2. Brain View: ersätt klotet med en riktig anatomisk 3D-modell (2 subtasks)
 3. Lägg till `basal_ganglia`/`thalamus` i `brain_atlas.py`
 
-**Även gjort:** `IIC/01_PROJECTS/nous/STATUS.md` skapad (Nous saknade
+**Även gjort:** `IIC/verktyg/nous/STATUS.md` skapad (Nous saknade
 helt en ingång i Björns egen projektöversikt — hittat vid en verktygs-
 genomgång på Björns begäran). En visuell roadmap-artifact publicerad.
 Ett minne sparat om Björns kognitiva profil (ADHD/autism/dyslexi,
@@ -711,7 +823,7 @@ tasken "Introduktionsmail om Nous till X" för den villkorade planen
 (kör sweepen → tvätta resultat → gate → mail).
 
 **2026-08-25, agent-pipelinens research-local-koll delar nu mekanism med
-grafens scope (Axel 1, IIC/04_SYSTEM/agents/nous-agency-model.md):**
+grafens scope (Axel 1, IIC/system/agents/nous-agency-model.md):**
 
 `_touches_research()` i `agent_system/pipeline.py` anropade tidigare bara
 en manuellt underhållen nyckelordslista (`.env`s
@@ -727,7 +839,7 @@ styrs av andra regler). 5 nya tester
 `research-guard/AGENT.md` uppdaterad i samma pass så dokumentation och
 kod stämmer överens.
 
-Medvetet kvar: matchning mot projektnamn i `01_PROJECTS/*` kräver riktig
+Medvetet kvar: matchning mot projektnamn i `projects/*` kräver riktig
 path-resolution i stage 01/02 (`routing_decision.json` har bara fri text
 idag) — separat, större ändring.
 
@@ -796,7 +908,7 @@ fullt kontextblock med PLG-forskningen, ger nu `context_block: ""`,
   en fråga om att byta ut syntetiskt material, utan frånvaro av routning.
   Björn bekräftade (fråga ställd, inte gissad) att hans eget
   perceptionsforskningsspann PCPE ("Perceptual Coherence and Perceived
-  Exclusion", `IIC/02_LIBRARY/RESEARCH/papers/preprints/` +
+  Exclusion", `IIC/forskning/bibliotek/papers/preprints/` +
   `papers/ongoing/PCPE/`) är rätt material.
 - `_domain_from_path()` returnerar nu `"perception"` för PCPE-sökvägar
   (matchar `occipital_lobe`s `domain_keywords` i `brain_atlas.py`, verifierat
@@ -1031,7 +1143,7 @@ klar och verifierad:**
 
 Björns krav: "Folders over agents. Methodology over tools." Grundat direkt
 i källmaterialet han pekade på —
-`IIC/01_PROJECTS/icm-source-study/source-material/icm-courses/ICM-Larynx-multiAgents.v2.md`
+`IIC/arkiv/icm-source-study/source-material/icm-courses/ICM-Larynx-multiAgents.v2.md`
 (hans egna ICM- och Larynx-papper, med ett färdigt compatibility-kontrakt:
 femlagersmodell, exakt stage-pipeline, exakta CONTEXT.md-mallar). Byggt
 enligt det kontraktet, inte uppfunnet från scratch.
@@ -1043,7 +1155,7 @@ enligt det kontraktet, inte uppfunnet från scratch.
   och `src/nouse/agent_system/{contract,folder_loader,pipeline,executors}.py`.
   `cli/commands/agent.py` fylld i (var placeholder), registrerad i
   `cli/main.py` som `nouse agent run "<text>"`.
-- **Nytt, privat (`IIC/04_SYSTEM/agents/`, pushas aldrig):**
+- **Nytt, privat (`IIC/system/agents/`, pushas aldrig):**
   `jarvis-policy.md` (Björns hårdregler — forskning stannar lokalt m.m.)
   plus tre agentkort (`local-routine`, `code-delegation`, `research-guard`)
   i samma YAML-frontmatter-format som redan bevisat fungerar i
@@ -1059,7 +1171,7 @@ enligt det kontraktet, inte uppfunnet från scratch.
   (relay-öppningen syns via `nouse relay show`). (3) uppdrag som nämner
   forskningsnyckelord (`NOUSE_RESEARCH_LOCAL_MARKERS` i `.env`) →
   `RESEARCH_LOCAL_VIOLATION`, blockerad oavsett uppdragsstorlek. Läcksökning
-  bekräftad: noll träffar på "bjorn/IIC/02_LIBRARY" i något publikt-sidigt
+  bekräftad: noll träffar på "bjorn/IIC/forskning" i något publikt-sidigt
   filträd.
 - **2026-08-24, senare pass: fem nya agentkort + stdio MCP-klient.**
   `src/nouse/agent_system/mcp_client.py` fick stdio-transport
@@ -1067,7 +1179,7 @@ enligt det kontraktet, inte uppfunnet från scratch.
   AgentMail — verifierad direkt mot den lokala `node`-bryggan
   (`getRecentMessages`, `listEvents`). Nya kort: `mail-triage`,
   `calendar-lookup` (läsning, Thunderbird), `voice-capture` (lokal
-  filskrivning, scopad till `00_INBOX/ljudanteckningar/`, medvetet lägre
+  filskrivning, scopad till `inbox/ljudanteckningar/`, medvetet lägre
   kvalitet än Claude Codes egen `/voicenote`-skill), `mail-compose`
   (bara `saveDraft`, ringer aldrig `sendMail`), `calendar-write`
   (`createEvent`, alltid via Thunderbirds egen granskningsdialog —
@@ -1130,7 +1242,7 @@ enligt det kontraktet, inte uppfunnet från scratch.
   "no new mail"). Demo-mejlet "nu ska jag visa" (bara ett test inför hans
   fru) raderat på Björns begäran via `delete_thread` — isolerad tråd, rörde
   ingen annan korrespondens.
-- Nytt privat agentkort: `IIC/04_SYSTEM/agents/agent-mail/AGENT.md` —
+- Nytt privat agentkort: `IIC/system/agents/agent-mail/AGENT.md` —
   `forbidden` nämner uttryckligen 2026-08-23-precedensen och att den inte
   fortsätts.
 - **Headless-eskalering nu riktigt inkopplad (samma session, senare pass).**
@@ -1146,7 +1258,7 @@ enligt det kontraktet, inte uppfunnet från scratch.
   ingen automatisk poll-tillbaka in i relay-sessionen än — nästa skiva.
   Mejl/kalender-integrationer fortfarande inte inkopplade.
 - **Ny `.env`-nyckel:** `NOUSE_AGENT_POLICY_DIR` (pekar på
-  `IIC/04_SYSTEM/agents`) och `NOUSE_RESEARCH_LOCAL_MARKERS` (citerad —
+  `IIC/system/agents`) och `NOUSE_RESEARCH_LOCAL_MARKERS` (citerad —
   kommaseparerad lista med mellanslag kraschar annars `source .env`).
 
 **Läs den här filen först i varje ny session.** Den är den enda källan till
@@ -1441,7 +1553,7 @@ klar och LIVE i produktion.** Ny `scope="user_model"` (`field/surface.py`,
 sensitiv likt `personal_health`) + ny modul `daemon/user_model_seed.py`:
 strukturerad parsning (INTE `extract_relations()`s LLM-extraktion — samma
 grundorsak som LongMemEval-lärdomen, precisa meningar ska inte spädas ut
-till vaga tematiska relationer) av `IIC/04_SYSTEM/system/PERSON.md` och
+till vaga tematiska relationer) av `IIC/system/system/PERSON.md` och
 Claude-minnesfiler (`metadata.type` ∈ {user, feedback}) till relationer
 typade `kommunikationsstil`/`lärstil`/`kognitivt_behov`/`personmönster`/
 `arbetssätt`. Idempotent. `scope_from_path()` i `daemon/sources.py`

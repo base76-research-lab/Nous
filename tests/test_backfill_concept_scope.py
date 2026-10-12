@@ -17,7 +17,7 @@ def test_derive_scope_returns_none_without_relation_source():
 
 
 def test_derive_scope_matches_a_single_iic_source():
-    ev = _evidence("/home/bjorn/IIC/01_PROJECTS/foo/notes.md")
+    ev = _evidence("/home/bjorn/IIC/projects/foo/notes.md")
     assert derive_scope_for_concept(ev) == "iic_general"
 
 
@@ -27,7 +27,7 @@ def test_derive_scope_prefers_the_sensitive_scope_when_sources_mix():
     single 'safe-looking' source outvote a genuinely sensitive one."""
     ev = _evidence(
         "/home/bjorn/Work/nous/README.md",  # nous_system, not sensitive
-        "/home/bjorn/IIC/02_LIBRARY/RESEARCH/papers/foo.md",  # research_plg, sensitive
+        "/home/bjorn/IIC/forskning/bibliotek/papers/foo.md",  # research_plg, sensitive
     )
     assert derive_scope_for_concept(ev) == "research_plg"
 
@@ -47,7 +47,7 @@ def test_run_backfill_dry_run_reports_without_writing(tmp_path):
     field.upsert_concept_knowledge(
         "plg_finding",
         summary="x", claims=[], uncertainty=0.5,
-        evidence_refs=["relation_source:/home/bjorn/IIC/02_LIBRARY/RESEARCH/papers/foo.md"],
+        evidence_refs=["relation_source:/home/bjorn/IIC/forskning/bibliotek/papers/foo.md"],
     )
 
     stats = run_backfill(field, apply=False)
@@ -64,7 +64,7 @@ def test_run_backfill_apply_writes_the_new_scope(tmp_path):
     field.upsert_concept_knowledge(
         "plg_finding",
         summary="x", claims=[], uncertainty=0.5,
-        evidence_refs=["relation_source:/home/bjorn/IIC/02_LIBRARY/RESEARCH/papers/foo.md"],
+        evidence_refs=["relation_source:/home/bjorn/IIC/forskning/bibliotek/papers/foo.md"],
     )
 
     stats = run_backfill(field, apply=True)

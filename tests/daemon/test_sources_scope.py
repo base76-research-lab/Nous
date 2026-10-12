@@ -6,11 +6,11 @@ from nouse.daemon.sources import scope_from_path
 
 
 def test_scope_from_path_flags_health_project():
-    assert scope_from_path(Path("/home/bjorn/IIC/01_PROJECTS/halsa-glp1/LOGG.md")) == "personal_health"
+    assert scope_from_path(Path("/home/bjorn/IIC/arkiv/halsa-glp1/LOGG.md")) == "personal_health"
 
 
 def test_scope_from_path_flags_glp1_mention_directly():
-    assert scope_from_path(Path("/home/bjorn/IIC/00_INBOX/ljudanteckningar/2026-08-23-gym-glp1-001.md")) in (
+    assert scope_from_path(Path("/home/bjorn/IIC/inbox/ljudanteckningar/2026-08-23-gym-glp1-001.md")) in (
         "personal_health", "voice_notes",
     )
 
@@ -20,7 +20,7 @@ def test_scope_from_path_flags_nous_source_tree():
 
 
 def test_scope_from_path_flags_voice_notes():
-    assert scope_from_path(Path("/home/bjorn/IIC/00_INBOX/ljudanteckningar/2026-08-22-test-01.md")) == "voice_notes"
+    assert scope_from_path(Path("/home/bjorn/IIC/inbox/ljudanteckningar/2026-08-22-test-01.md")) == "voice_notes"
 
 
 def test_scope_from_path_flags_research_library():

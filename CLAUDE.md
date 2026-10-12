@@ -68,6 +68,32 @@ anropar `extract_relations()` fristående från daemonen, annars misslyckas
 extraktionen tyst (`except Exception: rels = []`) utan felmeddelande i
 resultatet.
 
+## Jarvis / ICM-Larynx agent-pipeline (nytt 2026-08-24)
+
+En separat, folder-driven agentpipeline lever i det här repot ovanpå
+daemonen — Björns "Jarvis". Läs `ICM-agents.md` (kärnregel: LLM:en
+parsar/verbaliserar, kod routar/validerar, aldrig tvärtom) innan du rör
+något under `stages/`, `_config/`, `references/`, eller
+`src/nouse/agent_system/`.
+
+- **Stage-kontrakt:** `stages/01_parse_request` … `05_audit` — varje mapp
+  har sin egen `CONTEXT.md`.
+- **Kod:** `src/nouse/agent_system/{contract,folder_loader,pipeline,
+  executors,mcp_client}.py`. `pipeline.py::run_pipeline()` är den enda
+  ingången — CLI (`nouse agent run`), AgentMail-pollern och framtida röst
+  ska alla gå genom den, inte bygga egna parallella flöden.
+- **Agentkort (VAD systemet faktiskt kan göra) ligger INTE i det här
+  repot.** De är privata, deployment-specifika, och läses vid körning
+  från `NOUSE_AGENT_POLICY_DIR` (satt i `.env`, pekar på
+  `~/IIC/system/agents/` på Björns maskin). Det repot är inte pushat
+  hit av avsikt — se `jarvis-policy.md` där för hårdreglerna (forskning
+  stannar lokalt, tillåtna arbetsytor, sändningsspärrar).
+- **`scripts/agentmail_poll.py`** + `systemd/agentmail-poll.{service,timer}`
+  — periodisk check av `nouse@agentmail.to`, med stående sändningsrätt
+  (dokumenterat undantag, se jarvis-policy.md hårdregel 3).
+- Senaste status/beslut om det här spåret: sök `STATUS.md` efter "ICM"
+  eller "Jarvis" — flera separata pass 2026-08-24, senaste överst.
+
 ## Nous-specifikt
 
 - `brain.py` och `field/surface.py` är kärnan — ändra försiktigt.

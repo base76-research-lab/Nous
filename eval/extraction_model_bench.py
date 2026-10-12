@@ -43,7 +43,7 @@ NOUS_ROOT = Path(__file__).parent.parent
 # affärer/konsulting, filosofi/strategi, forskningsplan.
 CORPUS: list[tuple[str, str, Path, int, int]] = [
     ("nous_arkitektur", "system", NOUS_ROOT / "docs" / "NOUS_NEXT_GENERATION_PLAN.md", 0, 1800),
-    ("personlig_profil", "person", IIC / "04_SYSTEM" / "system" / "PERSON.md", 0, 1500),
+    ("personlig_profil", "person", IIC / "system" / "system" / "PERSON.md", 0, 1500),
     ("affär_konsulting", "företagsliv", MEMORY_DIR / "bjorn-sells-by-demonstration.md", 0, 1500),
     ("strategisk_doktrin", "AI-arkitektur", NOUS_ROOT / "docs" / "NOUS_STRATEGIC_DOCTRINE.md", 0, 1800),
     ("frontier_plan", "forskningsstrategi", NOUS_ROOT / "FRONTIER_PLAN.md", 0, 1800),
