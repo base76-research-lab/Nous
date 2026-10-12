@@ -1,0 +1,44 @@
+[Unit]
+Description=nouse Brain Loop — autonom kunskapsgraf
+Documentation=https://github.com/base76/nouse
+After=network-online.target ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/bjornwikstrom/Work/nous/.venv/bin/nouse daemon web --port 8767
+WorkingDirectory=/home/bjornwikstrom/Work/nous
+Restart=on-failure
+RestartSec=30s
+# Ge hjärnan tid att avsluta rent
+TimeoutStopSec=60s
+
+# Logga till journald
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nouse-brain
+
+# Hemligheter (CEREBRAS_API_KEY m.fl.) — separat fil, 600, gitignored
+EnvironmentFile=-/home/bjornwikstrom/Work/nous/.env
+
+# Miljövariabler
+Environment=PYTHONUNBUFFERED=1
+Environment=HOME=/home/bjornwikstrom
+Environment=NOUSE_OLLAMA_MODEL=gemma4:e2b
+Environment=NOUSE_CHAT_MODEL=gemma4:e2b
+Environment=NOUSE_EXTRACT_MODEL=gemma4:e2b
+Environment=NOUSE_SYNTH_MODEL=gemma4:e2b
+Environment=NOUSE_MODEL_CANDIDATES_CHAT=gemma4:e2b
+Environment=NOUSE_MODEL_CANDIDATES_EXTRACT=groq/qwen/qwen3.6-27b,gemma4:e2b,dolphin3:8b
+Environment=NOUSE_MODEL_CANDIDATES_SYNTH=gemma4:e2b
+Environment=NOUSE_LOOP_INTERVAL_SEC=120
+Environment=NOUSE_SOURCE_PROGRESS_TRACE=1
+Environment=NOUSE_SOURCE_PROGRESS_DOC_EVERY=3
+Environment=NOUSE_WATCH_EXTRA_PATHS=/home/bjornwikstrom
+# Fix 2026-08-23: default embed-modell (nomic-embed-text-v2-moe) är inte
+# installerad, gav 404 mot Ollama. Peka på det som faktiskt finns —
+# blockerade semantisk bisociation OCH Brain View lager 4 (TDA-positioner).
+Environment=NOUSE_EMBED_MODEL=nomic-embed-text:latest
+
+[Install]
+WantedBy=default.target
